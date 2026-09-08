@@ -15,7 +15,10 @@ docker run --rm --network none --privileged \
  --entrypoint /bin/sh "$OPENRHP_ENGINE_LAB_IMAGE" -eu -c '
  mkdir -p /usr/libexec
  cp /lab/openrhp-helper /usr/libexec/openrhp-helper
- chown root:root /usr/libexec/openrhp-helper
- chmod 0755 /usr/libexec/openrhp-helper
- /lab/helper.test -test.v -test.run "^TestLinuxManagedEngine(WorkerPrivilegesAndCleanup|RPCUnprivilegedAPIAndCrashCleanup|AfterHelperSIGKILL)$"
+ # The host mktemp directory is 0700. An unprivileged fixture must not execute
+ # through that bind mount; copy the public test binary to a traversable path.
+ cp /lab/helper.test /usr/libexec/openrhp-lab-helper.test
+ chown root:root /usr/libexec/openrhp-helper /usr/libexec/openrhp-lab-helper.test
+ chmod 0755 /usr/libexec/openrhp-helper /usr/libexec/openrhp-lab-helper.test
+ /usr/libexec/openrhp-lab-helper.test -test.v -test.run "^TestLinuxManagedEngine(WorkerPrivilegesAndCleanup|RPCUnprivilegedAPIAndCrashCleanup|AfterHelperSIGKILL)$"
  '
