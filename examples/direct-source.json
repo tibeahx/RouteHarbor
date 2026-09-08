@@ -1,0 +1,8 @@
+{
+  "id": "direct",
+  "name": "Direct access",
+  "type": "direct",
+  "enabled": true,
+  "auto": true,
+  "settings": {}
+}

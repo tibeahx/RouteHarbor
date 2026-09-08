@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo 'Use existing router administrator access.' >&2; exit 1; }
+[ -f /etc/openwrt_release ] || { echo 'OpenWrt is required.' >&2; exit 1; }
+[ "$#" -eq 1 ] || { echo 'Usage: openrhp-node-setup /root/private-directory/enrollment.code' >&2; exit 1; }
+case "$1" in /*) ;; *) echo 'Enrollment output must be an absolute private path.' >&2; exit 1 ;; esac
+[ ! -L /etc/openrhp-node ] || { echo 'Refusing a symbolic-link node state directory.' >&2; exit 1; }
+if [ -f /etc/openrhp-node/identity.json ]; then
+ [ -f "$1" ] && [ ! -L "$1" ] || { echo 'Identity already exists. Generate a fresh enrollment code as the node service user through trusted administrator access.' >&2; exit 1; }
+ printf '%s\n' 'Existing node identity retained. Enrollment codes retain their original expiration.'
+else
+ mkdir -p /etc/openrhp-node
+ chmod 0700 /etc/openrhp-node
+ /usr/bin/openrhp-node bootstrap --state-dir /etc/openrhp-node --enrollment-file "$1"
+ chown -h openrhp-node:openrhp-node /etc/openrhp-node/identity.lock /etc/openrhp-node/identity.json /etc/openrhp-node/enrollment.lock /etc/openrhp-node/enrollment.json
+ chown -h openrhp-node:openrhp-node /etc/openrhp-node
+fi
+uci set openrhp-node.main.enabled='1'
+uci commit openrhp-node
+/etc/init.d/openrhp-node-helper enable
+/etc/init.d/openrhp-node-helper start
+/etc/init.d/openrhp-node enable
+/etc/init.d/openrhp-node start
+printf '%s\n' 'Node initialized on loopback. Choose an explicit trusted LAN management address before pairing from the gateway; verify the displayed fingerprint through administrator access.'

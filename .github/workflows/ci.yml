@@ -1,0 +1,82 @@
+name: Verify
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: sh scripts/lint.sh
+      - run: sh scripts/fmt.sh --check
+  core:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: go test -race -count=1 ./...
+      - run: go vet ./...
+      - run: python3 scripts/check-docs.py
+      - run: python3 -m unittest discover -s packaging/tests -v
+      - run: sh scripts/build-matrix.sh
+      - run: sh scripts/check-reproducible.sh
+      - run: python3 scripts/sbom.py > dist/sbom.spdx.json
+      - name: Reject accidental private key fixtures
+        run: python3 scripts/check-secrets.py
+  browser:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: npm ci --prefix tests/browser --ignore-scripts
+      - run: sh scripts/format-web.sh --check
+      - run: tests/browser/node_modules/.bin/playwright install --with-deps chromium
+      - run: sh scripts/test-browser.sh
+  linux-network:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: go.mod
+          cache: false
+      - run: sh scripts/lab-paths.sh
+      - run: sh scripts/lab-network.sh
+      - run: sh scripts/lab-uci.sh
+      - run: sh scripts/lab-node-link.sh
+      - run: sh scripts/lab-admin.sh
+      - run: sh scripts/lab-engines.sh
+      - run: sh scripts/lab-engine-worker.sh
+  security:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+        with:
+          go-version-file: go.mod
+          cache: false
+      - name: Scan known reachable Go vulnerabilities
+        run: |
+          GOBIN="$RUNNER_TEMP/openrhp-tools" go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          "$RUNNER_TEMP/openrhp-tools/govulncheck" ./...
+      - name: Scan repository history for secrets
+        run: |
+          mkdir -p "$RUNNER_TEMP/openrhp-gitleaks"
+          curl --fail --silent --show-error --location --proto '=https' https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/openrhp-gitleaks/archive.tar.gz"
+          printf '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  %s\n' "$RUNNER_TEMP/openrhp-gitleaks/archive.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/openrhp-gitleaks/archive.tar.gz" -C "$RUNNER_TEMP/openrhp-gitleaks" gitleaks
+          "$RUNNER_TEMP/openrhp-gitleaks/gitleaks" git --redact --no-banner .

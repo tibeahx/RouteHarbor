@@ -1,0 +1,28 @@
+#!/bin/sh
+# Run only over existing trusted router administrator access. No first-LAN-owner.
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo 'Use existing router administrator access.' >&2; exit 1; }
+[ -f /etc/openwrt_release ] || { echo 'An installed OpenWrt system is required.' >&2; exit 1; }
+[ "$#" -eq 1 ] || { echo 'Usage: openrhp-setup /root/private-directory/admin.token' >&2; exit 1; }
+case "$1" in /*) ;; *) echo 'Credential output must be an absolute private path.' >&2; exit 1 ;; esac
+/usr/bin/openrhp doctor --require-openwrt >/dev/null
+[ ! -L /etc/openrhp ] || { echo 'Refusing a symbolic-link state directory.' >&2; exit 1; }
+if [ -f /etc/openrhp/auth/credentials.json ]; then
+ [ -f "$1" ] && [ ! -L "$1" ] || { echo 'Already initialized: supply your existing credential file or rotate credentials through trusted administrator access.' >&2; exit 1; }
+ printf '%s\n' 'Existing identity and credentials retained.'
+else
+ mkdir -p /etc/openrhp
+ chmod 0700 /etc/openrhp
+ /usr/bin/openrhp bootstrap --state /etc/openrhp --token-file "$1"
+ # Only the fixed files created by bootstrap are handed to the service user.
+ # Never recursively chown a tree that the unprivileged service can modify.
+ chown -h openrhp:openrhp /etc/openrhp/.lock /etc/openrhp/config.json /etc/openrhp/auth/.credentials.lock /etc/openrhp/auth/credentials.json
+ chown -h openrhp:openrhp /etc/openrhp/auth /etc/openrhp
+fi
+uci set openrhp.main.enabled='1'
+uci commit openrhp
+/etc/init.d/openrhp-guard enable
+/etc/init.d/openrhp-guard start
+/etc/init.d/openrhp enable
+/etc/init.d/openrhp start
+printf '%s\n' 'Setup complete. Use a trusted SSH tunnel to 127.0.0.1:8787; traffic routing remains off until explicitly configured and confirmed.'

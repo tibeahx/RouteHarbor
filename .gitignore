@@ -1,0 +1,10 @@
+/bin/
+/dist/
+/.local/
+/*.test
+/coverage*
+.DS_Store
+*.prof
+node_modules/
+test-results/
+__pycache__/

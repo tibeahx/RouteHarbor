@@ -1,0 +1,8 @@
+{
+  "id": "my-proxy",
+  "name": "My SOCKS5 proxy",
+  "type": "socks5",
+  "enabled": false,
+  "auto": false,
+  "settings": {"server": "proxy.example.com", "server_port": 1080}
+}

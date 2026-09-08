@@ -1,0 +1,54 @@
+package main
+
+import (
+	"context"
+	"path/filepath"
+	"time"
+
+	"github.com/tibeahx/OpenRHP/internal/api"
+	"github.com/tibeahx/OpenRHP/internal/control"
+	"github.com/tibeahx/OpenRHP/internal/helper"
+	"github.com/tibeahx/OpenRHP/internal/node"
+	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/OpenRHP/internal/probe"
+)
+
+// Services are wired here so UI and agent use identical runtime operations.
+func wireServices(s *api.Server, state, socket string) error {
+	var err error
+	state, err = filepath.Abs(state)
+	if err != nil {
+		return err
+	}
+	nodes, e := node.NewService(
+		filepath.Join(state, "nodes"),
+		func(ctx context.Context) node.Capabilities { return node.CapabilitiesFrom(platform.Detect(ctx)) },
+	)
+	if e != nil {
+		return e
+	}
+	s.Coverage = nodes
+	if socket != "" {
+		client := &helper.Client{SocketPath: socket, ExpectedUID: 0}
+		s.Runtime.Adapters.EnableTransparent = true
+		s.Runtime.Adapters.Packet = client
+		s.Runtime.Adapters.NativeProbes = client
+		s.Runtime.Adapters.ManagedEngines = client
+		s.Runtime.Adapters.DNSResolver = s.Runtime.Store.Get().Network.DNSResolver
+		s.Runtime.Adapters.EnableIPv6 = s.Runtime.Store.Get().Network.IPv6 == "proxy"
+		if p, ok := s.Runtime.Prober.(*probe.Runner); ok {
+			p.DialProbe = client
+			p.ConfigureDNS(
+				s.Runtime.Store.Get().Network.Enabled,
+				s.Runtime.Store.Get().Network.DNSResolver,
+			)
+		}
+		n := &control.NetworkCoordinator{Runtime: s.Runtime, Client: client}
+		s.Network = n
+		s.Runtime.Network = n
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		_ = n.Initialize(ctx)
+	}
+	return nil
+}

@@ -1,0 +1,12 @@
+title = "OpenRHP secret scanning"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "Verified public Xray v26.3.27 release SHA-256 digests are not JFrog credentials."
+targetRules = ["jfrog-identity-token"]
+condition = "AND"
+paths = ['''^docker/lab-engines/Dockerfile$''']
+regexTarget = "secret"
+regexes = ['''^(4d30283ae614e3057f730f67cd088a42be6fdf91f8639d82cb69e48cde80413c|23cd9af937744d97776ee35ecad4972cf4b2109d1e0fe6be9930467608f7c8ae)$''']

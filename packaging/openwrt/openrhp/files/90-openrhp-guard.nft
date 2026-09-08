@@ -1,0 +1,2 @@
+# Reloaded by fw4 at ruleset scope, outside its own inet fw4 table.
+include "/etc/openrhp-helper/guard.nft"

@@ -1,0 +1,12 @@
+target,goarch,abi,bytes
+amd64,amd64,amd64,3539068
+386,386,386,3604604
+armv5,arm,armv5,3670140
+armv6,arm,armv6,3670140
+armv7,arm,armv7,3670140
+arm64,arm64,arm64,3342460
+mips-softfloat,mips,mips-softfloat,4128923
+mipsle-softfloat,mipsle,mipsle-softfloat,4128923
+mips64-softfloat,mips64,mips64-softfloat,3932284
+mips64le-softfloat,mips64le,mips64le-softfloat,3932284
+riscv64,riscv64,riscv64,3276924

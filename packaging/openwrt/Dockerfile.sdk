@@ -1,0 +1,7 @@
+# Build with --platform=linux/amd64 for the official x86-64-host OpenWrt SDK.
+FROM debian:bookworm-slim@sha256:88200866dfff7ea7f5cbcb6ec7c8a701889efe6fe859fe64d6990e4b07ea4171
+RUN apt-get update && apt-get install -y --no-install-recommends \
+ build-essential gawk gettext unzip file zlib1g-dev libssl-dev libncurses-dev \
+ python3 python3-setuptools rsync perl flex bison ca-certificates zstd git bc \
+ patch cpio wget xz-utils && rm -rf /var/lib/apt/lists/*
+WORKDIR /work

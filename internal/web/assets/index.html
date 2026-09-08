@@ -1,0 +1,542 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>OpenRHP · Your home network</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/style.css" />
+    <script src="/strings.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="masthead">
+      <a class="brand" href="#overview" aria-label="OpenRHP home"
+        ><svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true">
+          <path d="M6 21 20 8l14 13v13H6Z" fill="none" stroke="currentColor" stroke-width="2.5" />
+          <path d="M13 24h14m-7-6v12" fill="none" stroke="currentColor" stroke-width="2.5" /></svg
+        ><span>OpenRHP<small>OpenReverseHomeProxy</small></span></a
+      >
+      <div class="header-right">
+        <span id="connection" class="status-label">Local management</span
+        ><button id="signout" class="quiet" hidden>Sign out</button>
+      </div>
+    </header>
+    <main id="main">
+      <section id="login" class="login">
+        <div class="intro">
+          <span class="eyebrow">Your network, under your control</span>
+          <h1>A clear view<br />of your way online.</h1>
+          <p>
+            Keep your access methods in one place, check their quality and choose a reliable path
+            for your home.
+          </p>
+          <div class="privacy-note">
+            <span aria-hidden="true">◇</span>
+            <p>
+              Runs on your router. Your configurations stay with you. No cloud account required.
+            </p>
+          </div>
+        </div>
+        <form id="login-form" class="login-form">
+          <h2>Connect to your gateway</h2>
+          <p>Use the local access key created during setup.</p>
+          <label for="access-key">Access key</label
+          ><input
+            id="access-key"
+            type="password"
+            autocomplete="off"
+            required
+            spellcheck="false"
+          /><button type="submit" class="primary">Connect</button>
+          <p class="hint">
+            Retrieve your key through your existing trusted router access. A device on your Wi-Fi
+            cannot claim ownership.
+          </p>
+          <p id="login-error" role="alert" class="error"></p>
+        </form>
+      </section>
+      <div id="workspace" hidden>
+        <nav class="tabs" aria-label="Main navigation">
+          <a href="#overview" data-tab="overview" aria-current="page">Overview</a
+          ><a href="#sources" data-tab="sources">Access methods <span id="source-count">0</span></a
+          ><a href="#coverage" data-tab="coverage">Coverage</a>
+        </nav>
+        <div id="notice" class="notice" role="status" hidden></div>
+        <section id="overview" class="page">
+          <div class="page-heading">
+            <div>
+              <h1>Your network</h1>
+              <p>Connection quality, without the guesswork.</p>
+            </div>
+            <button id="check-all" class="secondary">Check all methods</button>
+          </div>
+          <div class="network-view">
+            <div class="home-icon" aria-hidden="true">
+              <svg viewBox="0 0 80 80">
+                <path
+                  d="m15 39 25-23 25 23v29H15Z M32 68V45h16v23"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                /></svg
+              ><span>Your home</span>
+            </div>
+            <div class="path-line" aria-hidden="true"><span></span></div>
+            <div class="selected">
+              <div class="status-line">
+                <span id="decision-dot" class="dot neutral"></span
+                ><span id="decision-state">Not checked</span>
+              </div>
+              <h2 id="active-name">No path selected</h2>
+              <p id="decision-reason">Add an access method and a resource to check.</p>
+              <div class="metric-row">
+                <div><span id="latency">—</span><small>Response time</small></div>
+                <div><span id="speed">—</span><small>Download speed</small></div>
+                <div><span id="freshness">—</span><small>Last checked</small></div>
+              </div>
+            </div>
+          </div>
+          <div id="routing-banner" class="routing-banner">
+            <strong>Traffic routing is not applied.</strong
+            ><span
+              >Checks and selection run on this gateway. Applying a network plan is a separate
+              step.</span
+            >
+          </div>
+          <div class="overview-columns">
+            <section class="panel">
+              <div class="section-heading">
+                <h2>Path selection</h2>
+                <span id="mode-label" class="pill">Off</span>
+              </div>
+              <p id="mode-description">
+                Choose automatically after repeated checks, or keep one method selected.
+              </p>
+              <form id="policy-form">
+                <label for="selection-mode">Selection mode</label
+                ><select id="selection-mode">
+                  <option value="off">Off</option>
+                  <option value="auto">Automatic</option>
+                  <option value="manual">Keep one method</option>
+                </select>
+                <div id="pinned-field" hidden>
+                  <label for="pinned-source">Access method</label
+                  ><select id="pinned-source"></select>
+                </div>
+                <details>
+                  <summary>Selection thresholds and fallback</summary>
+                  <label for="fallback">When no healthy path remains</label
+                  ><select id="fallback">
+                    <option value="closed">Block protected traffic</option>
+                    <option value="direct">Allow direct fallback</option></select
+                  ><label for="improvement">Required improvement (%)</label
+                  ><input id="improvement" type="number" min="1" max="1000" /><label
+                    for="confirmations"
+                    >Confirming checks</label
+                  ><input id="confirmations" type="number" min="1" max="100" />
+                </details>
+                <button class="primary" type="submit">Save selection</button>
+              </form>
+            </section>
+            <section class="panel">
+              <div class="section-heading">
+                <h2>Resources to check</h2>
+                <button id="add-resource" class="quiet">Add resource</button>
+              </div>
+              <p>
+                Use independent HTTPS resources you need to reach. Required resources decide whether
+                a path is usable.
+              </p>
+              <ul id="target-list" class="resource-list"></ul>
+              <div id="targets-empty" class="empty-inline">
+                No resources yet. Add the first resource to start checking your methods.
+              </div>
+            </section>
+          </div>
+          <details class="history">
+            <summary>Selection history</summary>
+            <ol id="history-list"></ol>
+          </details>
+          <details class="advanced">
+            <summary>Gateway setup and diagnostics</summary>
+            <p id="platform-message"></p>
+            <form id="network-form">
+              <div class="form-grid">
+                <div>
+                  <label for="lan-devices">LAN devices</label
+                  ><input
+                    id="lan-devices"
+                    placeholder="Select discovered devices below"
+                    autocomplete="off"
+                  />
+                </div>
+                <div>
+                  <label for="wan-device">WAN device</label
+                  ><input id="wan-device" autocomplete="off" />
+                </div>
+              </div>
+              <label for="local-prefixes">Local subnets (comma separated)</label
+              ><input id="local-prefixes" autocomplete="off" />
+              <p id="discovered-interfaces" class="hint"></p>
+              <label for="dns-mode">DNS policy</label
+              ><select id="dns-mode">
+                <option value="block">Block unprotected DNS</option>
+                <option value="selected-path">Use the selected access method</option></select
+              ><label for="dns-resolver">DNS resolver IP (required for selected path)</label
+              ><input
+                id="dns-resolver"
+                autocomplete="off"
+                placeholder="Your chosen public resolver"
+              /><label class="check"
+                ><input id="network-enabled" type="checkbox" />Enable this gateway plan</label
+              >
+              <p class="hint">
+                Unsupported DNS, IPv6, UDP or firewall behavior stops preflight. Existing WAN and
+                LAN settings are preserved.
+              </p>
+              <button type="submit" class="secondary">Save gateway plan</button
+              ><button type="button" id="prepare-network" class="secondary">Prepare routing</button>
+            </form>
+            <div id="transaction-panel" hidden>
+              <p id="transaction-detail"></p>
+              <button id="apply-network" class="primary">Apply with rollback timer</button
+              ><button id="confirm-network" class="secondary">Confirm tested connectivity</button
+              ><button id="rollback-network" class="quiet">Roll back</button>
+            </div>
+            <button id="download-diagnostics" class="quiet">Download diagnostics</button>
+          </details>
+        </section>
+        <section id="sources" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <h1>Access methods</h1>
+              <p>Keep your options open. Check each path independently.</p>
+            </div>
+            <button id="add-source" class="primary">Add access method</button>
+          </div>
+          <div id="source-list" class="source-list"></div>
+          <div id="sources-empty" class="empty-state">
+            <svg viewBox="0 0 80 80" width="80" aria-hidden="true">
+              <path d="M17 40h46M40 17v46" stroke="currentColor" stroke-width="2" />
+              <circle cx="40" cy="40" r="29" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+            <h2>Start with your first path</h2>
+            <p>
+              Add direct access, a proxy or your own connection configuration. Nothing changes on
+              your network until you apply routing.
+            </p>
+            <button id="add-first-source" class="primary">Add access method</button>
+          </div>
+        </section>
+        <section id="coverage" class="page" hidden>
+          <div class="page-heading">
+            <div>
+              <h1>A little further from the router.</h1>
+              <p>Extend the same home network with a second access point.</p>
+            </div>
+          </div>
+          <div class="coverage-intro">
+            <div class="coverage-diagram" aria-hidden="true">
+              <span class="router-symbol">⌂<small>Gateway</small></span
+              ><span class="wireless-link">)))</span
+              ><span class="router-symbol">⌂<small>Access point</small></span>
+            </div>
+            <div>
+              <h2>One gateway. More coverage.</h2>
+              <p>
+                Wi-Fi is the first choice when both devices support an encrypted bridge. Ethernet is
+                also available. Your main router keeps handling addresses and path selection.
+              </p>
+              <button id="pair-node" class="primary">Add an access point</button>
+              <p class="hint">
+                OpenWrt devices require a paired node agent. Factory firmware needs a verified model
+                adapter or manual setup.
+              </p>
+            </div>
+          </div>
+          <div id="node-list"></div>
+          <section
+            id="coverage-wizard"
+            class="panel coverage-wizard"
+            aria-labelledby="coverage-wizard-title"
+            hidden
+          >
+            <div class="section-heading">
+              <h2 id="coverage-wizard-title" tabindex="-1">Set up your access point</h2>
+              <button id="coverage-close" class="quiet" type="button">Close setup</button>
+            </div>
+            <ol class="coverage-steps" aria-label="Coverage setup progress">
+              <li data-coverage-step="connection" aria-current="step">Connection</li>
+              <li data-coverage-step="review">Review</li>
+              <li data-coverage-step="test">Test and confirm</li>
+            </ol>
+            <p id="coverage-message" role="status">Reading the access point's current settings.</p>
+            <aside class="coverage-link" aria-labelledby="coverage-link-title">
+              <div class="section-heading">
+                <h3 id="coverage-link-title">Access point uplink</h3>
+                <button id="coverage-link-refresh" type="button" class="quiet">
+                  Refresh link measurements
+                </button>
+              </div>
+              <p id="coverage-link-summary">No uplink measurements have been read.</p>
+              <dl id="coverage-link-facts" class="coverage-facts"></dl>
+              <p class="hint">
+                These local link measurements stay separate from access-method scores. Radio rates
+                are not download speed; cumulative errors are not a measured loss percentage.
+              </p>
+            </aside>
+            <form id="coverage-form">
+              <div id="coverage-bridge-choice" hidden>
+                <label for="coverage-bridge">Home network on this access point</label
+                ><select id="coverage-bridge"></select>
+              </div>
+              <div class="form-grid">
+                <div>
+                  <label for="coverage-connection">Connect to the main router by</label
+                  ><select id="coverage-connection">
+                    <option value="ethernet">Ethernet cable</option>
+                    <option value="wifi">Wi-Fi</option>
+                  </select>
+                </div>
+                <div>
+                  <label for="coverage-port" id="coverage-port-label"
+                    >Port connected to the main router</label
+                  ><select id="coverage-port" required></select>
+                </div>
+              </div>
+              <p id="coverage-compatibility" class="hint"></p>
+              <label for="coverage-gateway">Main router's LAN address</label
+              ><input
+                id="coverage-gateway"
+                required
+                inputmode="decimal"
+                autocomplete="off"
+                placeholder="The address used to open your main router"
+              />
+              <p id="coverage-management" class="hint"></p>
+              <label class="check" id="coverage-wifi-toggle"
+                ><input id="coverage-set-wifi" type="checkbox" />Set the access point's Wi-Fi name
+                and password</label
+              >
+              <div id="coverage-radio-fields" hidden>
+                <label for="coverage-radio">Wi-Fi radio</label
+                ><select id="coverage-radio"></select
+                ><label for="coverage-ssid">Home Wi-Fi name</label
+                ><input id="coverage-ssid" maxlength="32" autocomplete="off" /><label
+                  for="coverage-password"
+                  >Home Wi-Fi password</label
+                ><input
+                  id="coverage-password"
+                  type="password"
+                  minlength="8"
+                  maxlength="63"
+                  autocomplete="new-password"
+                /><label for="coverage-channel">Wi-Fi channel</label
+                ><input id="coverage-channel" type="number" min="1" max="233" />
+                <p class="hint">
+                  Use your main router's home Wi-Fi settings. A common name does not guarantee that
+                  every device will roam automatically.
+                </p>
+              </div>
+              <details>
+                <summary>Detected settings and compatibility</summary>
+                <dl id="coverage-detected" class="coverage-facts"></dl>
+                <div id="coverage-wireless-protocol" hidden>
+                  <label for="coverage-protocol">Verified wireless bridge mode</label
+                  ><select id="coverage-protocol"></select>
+                </div>
+                <p id="coverage-capability-evidence" class="hint"></p>
+              </details>
+              <label class="check"
+                ><input id="coverage-management-confirm" type="checkbox" required />I can still
+                reach the access point through a separate trusted management connection.</label
+              >
+              <button id="coverage-preview" type="submit" class="primary" disabled>
+                Review setup</button
+              ><button id="coverage-reload" type="button" class="quiet">Read settings again</button>
+            </form>
+            <div id="coverage-review" hidden>
+              <h3>Ready to prepare</h3>
+              <dl id="coverage-review-facts" class="coverage-facts"></dl>
+              <p>
+                The access point will keep one uplink. Your main router remains the only gateway and
+                address server.
+              </p>
+              <div class="coverage-actions">
+                <button id="coverage-prepare" type="button" class="primary">
+                  Prepare access point</button
+                ><button id="coverage-edit" type="button" class="secondary">Edit connection</button>
+              </div>
+            </div>
+            <div id="coverage-transaction" hidden>
+              <h3 id="coverage-transaction-title">Access point prepared</h3>
+              <p id="coverage-transaction-detail"></p>
+              <p id="coverage-countdown" class="coverage-countdown" aria-live="polite"></p>
+              <button id="coverage-apply" type="button" class="primary">
+                Apply with a 90-second rollback timer
+              </button>
+              <fieldset id="coverage-checks" hidden>
+                <legend>Check from a device connected to this access point</legend>
+                <label class="check"
+                  ><input id="coverage-check-management" type="checkbox" />I can open the main
+                  router and the access point.</label
+                ><label class="check"
+                  ><input id="coverage-check-address" type="checkbox" />The device receives its
+                  address and DNS from the main router.</label
+                ><label class="check"
+                  ><input id="coverage-check-internet" type="checkbox" />The required websites work
+                  through the intended access method.</label
+                >
+                <p class="hint">
+                  A successful response from this panel does not check client traffic for you.
+                </p>
+              </fieldset>
+              <div class="coverage-actions">
+                <button id="coverage-confirm" type="button" class="primary" hidden disabled>
+                  Confirm tested connection</button
+                ><button id="coverage-rollback" type="button" class="secondary">Roll back</button
+                ><button id="coverage-status" type="button" class="quiet">
+                  Refresh access point status
+                </button>
+              </div>
+            </div>
+          </section>
+          <section class="panel coverage-help">
+            <h2>Before you connect</h2>
+            <ul>
+              <li>Confirm trusted administrator access to both routers.</li>
+              <li>Install the node agent and verify its device fingerprint.</li>
+              <li>Use only one uplink at a time to avoid a network loop.</li>
+            </ul>
+            <p>
+              Uplink quality is measured separately. A weak Wi-Fi link should not trigger a
+              pointless VPN change.
+            </p>
+            <p>
+              Wireless setup stays unavailable until both devices prove encrypted bridge
+              compatibility and the gateway backhaul is ready. An advertised radio mode alone is not
+              enough.
+            </p>
+          </section>
+        </section>
+        <footer>
+          <span>OpenRHP <span id="version">development</span></span
+          ><span id="footer-state">Local control · No cloud account</span>
+        </footer>
+      </div>
+    </main>
+    <dialog id="source-dialog">
+      <form id="source-form">
+        <div class="dialog-heading">
+          <h2>Add access method</h2>
+          <button type="button" class="close quiet" aria-label="Close dialog">×</button>
+        </div>
+        <label for="source-name">Name</label
+        ><input id="source-name" required maxlength="128" placeholder="My connection" /><label
+          for="source-type"
+          >Connection type</label
+        ><select id="source-type">
+          <option value="direct">Direct access</option>
+          <option value="socks5">SOCKS5 proxy</option>
+          <option value="http-connect">HTTP CONNECT proxy</option>
+          <option value="sing-box">sing-box connection</option>
+          <option value="xray">Xray connection</option>
+          <option value="interface">Existing tunnel interface</option>
+          <option value="packet-engine">DPI packet engine</option>
+        </select>
+        <p id="source-type-hint" class="hint"></p>
+        <div id="proxy-fields" hidden>
+          <div class="form-grid">
+            <div>
+              <label for="proxy-server">Server</label><input id="proxy-server" autocomplete="off" />
+            </div>
+            <div>
+              <label for="proxy-port">Port</label
+              ><input id="proxy-port" type="number" min="1" max="65535" />
+            </div>
+          </div>
+          <label for="proxy-user">Username (optional)</label
+          ><input id="proxy-user" autocomplete="off" /><label for="proxy-password"
+            >Password (optional)</label
+          ><input id="proxy-password" type="password" autocomplete="new-password" />
+        </div>
+        <div id="interface-field" hidden>
+          <label for="interface-name">Tunnel device</label
+          ><input id="interface-name" autocomplete="off" />
+        </div>
+        <div id="import-field" hidden>
+          <label for="source-import">Connection configuration</label
+          ><textarea id="source-import" rows="8" spellcheck="false" autocomplete="off"></textarea>
+          <p class="hint">
+            Only the documented safe outbound format is accepted. Additional listeners, files and
+            scripts are rejected.
+          </p>
+        </div>
+        <label class="check"
+          ><input id="source-auto" type="checkbox" checked />Include in automatic selection</label
+        >
+        <div class="dialog-actions">
+          <button type="button" class="close secondary">Cancel</button
+          ><button type="submit" class="primary">Add method</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="resource-dialog">
+      <form id="resource-form">
+        <div class="dialog-heading">
+          <h2>Add a resource</h2>
+          <button type="button" class="close quiet" aria-label="Close dialog">×</button>
+        </div>
+        <label for="resource-url">HTTPS address</label
+        ><input id="resource-url" type="url" required placeholder="https://example.com/" /><label
+          for="resource-status"
+          >Expected HTTP status</label
+        ><input id="resource-status" type="number" value="200" min="200" max="599" required /><label
+          class="check"
+          ><input id="resource-required" type="checkbox" checked />Required for a usable path</label
+        >
+        <details>
+          <summary>Download limit</summary>
+          <label for="resource-limit">Maximum bytes per speed check</label
+          ><input id="resource-limit" type="number" value="1048576" min="1" max="8388608" />
+        </details>
+        <p class="hint">
+          Checks send requests to this resource through each enabled method. Private addresses and
+          redirects are refused.
+        </p>
+        <div class="dialog-actions">
+          <button type="button" class="close secondary">Cancel</button
+          ><button type="submit" class="primary">Add resource</button>
+        </div>
+      </form>
+    </dialog>
+    <dialog id="node-dialog" aria-labelledby="node-dialog-title">
+      <form id="node-form">
+        <div class="dialog-heading">
+          <h2 id="node-dialog-title">Add an access point</h2>
+          <button type="button" class="close quiet" aria-label="Close dialog">×</button>
+        </div>
+        <p>
+          Verify the fingerprint using your trusted administrator connection before entering a
+          pairing code.
+        </p>
+        <label for="node-name">Name</label><input id="node-name" required maxlength="128" /><label
+          for="node-address"
+          >Node HTTPS address</label
+        ><input id="node-address" type="url" required placeholder="https://…" /><label
+          for="node-fingerprint"
+          >Verified SHA-256 fingerprint</label
+        ><input id="node-fingerprint" required autocomplete="off" /><label for="node-code"
+          >One-time pairing code</label
+        ><input id="node-code" type="password" required autocomplete="off" />
+        <div class="dialog-actions">
+          <button type="button" class="close secondary">Cancel</button
+          ><button type="submit" class="primary">Verify and pair</button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>

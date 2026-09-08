@@ -1,0 +1,3 @@
+[
+  {"id": "example-resource", "url": "https://example.com/", "required": true, "status_codes": [200], "max_bytes": 1048576}
+]
