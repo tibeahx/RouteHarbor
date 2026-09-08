@@ -21,7 +21,7 @@ type (
 		ID        string    `json:"id"`
 		State     string    `json:"state"`
 		CreatedAt time.Time `json:"created_at"`
-		Deadline  time.Time `json:"deadline,omitempty"`
+		Deadline  time.Time `json:"deadline"`
 		Plan      Plan      `json:"plan"`
 		ErrorCode string    `json:"error_code,omitempty"`
 	}

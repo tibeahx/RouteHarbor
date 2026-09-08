@@ -15,7 +15,10 @@ docker run --rm --network none --privileged \
  --env OPENRHP_NET_LAB=1 --env OPENRHP_PACKET_LAB=1 --entrypoint /bin/sh "$OPENRHP_LAB_IMAGE" -eu -c '
  mkdir -p /usr/libexec
  cp /lab/openrhp-helper /usr/libexec/openrhp-helper
+ cp /lab/helper.test /usr/libexec/openrhp-helper.test
  chown root:root /usr/libexec/openrhp-helper
+ chown root:root /usr/libexec/openrhp-helper.test
  chmod 0755 /usr/libexec/openrhp-helper
- /lab/helper.test -test.v -test.run "^(TestLinux(RealNFTAndRoutes|ForeignDefaultPriorityRefused|IndependentWatchdogAfterHelperSIGKILL|LifecyclePersistedGuardAndRemoval|RollbackRetainsGuardOwnership|BootGuardCrashRecovery|PacketSupervisorAfterManagerSIGKILL|FirstUseNativeProbeRegistration)|TestNativePacketLifecycle)$"
+ chmod 0755 /usr/libexec/openrhp-helper.test
+ /usr/libexec/openrhp-helper.test -test.v -test.run "^(TestLinux(RealNFTAndRoutes|ConntrackResetPreservesCurrentAndForeignFlows|ForeignDefaultPriorityRefused|IndependentWatchdogAfterHelperSIGKILL|GatewayWatchdogAfterManagerSIGKILL|LifecyclePersistedGuardAndRemoval|RollbackRetainsGuardOwnership|BootGuardCrashRecovery|PacketSupervisorAfterManagerSIGKILL|FirstUseNativeProbeRegistration)|TestNativePacketLifecycle)$"
  '

@@ -21,7 +21,7 @@ test('coverage explains its real capability gate and rejects an unverified ident
   await login(page);
   await expect(
     page.getByText(
-      'Wireless setup stays unavailable until both devices prove encrypted bridge compatibility and the gateway backhaul is ready.',
+      'Wireless setup stays unavailable until both devices prove encrypted bridge compatibility and the main router supports managed setup.',
       { exact: false },
     ),
   ).toBeVisible();

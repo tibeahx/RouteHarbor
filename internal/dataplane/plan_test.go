@@ -18,10 +18,45 @@ func testNetwork() model.Network {
 	}
 }
 
-func TestBreakExistingRejectedAtPrivilegedBoundary(t *testing.T) {
-	_, err := Compile(Desired{Network: testNetwork(), Fallback: "closed", BreakExisting: true})
-	if err == nil || !strings.Contains(err.Error(), "capability_unavailable: break_existing") {
-		t.Fatalf("unsupported connection interruption accepted: %v", err)
+func TestBreakExistingIsPrivilegedPostCommitAction(t *testing.T) {
+	d := Desired{Network: testNetwork(), Fallback: "closed"}
+	ordinary, err := Compile(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.BreakExisting = true
+	reset, err := Compile(d)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ordinary.NFT != reset.NFT || len(reset.Warnings) != len(ordinary.Warnings)+1 {
+		t.Fatal("optional connection tracking reset altered packet selection")
+	}
+}
+
+func TestUnavailableSourcesNeverAllocateRoutesOrBecomeSelected(t *testing.T) {
+	base := Desired{
+		Network:     testNetwork(),
+		Fallback:    "closed",
+		Selected:    "direct",
+		Paths:       []Path{{SourceID: "direct", Kind: "direct", Slot: 1}},
+		Unavailable: []string{"missing"},
+	}
+	plan, e := Compile(base)
+	if e != nil || len(plan.Warnings) == 0 {
+		t.Fatal(plan, e)
+	}
+	for _, ids := range [][]string{{"direct"}, {"missing", "missing"}, {"invalid name"}} {
+		d := base
+		d.Unavailable = ids
+		if _, e := Compile(d); e == nil {
+			t.Fatal("invalid unavailable partition accepted", ids)
+		}
+	}
+	d := base
+	d.Selected = "missing"
+	if _, e := Compile(d); e == nil {
+		t.Fatal("unavailable source selected")
 	}
 }
 

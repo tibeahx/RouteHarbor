@@ -37,7 +37,8 @@ Installation assumes OpenWrt is already running; it never flashes factory firmwa
 9. Optionally open **Coverage → Add an access point**. Install its node agent,
    verify its fingerprint through trusted access, and enter the node's HTTPS
    address and one-time pairing code. [The coverage guide](coverage.md) describes
-   compatible Wi-Fi/Ethernet modes and the node's separate rollback transaction.
+   compatible Wi-Fi/Ethernet modes, actual pair verification and the coordinated
+   Wi-Fi transaction with separate local rollback processes on both devices.
 
 **Traffic routing is not applied** is intentional: configuring/checking a method
 is distinct from changing LAN routing. Never interpret a healthy gateway probe as

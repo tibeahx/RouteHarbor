@@ -3,11 +3,29 @@
 import datetime
 import hashlib
 import json
+import os
 import subprocess
 from pathlib import Path
 
 root = Path(__file__).resolve().parents[1]
 commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=root, text=True).strip()
+dirty = bool(subprocess.check_output(
+    ['git', 'status', '--porcelain', '--untracked-files=normal'], cwd=root, text=True).strip())
+source_files = []
+for name in ['go.mod', 'api', 'cmd', 'internal']:
+    source = root / name
+    for path in sorted(source.rglob('*') if source.is_dir() else [source]):
+        if path.is_file() and not path.name.endswith('_test.go'):
+            source_files.append({'path': str(path.relative_to(root)),
+                                 'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
+source_digest = hashlib.sha256(json.dumps(
+    source_files, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+source_info = ('Uncommitted working tree based on ' + commit + '; build-input inventory SHA256 ' +
+               source_digest + '. These artifacts are not attributed to the base commit alone.'
+               if dirty else 'Git source commit ' + commit)
+namespace = 'https://github.com/tibeahx/OpenRHP/sbom/' + commit
+if dirty:
+    namespace += '/working-tree-' + source_digest
 go_version = next(line.split()[1] for line in (root / 'go.mod').read_text().splitlines() if line.startswith('go '))
 version = '0.1.0-dev'
 relationships = [
@@ -15,7 +33,8 @@ relationships = [
     {'spdxElementId': 'SPDXRef-OpenRHP', 'relationshipType': 'DEPENDS_ON', 'relatedSpdxElement': 'SPDXRef-Go'},
 ]
 files = []
-for artifact in sorted((root / 'dist').glob('openrhp*-linux-*')):
+artifact_dir = Path(os.environ.get('OUT', str(root / 'dist')))
+for artifact in sorted(artifact_dir.glob('openrhp*-linux-*')):
     if not artifact.is_file() or artifact.is_symlink():
         continue
     file_id = 'SPDXRef-Artifact-' + artifact.name
@@ -31,12 +50,13 @@ for artifact in sorted((root / 'dist').glob('openrhp*-linux-*')):
 sbom = {
     'spdxVersion': 'SPDX-2.3', 'dataLicense': 'CC0-1.0', 'SPDXID': 'SPDXRef-DOCUMENT',
     'name': 'OpenRHP core ' + version,
-    'documentNamespace': 'https://github.com/tibeahx/OpenRHP/sbom/' + commit,
+    'documentNamespace': namespace,
     'creationInfo': {'creators': ['Tool: OpenRHP scripts/sbom.py'],
                      'created': datetime.datetime.now(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')},
     'packages': [
         {'name': 'OpenRHP', 'SPDXID': 'SPDXRef-OpenRHP', 'versionInfo': version,
-         'downloadLocation': 'git+https://github.com/tibeahx/OpenRHP.git@' + commit,
+         'downloadLocation': 'NOASSERTION' if dirty else 'git+https://github.com/tibeahx/OpenRHP.git@' + commit,
+         'sourceInfo': source_info,
          'filesAnalyzed': False, 'licenseDeclared': 'Apache-2.0', 'licenseConcluded': 'NOASSERTION',
          'copyrightText': 'NOASSERTION',
          'comment': 'Source package reference. Build artifacts are independently described files GENERATED_FROM this source; they are not package contents. Optional sing-box, Xray, nfqws and age are separately installed and not linked or bundled.'},

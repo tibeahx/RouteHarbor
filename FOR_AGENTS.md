@@ -145,16 +145,46 @@ Follow [coverage](docs/coverage.md). Obtain the node's address and verified cert
 fingerprint using trusted local access. Bootstrap its one-time code to a private
 file. Pair through `/nodes/pair`; discovery does not authorize management.
 
-Use the advertised capabilities to choose a compatible encrypted Wi-Fi mode, with
-Ethernet as an alternative. Unknown factory firmware gets a manual connection guide,
-not a claim of full management. Prepare the gateway counterpart and preserve the
-management path before changing the node's backhaul. Current unverified wireless
-capabilities remain blocked; do not force them on from mode names alone.
+Read `/nodes/discover` for `gateway_fingerprint`, gateway capabilities and detected
+`gateway_setup.aps`; read the paired node's status for its actual bridge, reserved
+management address, ports and radios. Ethernet uses the node-only transaction.
+Unknown factory firmware gets a manual connection guide, not full management.
 
-Node flow: plan → `/nodes/{id}/prepare` → apply → client/management checks → confirm,
-or rollback. A separate node-local helper/watchdog and snapshot work without gateway,
-WAN or browser. One uplink is active; no second NAT, DHCP server or IPv6 RA service.
-Revoking management and rotating a shared Wi-Fi passphrase are separate operations.
+Managed Wi-Fi requires current root-owned verification receipts for the actual pair.
+Follow [wireless verification](docs/wireless-verification.md) through trusted local
+administration after performing the real encrypted-link and client checks. Gateway
+and node receipts must name each other's TLS fingerprint and the same tested mode;
+the selected node radio must match its receipt. Generic AP/WDS/mesh advertisements
+do not satisfy this gate. The API cannot create receipts or invent completed checks.
+
+For Wi-Fi, select a detected main AP and include its public `gateway_plan` with the
+node plan: nested in the flat `/nodes/{id}/plan` body and alongside `plan` in the
+`/nodes/{id}/prepare` operation. Use the exact OpenAPI schema. Explicit AP adoption
+and `preserve_management_path` are required. The helper reads the existing AP's
+SSID, password and channel privately and supplies them to the paired node; do not
+request or copy its password into the browser or ordinary API examples.
+
+Plan → prepare → apply → client/management checks → confirm remains the public
+flow. Prepare stores both snapshots; apply changes the gateway first, then the node,
+with independent rollback deadlines. Use the aggregate paired `transaction.id` for
+Wi-Fi operations, never a participant ID or the asynchronous API operation ID.
+Status exposes the pair and both participants, including gateway setup when the
+node is unreachable. A `confirming` result is unfinished: inspect status and retry
+the same confirmation if needed. Durable reconciliation confirms the gateway while
+retaining compensation, confirms the node, then finalizes the gateway. Do not try
+manual rollback during uncertain confirmation; the node may already be committed.
+For an unconfirmed prepared/applied change, request rollback or allow the local
+deadlines to recover. Gateway, WAN, browser or controller loss does not cancel them.
+
+One uplink is active; no second NAT, DHCP server or IPv6 RA service is created.
+Revoking management does not rotate a shared Wi-Fi passphrase. Keep shared-key
+changes as an explicit separate administrator operation across all affected APs.
+After a trusted OpenWrt main-AP key change, a new paired prepare key synchronizes
+its current password privately through the existing plan model. Read the
+[key synchronization workflow](docs/coverage.md#synchronize-a-separately-changed-home-wi-fi-key):
+OpenRHP rollback does not restore the separately edited main-AP password, so retain
+wired administration and its private backup. Replaying an old preparation or
+unpairing is never a request to rotate credentials.
 
 ## 7. Update, remove, retry and report
 

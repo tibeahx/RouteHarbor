@@ -1657,7 +1657,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Confirms and durably retains the new routing plan. When break_existing is enabled, the result may also report flow_termination as pending, completed or failed. A failed conntrack cleanup does not undo confirmed routing; inspect error_code and retry confirmation with a new request idempotency key to retry cleanup."
       }
     },
     "/transactions/{id}/rollback": {
@@ -2092,7 +2093,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/NodePlan"
+                "$ref": "#/components/schemas/CoveragePlan"
               }
             }
           }
@@ -2537,8 +2538,12 @@
                   },
                   "plan": {
                     "$ref": "#/components/schemas/NodePlan"
+                  },
+                  "gateway_plan": {
+                    "$ref": "#/components/schemas/GatewayPlan"
                   }
-                }
+                },
+                "description": "Wi-Fi prepares both routers with separate recovery snapshots and returns a paired transaction ID. Ethernet retains its node transaction ID."
               }
             }
           }
@@ -2638,7 +2643,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Accepts the paired transaction ID for managed Wi-Fi, or the node transaction ID for Ethernet. Paired changes are sequential and recoverable, not globally atomic. A confirming or rolling-back result remains unfinished and must be read again through node status."
       }
     },
     "/nodes/{id}/confirm": {
@@ -2734,7 +2740,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Accepts the paired transaction ID for managed Wi-Fi, or the node transaction ID for Ethernet. Paired changes are sequential and recoverable, not globally atomic. A confirming or rolling-back result remains unfinished and must be read again through node status."
       }
     },
     "/nodes/{id}/rollback": {
@@ -2830,7 +2837,8 @@
               }
             }
           }
-        }
+        },
+        "description": "Accepts the paired transaction ID for managed Wi-Fi, or the node transaction ID for Ethernet. Paired changes are sequential and recoverable, not globally atomic. A confirming or rolling-back result remains unfinished and must be read again through node status."
       }
     },
     "/nodes/{id}/status": {
@@ -3057,9 +3065,8 @@
           },
           "break_existing": {
             "type": "boolean",
-            "const": false,
             "default": false,
-            "description": "Only false is supported. Scoped conntrack termination is unavailable and true is rejected before mutation."
+            "description": "Opt in to deleting tracked connections belonging to the previous OpenRHP path after a path switch. Off by default; may interrupt active applications. Requires privileged conntrack support and a newly confirmed routing plan. Foreign connection entries are not flushed, and connections are not migrated between external IPs."
           }
         }
       },
@@ -3284,6 +3291,120 @@
             "type": "boolean"
           }
         }
+      },
+      "GatewayPlan": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Adopt one detected main-router AP for the already paired peer. Changes wireless configuration only. Existing credentials are transferred privately by the coordinator, never returned through this API.",
+        "required": [
+          "mode",
+          "ap_section",
+          "network",
+          "peer_fingerprint",
+          "adopt_existing_ap",
+          "preserve_management_path"
+        ],
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "wds",
+              "mesh"
+            ]
+          },
+          "ap_section": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 15
+          },
+          "network": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 15
+          },
+          "peer_fingerprint": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "adopt_existing_ap": {
+            "type": "boolean",
+            "const": true
+          },
+          "preserve_management_path": {
+            "type": "boolean",
+            "const": true
+          }
+        }
+      },
+      "CoveragePlan": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "management_interface": {
+            "type": "string"
+          },
+          "bridge_section": {
+            "type": "string"
+          },
+          "bridge_device": {
+            "type": "string"
+          },
+          "uplink": {
+            "type": "string"
+          },
+          "management_address": {
+            "type": "string"
+          },
+          "gateway_address": {
+            "type": "string"
+          },
+          "radio": {
+            "type": "string"
+          },
+          "ssid": {
+            "type": "string"
+          },
+          "passphrase": {
+            "type": "string"
+          },
+          "ethernet_uplink": {
+            "type": "string"
+          },
+          "lan_ports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "channel": {
+            "type": "integer"
+          },
+          "share_radio": {
+            "type": "boolean"
+          },
+          "dhcp_server": {
+            "type": "boolean"
+          },
+          "nat": {
+            "type": "boolean"
+          },
+          "router_advertisements": {
+            "type": "boolean"
+          },
+          "preserve_management_path": {
+            "type": "boolean"
+          },
+          "gateway_plan": {
+            "$ref": "#/components/schemas/GatewayPlan"
+          }
+        },
+        "description": "Node plan with optional paired gateway plan. Managed Wi-Fi requires gateway_plan; omit node ssid/passphrase/channel so the coordinator derives them privately from the approved AP. Ethernet uses the existing node-only plan."
       }
     }
   }

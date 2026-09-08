@@ -64,10 +64,6 @@ func TestValidationSecurityBoundaries(t *testing.T) {
 		{"missing schema", func(c *model.Config) { c.SchemaVersion = 0 }},
 		{"missing revision", func(c *model.Config) { c.Revision = 0 }},
 		{"unknown mode", func(c *model.Config) { c.Policy.Mode = "automatic" }},
-		{
-			"unsupported connection interruption",
-			func(c *model.Config) { c.Policy.BreakExisting = true },
-		},
 		{"unknown fallback", func(c *model.Config) { c.Policy.Fallback = "best-effort" }},
 		{"invalid role", func(c *model.Config) { c.Role = "router" }},
 		{
@@ -191,7 +187,7 @@ func TestStrictDecode(t *testing.T) {
 
 func TestSourceCountHasByteBudgetNotArtificialCap(t *testing.T) {
 	c := Defaults()
-	for i := 0; i < 2000; i++ {
+	for i := range 2000 {
 		c.Sources = append(c.Sources, direct(fmt.Sprintf("source-%d", i)))
 	}
 	if err := Validate(c); err != nil {
@@ -292,7 +288,7 @@ func TestConcurrentCASHasOneWinner(t *testing.T) {
 	c := a.Get()
 	var won atomic.Int64
 	var wg sync.WaitGroup
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
@@ -315,7 +311,7 @@ func TestConcurrentCASHasOneWinner(t *testing.T) {
 }
 
 func TestStoreRejectsSymlinksHardlinksAndUnsafeFiles(t *testing.T) {
-	for _, kind := range []string{"directory-symlink", "config-symlink", "lock-symlink", "config-hardlink", "public-mode"} {
+	for _, kind := range []string{"directory-symlink", "config-symlink", "lock-symlink", "config-contained-symlink", "lock-contained-symlink", "config-hardlink", "public-mode"} {
 		t.Run(kind, func(t *testing.T) {
 			base := t.TempDir()
 			dir := filepath.Join(base, "state")
@@ -340,6 +336,18 @@ func TestStoreRejectsSymlinksHardlinksAndUnsafeFiles(t *testing.T) {
 				}
 			case "lock-symlink":
 				if err := os.Symlink(outside, filepath.Join(dir, ".lock")); err != nil {
+					t.Fatal(err)
+				}
+			case "config-contained-symlink", "lock-contained-symlink":
+				target := filepath.Join(dir, "target")
+				if err := os.WriteFile(target, data, 0o600); err != nil {
+					t.Fatal(err)
+				}
+				name := configFile
+				if kind == "lock-contained-symlink" {
+					name = ".lock"
+				}
+				if err := os.Symlink("target", filepath.Join(dir, name)); err != nil {
 					t.Fatal(err)
 				}
 			case "config-hardlink":
@@ -491,5 +499,13 @@ func TestPrivateCheckpointRetainsSecretsWithoutPromotingCandidate(t *testing.T) 
 	}
 	if err = s.SaveCheckpoint(key, c); err == nil {
 		t.Fatal("symlink checkpoint write accepted")
+	}
+}
+
+func TestOptionalConnectionTrackingReset(t *testing.T) {
+	c := Defaults()
+	c.Policy.BreakExisting = true
+	if err := Validate(c); err != nil {
+		t.Fatal(err)
 	}
 }

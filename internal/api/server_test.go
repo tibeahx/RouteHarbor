@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"github.com/tibeahx/OpenRHP/internal/config"
 	"github.com/tibeahx/OpenRHP/internal/control"
 	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/OpenRHP/internal/platform"
 	"github.com/tibeahx/OpenRHP/internal/web"
 )
 
@@ -160,6 +162,42 @@ func TestAuthenticationACLAndHostOrigin(t *testing.T) {
 	}
 	if s, _ := h.request("GET", "status?token=leak", h.admin, nil, 0, ""); s != 400 {
 		t.Fatal("query accepted")
+	}
+}
+
+func TestCapabilitiesUsePrivilegedDiscoveryAndFailClosedWhenHelperIsUnavailable(t *testing.T) {
+	h := setup(t)
+	h.s.Platform = func(context.Context) (platform.Report, error) {
+		return platform.Report{
+			Supported:  true,
+			OS:         "OpenWrt",
+			Interfaces: []platform.Interface{{Name: "home", Device: "br-home", Role: "lan"}},
+		}, nil
+	}
+	status, body := h.request("GET", "capabilities", h.read, nil, 0, "")
+	var result struct {
+		Platform      platform.Report `json:"platform"`
+		NetworkHelper bool            `json:"network_helper"`
+	}
+	if err := json.Unmarshal(body, &result); err != nil {
+		t.Fatal(err)
+	}
+	if status != 200 || !result.Platform.Supported || result.Platform.OS != "OpenWrt" ||
+		len(result.Platform.Interfaces) != 1 ||
+		result.Platform.Interfaces[0].Device != "br-home" {
+		t.Fatal("privileged discovery report was replaced by service-user detection")
+	}
+	h.s.Platform = func(context.Context) (platform.Report, error) {
+		return platform.Report{Supported: true}, errors.New("CANARY-private-helper-detail")
+	}
+	status, body = h.request("GET", "preflight", h.read, nil, 0, "")
+	if err := json.Unmarshal(body, &result); err != nil {
+		t.Fatal(err)
+	}
+	if status != 200 || result.Platform.Supported || result.NetworkHelper ||
+		len(result.Platform.Issues) == 0 ||
+		bytes.Contains(body, []byte("CANARY-private-helper-detail")) {
+		t.Fatal("unavailable helper discovery was reported as usable or leaked internal details")
 	}
 }
 

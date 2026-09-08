@@ -137,6 +137,15 @@
                     for="confirmations"
                     >Confirming checks</label
                   ><input id="confirmations" type="number" min="1" max="100" />
+                  <label class="check">
+                    <input id="break-existing" type="checkbox" />
+                    Reset old connection tracking when switching paths
+                  </label>
+                  <p class="hint">
+                    Off by default. Applications may need to reconnect; active sockets are not
+                    directly closed. Downloads and calls may be interrupted. Save, then prepare and
+                    confirm routing to activate the change.
+                  </p>
                 </details>
                 <button class="primary" type="submit">Save selection</button>
               </form>
@@ -323,23 +332,39 @@
               >
               <div id="coverage-radio-fields" hidden>
                 <label for="coverage-radio">Wi-Fi radio</label
-                ><select id="coverage-radio"></select
-                ><label for="coverage-ssid">Home Wi-Fi name</label
-                ><input id="coverage-ssid" maxlength="32" autocomplete="off" /><label
-                  for="coverage-password"
-                  >Home Wi-Fi password</label
-                ><input
-                  id="coverage-password"
-                  type="password"
-                  minlength="8"
-                  maxlength="63"
-                  autocomplete="new-password"
-                /><label for="coverage-channel">Wi-Fi channel</label
-                ><input id="coverage-channel" type="number" min="1" max="233" />
-                <p class="hint">
-                  Use your main router's home Wi-Fi settings. A common name does not guarantee that
-                  every device will roam automatically.
-                </p>
+                ><select id="coverage-radio"></select>
+                <div id="coverage-gateway-wifi" hidden>
+                  <label for="coverage-main-ap">Main router's home Wi-Fi</label>
+                  <select id="coverage-main-ap"></select>
+                  <p id="coverage-main-ap-detail" class="hint"></p>
+                  <label class="check"
+                    ><input id="coverage-adopt-main-ap" type="checkbox" /> Allow OpenRHP to connect
+                    this access point to the selected home Wi-Fi network. The main router keeps its
+                    LAN addresses, DHCP and routing settings.</label
+                  >
+                  <p class="hint">
+                    The existing Wi-Fi password is transferred privately to your paired access
+                    point. It does not pass through this browser.
+                  </p>
+                </div>
+                <div id="coverage-custom-wifi">
+                  <label for="coverage-ssid">Home Wi-Fi name</label
+                  ><input id="coverage-ssid" maxlength="32" autocomplete="off" /><label
+                    for="coverage-password"
+                    >Home Wi-Fi password</label
+                  ><input
+                    id="coverage-password"
+                    type="password"
+                    minlength="8"
+                    maxlength="63"
+                    autocomplete="new-password"
+                  /><label for="coverage-channel">Wi-Fi channel</label
+                  ><input id="coverage-channel" type="number" min="1" max="233" />
+                  <p class="hint">
+                    Use your main router's home Wi-Fi settings. A common name does not guarantee
+                    that every device will roam automatically.
+                  </p>
+                </div>
               </div>
               <details>
                 <summary>Detected settings and compatibility</summary>
@@ -417,8 +442,8 @@
             </p>
             <p>
               Wireless setup stays unavailable until both devices prove encrypted bridge
-              compatibility and the gateway backhaul is ready. An advertised radio mode alone is not
-              enough.
+              compatibility and the main router supports managed setup. An advertised radio mode
+              alone is not enough.
             </p>
           </section>
         </section>

@@ -51,8 +51,9 @@ support. No QEMU execution evidence is claimed merely from cross-compilation.
 
 The minimal HTTP-bearing portability prototype compiled to 3.13–3.94 MiB across
 this matrix; exact bytes are in [prototype evidence](evidence/minimal-prototype.csv).
-The actual controller is larger: approximately 7.7–9.5 MiB stripped at the recorded
-snapshot, excluding helpers and engines. Consult exact byte counts in the report.
+The actual controller is larger: approximately 7.9–9.8 MiB stripped at the recorded
+snapshot, excluding helpers and engines. Consult exact byte counts and the
+working-tree basis in [build validation](evidence/build-validation.md).
 
 One idle local **macOS ARM64 development** controller process was observed at
 15,296 KiB RSS. This is not a Linux/OpenWrt memory minimum, a load test, or a promise

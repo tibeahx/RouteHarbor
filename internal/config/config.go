@@ -126,12 +126,6 @@ func Validate(c model.Config) error {
 		targets[t.ID] = true
 	}
 	p := c.Policy
-	if p.BreakExisting {
-		return bad(
-			"policy.break_existing",
-			"unsupported: disconnecting existing connections is not implemented; keep this disabled",
-		)
-	}
 	if p.Mode != "off" && p.Mode != "auto" && p.Mode != "manual" {
 		return bad("policy.mode", "must be off, auto, or manual")
 	}

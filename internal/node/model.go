@@ -12,27 +12,34 @@ import (
 )
 
 type Capabilities struct {
-	OpenWrt              bool   `json:"openwrt"`
-	Ethernet             bool   `json:"ethernet"`
-	AP                   bool   `json:"ap"`
-	WDS                  bool   `json:"wds"`
-	Mesh                 bool   `json:"mesh"`
-	EncryptedBackhaul    bool   `json:"encrypted_backhaul"`
-	ConcurrentRadio      bool   `json:"concurrent_radio"`
-	GatewayBackhaulReady bool   `json:"gateway_backhaul_ready"`
-	Reason               string `json:"reason"`
+	OpenWrt                 bool   `json:"openwrt"`
+	Ethernet                bool   `json:"ethernet"`
+	AP                      bool   `json:"ap"`
+	WDS                     bool   `json:"wds"`
+	Mesh                    bool   `json:"mesh"`
+	EncryptedBackhaul       bool   `json:"encrypted_backhaul"`
+	ConcurrentRadio         bool   `json:"concurrent_radio"`
+	GatewayBackhaulReady    bool   `json:"gateway_backhaul_ready"`
+	GatewayBackhaulManaged  bool   `json:"gateway_backhaul_managed"`
+	VerifiedPeerFingerprint string `json:"verified_peer_fingerprint,omitempty"`
+	VerifiedRadio           string `json:"verified_radio,omitempty"`
+	VerifiedMode            string `json:"verified_mode,omitempty"`
+	Reason                  string `json:"reason"`
 }
 
 func CapabilitiesFrom(r platform.Report) Capabilities {
 	return Capabilities{
-		OpenWrt:           r.OS == "OpenWrt",
-		Ethernet:          r.OS == "OpenWrt" && r.Init == "procd",
-		AP:                r.Capabilities["wireless_ap"].Available,
-		WDS:               r.Capabilities["wds"].Available,
-		Mesh:              r.Capabilities["mesh"].Available,
-		EncryptedBackhaul: r.Capabilities["encrypted_backhaul"].Available,
-		ConcurrentRadio:   r.Capabilities["concurrent_radio"].Available,
-		Reason:            "Wireless modes require verified peer compatibility and encrypted backhaul support; an advertised radio feature is insufficient",
+		OpenWrt:                 r.OS == "OpenWrt",
+		Ethernet:                r.OS == "OpenWrt" && r.Init == "procd",
+		AP:                      r.Capabilities["wireless_ap"].Available,
+		WDS:                     r.Capabilities["wds"].Available,
+		Mesh:                    r.Capabilities["mesh"].Available,
+		EncryptedBackhaul:       r.Capabilities["encrypted_backhaul"].Available,
+		ConcurrentRadio:         r.Capabilities["concurrent_radio"].Available,
+		VerifiedPeerFingerprint: r.VerifiedPeerFingerprint,
+		VerifiedRadio:           r.VerifiedRadio,
+		VerifiedMode:            r.VerifiedMode,
+		Reason:                  "Wireless modes require verified peer compatibility and encrypted backhaul support; an advertised radio feature is insufficient",
 	}
 }
 
@@ -81,6 +88,10 @@ func CompatibleModes(gateway, peer Capabilities) []string {
 }
 
 func ValidatePlan(p Plan, gateway, peer Capabilities) error {
+	if p.Mode != "ethernet" && peer.VerifiedRadio != "" &&
+		(p.Radio != peer.VerifiedRadio || p.Mode != peer.VerifiedMode) {
+		return errors.New("wireless_verification_radio_or_mode_mismatch")
+	}
 	allowed := false
 	for _, mode := range CompatibleModes(gateway, peer) {
 		if p.Mode == mode {

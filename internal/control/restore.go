@@ -30,7 +30,8 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	}
 	current := n.Runtime.Store.Get()
 	confirmed := current
-	if state.Committed != nil && len(state.Committed.Paths) > 0 {
+	if state.Committed != nil &&
+		(len(state.Committed.Paths) > 0 || len(state.Committed.Unavailable) > 0) {
 		found := false
 		if state.Transaction != nil && state.Transaction.State == "confirmed" {
 			if saved, ok, err := n.Runtime.Store.Checkpoint(state.Transaction.ID); err != nil {
@@ -170,7 +171,8 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	}
 	n.lastError = ""
 	n.Runtime.setPathBlock("")
-	if state.Committed != nil && len(state.Committed.Paths) > 0 &&
+	if state.Committed != nil &&
+		(len(state.Committed.Paths) > 0 || len(state.Committed.Unavailable) > 0) &&
 		reflect.DeepEqual(confirmed, current) {
 		n.confirmedRevision = current.Revision
 	}
@@ -193,7 +195,8 @@ func (r *Runtime) setPathBlock(code string) {
 }
 
 func matchesDesired(c model.Config, d dataplane.Desired) bool {
-	if !reflect.DeepEqual(c.Network, d.Network) || c.Policy.Fallback != d.Fallback {
+	if !reflect.DeepEqual(c.Network, d.Network) || c.Policy.Fallback != d.Fallback ||
+		c.Policy.BreakExisting != d.BreakExisting {
 		return false
 	}
 	sources := map[string]model.Source{}
@@ -202,14 +205,22 @@ func matchesDesired(c model.Config, d dataplane.Desired) bool {
 			sources[s.ID] = s
 		}
 	}
-	if len(sources) != len(d.Paths) {
+	if len(sources) != len(d.Paths)+len(d.Unavailable) {
 		return false
+	}
+	seen := map[string]bool{}
+	for _, id := range d.Unavailable {
+		if _, exists := sources[id]; !exists || seen[id] || id == d.Selected {
+			return false
+		}
+		seen[id] = true
 	}
 	for _, p := range d.Paths {
 		s, ok := sources[p.SourceID]
-		if !ok {
+		if !ok || seen[p.SourceID] {
 			return false
 		}
+		seen[p.SourceID] = true
 		kind := s.Type
 		if kind == "sing-box" || kind == "xray" || kind == "socks5" || kind == "http-connect" {
 			kind = "tproxy"

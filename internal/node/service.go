@@ -27,12 +27,17 @@ type Record struct {
 	Capabilities Capabilities `json:"capabilities"`
 	PairedAt     time.Time    `json:"paired_at"`
 }
+
 type Service struct {
-	mu       sync.Mutex
-	root     *os.Root
-	identity Identity
-	gateway  func(context.Context) Capabilities
-	records  map[string]Record
+	mu              sync.Mutex
+	coverageMu      sync.Mutex
+	gatewayOperator GatewayOperator
+	recoveryCancel  context.CancelFunc
+	recoveryWG      sync.WaitGroup
+	root            *os.Root
+	identity        Identity
+	gateway         func(context.Context) Capabilities
+	records         map[string]Record
 }
 
 func NewService(dir string, gateway func(context.Context) Capabilities) (*Service, error) {
@@ -69,6 +74,12 @@ func NewService(dir string, gateway func(context.Context) Capabilities) (*Servic
 }
 
 func (s *Service) Close() error {
+	s.coverageMu.Lock()
+	if s.recoveryCancel != nil {
+		s.recoveryCancel()
+	}
+	s.coverageMu.Unlock()
+	s.recoveryWG.Wait()
 	return s.root.Close()
 }
 
@@ -92,13 +103,16 @@ func (s *Service) List() any {
 }
 
 func (s *Service) Discover(ctx context.Context) any {
-	return map[string]any{
+	result := map[string]any{
 		"nodes":                    s.List(),
+		"gateway_fingerprint":      s.identity.Fingerprint,
 		"gateway_capabilities":     s.gateway(ctx),
 		"address_entry":            true,
 		"discovery_grants_control": false,
 		"message":                  "Enter the node LAN HTTPS address and verify its fingerprint through existing administrator access. Unpaired discovery does not authorize control.",
 	}
+	s.addGatewaySetup(ctx, result)
+	return result
 }
 
 func validateAddress(address string) error {
@@ -265,6 +279,11 @@ func (s *Service) Pair(ctx context.Context, raw json.RawMessage) (map[string]any
 }
 
 func (s *Service) Unpair(ctx context.Context, id string) error {
+	s.coverageMu.Lock()
+	defer s.coverageMu.Unlock()
+	if e := s.checkCoverageUnpair(id); e != nil {
+		return e
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	record, ok := s.records[id]
@@ -319,9 +338,13 @@ func (s *Service) Plan(
 	id string,
 	raw json.RawMessage,
 ) (map[string]any, error) {
-	var p Plan
-	if len(raw) > 64<<10 || adapter.StrictDecode(raw, &p) != nil {
+	var proposed coveragePlan
+	if len(raw) > 64<<10 || adapter.StrictDecode(raw, &proposed) != nil {
 		return nil, errors.New("invalid_node_plan")
+	}
+	p := proposed.Plan
+	if p.Mode != "ethernet" || proposed.GatewayPlan != nil {
+		return s.planCoverage(ctx, id, proposed)
 	}
 	record, e := s.node(ctx, id)
 	if e != nil {
@@ -345,17 +368,22 @@ func (s *Service) Operate(
 	id, action string,
 	raw json.RawMessage,
 ) (map[string]any, error) {
-	var op Operation
+	var requested coverageOperation
 	if len(raw) == 0 {
 		raw = json.RawMessage(`{}`)
 	}
-	if len(raw) > 64<<10 || adapter.StrictDecode(raw, &op) != nil {
+	if len(raw) > 64<<10 || adapter.StrictDecode(raw, &requested) != nil {
 		return nil, errors.New("invalid_node_operation")
 	}
+	op := requested.Operation
 	if op.Action != "" && op.Action != action {
 		return nil, errors.New("node_action_mismatch")
 	}
 	op.Action = action
+	requested.Action = action
+	if result, handled, err := s.operateCoverage(ctx, id, requested); handled {
+		return result, err
+	}
 	record, e := s.node(ctx, id)
 	if e != nil {
 		return nil, e
@@ -369,7 +397,7 @@ func (s *Service) Operate(
 		}
 	}
 	if action == "status" {
-		return s.request(
+		result, e := s.request(
 			ctx,
 			record.Address,
 			record.Fingerprint,
@@ -377,6 +405,11 @@ func (s *Service) Operate(
 			"/node/v1/status",
 			nil,
 		)
+		if e == nil {
+			result["gateway_fingerprint"] = s.identity.Fingerprint
+			s.addGatewaySetup(ctx, result)
+		}
+		return result, e
 	}
 	return s.request(
 		ctx,

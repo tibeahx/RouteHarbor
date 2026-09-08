@@ -69,6 +69,9 @@
     token = '';
     cfg = null;
     state = null;
+    gatewayCoverage = null;
+    gatewaySetup = null;
+    gatewayFingerprint = '';
     clearInterval(poll);
     poll = null;
     closeCoverage();
@@ -132,6 +135,21 @@
       el('strong', state.network_applied ? S.routingOn : S.routingOff),
       el('span', state.network_applied ? S.routingOnHint : S.routingHint),
     );
+    if (state.network_applied && !state.network?.confirmed_for_current_config) {
+      banner.append(
+        el(
+          'span',
+          'Saved changes are pending. Prepare and confirm routing to use the updated settings.',
+        ),
+      );
+    }
+    if (state.network?.last_error) {
+      const message =
+        state.network.last_error === 'conntrack_delete_failed'
+          ? 'Routing is active, but clearing old connection tracking failed. Inspect the routing transaction and retry confirmation.'
+          : 'Routing needs attention: ' + state.network.last_error;
+      banner.append(el('span', message));
+    }
     $('mode-label').textContent = S.mode[cfg.policy.mode] || cfg.policy.mode;
     const history = $('history-list');
     history.replaceChildren();
@@ -146,6 +164,7 @@
     $('fallback').value = cfg.policy.fallback;
     $('improvement').value = cfg.policy.improvement_percent;
     $('confirmations').value = cfg.policy.confirmations;
+    $('break-existing').checked = cfg.policy.break_existing;
     $('pinned-source').replaceChildren();
     for (const s of cfg.sources.filter((s) => s.enabled)) {
       $('pinned-source').append(new Option(s.name, s.id));
@@ -228,6 +247,14 @@
       });
       actions.append(check, remove);
       row.append(actions);
+      if (state.network?.unavailable_sources?.includes(s.id)) {
+        row.append(
+          el(
+            'small',
+            'Unavailable when routing was applied. After recovery, review and apply routing again to use this source.',
+          ),
+        );
+      }
       if (h?.resources?.some((r) => !r.success)) {
         const detail = el(
           'small',
@@ -272,6 +299,36 @@
       row.append(info, b);
       list.append(row);
     }
+  }
+
+  function renderRoutingTransaction(value) {
+    const tr = value?.transaction || value || {};
+    const descriptions = {
+      prepared: 'Routing is prepared. Apply it when you are ready to test connectivity.',
+      applying: 'Routing is being applied. Keep your management connection available.',
+      applied:
+        'Routing is applied temporarily. Test internet access and local management before confirming.',
+      confirmed: 'Routing is confirmed and retained.',
+      'rolling-back': 'The gateway is restoring the previous routing plan.',
+      'rolled-back': 'The gateway restored the previous routing plan. Check connectivity.',
+    };
+    let detail = descriptions[tr.state] || 'Read routing status before continuing.';
+    if (tr.state === 'applied' && tr.deadline) {
+      detail += ' Automatic rollback at ' + new Date(tr.deadline).toLocaleTimeString() + '.';
+    }
+    if (tr.flow_termination === 'failed') {
+      detail +=
+        ' Clearing old connection tracking failed. The new routing plan remains active; retry confirmation to retry cleanup.';
+    } else if (tr.flow_termination === 'pending') {
+      detail += ' Clearing old connection tracking is still pending.';
+    }
+    $('transaction-detail').textContent = detail;
+    $('apply-network').disabled = tr.state !== 'prepared';
+    $('confirm-network').disabled =
+      tr.state !== 'applied' && !(tr.state === 'confirmed' && tr.flow_termination === 'failed');
+    $('rollback-network').disabled = !['prepared', 'applying', 'applied', 'rolling-back'].includes(
+      tr.state,
+    );
   }
 
   async function refresh(forms = false) {
@@ -324,7 +381,9 @@
   }
   let coverage = null,
     coverageClock = null,
-    gatewayCoverage = null;
+    gatewayCoverage = null,
+    gatewaySetup = null,
+    gatewayFingerprint = '';
   const nodeResult = (v) => v?.result || v;
 
   function compatibleNodeModes(peer) {
@@ -336,10 +395,19 @@
       peer.encrypted_backhaul &&
       g.ap &&
       peer.ap &&
-      g.gateway_backhaul_ready
+      g.gateway_backhaul_managed &&
+      gatewaySetup?.managed &&
+      g.verified_peer_fingerprint === coverage?.node.fingerprint &&
+      peer.verified_peer_fingerprint === gatewayFingerprint &&
+      g.verified_mode === peer.verified_mode
     ) {
-      if (g.wds && peer.wds) m.push('wds');
-      if (g.mesh && peer.mesh) m.push('mesh');
+      const modes = new Set(
+        (gatewaySetup.aps || [])
+          .filter((ap) => ap.radio === g.verified_radio)
+          .flatMap((ap) => ap.candidate_modes || []),
+      );
+      if (g.wds && peer.wds && g.verified_mode === 'wds' && modes.has('wds')) m.push('wds');
+      if (g.mesh && peer.mesh && g.verified_mode === 'mesh' && modes.has('mesh')) m.push('mesh');
     }
     if (g.ethernet && peer.ethernet) m.push('ethernet');
     return m;
@@ -392,7 +460,7 @@
   }
 
   function coverageTransactionActive() {
-    return ['prepared', 'applying', 'applied', 'rolling-back'].includes(
+    return ['preparing', 'prepared', 'applying', 'applied', 'confirming', 'rolling-back'].includes(
       coverage?.transaction?.state,
     );
   }
@@ -411,7 +479,7 @@
       tr?.state !== 'applied' ||
       Date.parse(tr.deadline) <= Date.now() ||
       !['management', 'address', 'internet'].every((v) => $('coverage-check-' + v).checked);
-    $('coverage-rollback').disabled = busy || !active;
+    $('coverage-rollback').disabled = busy || !active || tr?.state === 'confirming';
     $('coverage-edit').disabled = busy || active;
     $('coverage-reload').disabled = busy;
     $('coverage-status').disabled = busy;
@@ -438,10 +506,12 @@
     });
     if (tr) {
       const titles = {
+        preparing: 'Preparing both routers',
         prepared: 'Access point prepared',
         applying: 'Applying the connection',
         applied: 'Test the connection now',
         confirmed: 'Connection confirmed',
+        confirming: 'Confirming both routers',
         'rolling-back': 'Restoring the previous settings',
         'rolled-back': 'Previous settings restored',
         failed: 'The access point did not apply the plan',
@@ -449,19 +519,23 @@
       $('coverage-transaction-title').textContent =
         titles[tr.state] || 'Read the access point status';
       $('coverage-transaction-detail').textContent =
-        tr.state === 'prepared'
-          ? 'The access point saved its own recovery snapshot. Applying starts its independent rollback timer.'
-          : tr.state === 'applied'
-            ? 'Connect a device through this access point and complete the checks below before the deadline.'
-            : tr.state === 'confirmed'
-              ? 'You confirmed the client checks. Future link quality is still reported separately from WAN quality.'
-              : tr.state === 'rolled-back'
-                ? 'The access point reports that it restored the saved configuration. Verify management and client connectivity.'
-                : tr.error_code
-                  ? 'The access point reported ' +
-                    tr.error_code +
-                    '. Read its status before trying again.'
-                  : 'The access point owns this operation; closing the panel does not cancel its rollback timer.';
+        tr.state === 'confirming'
+          ? 'Confirmation is still being reconciled between the routers. Keep the management path available and refresh status; this is not yet a confirmed connection.'
+          : tr.state === 'prepared' && tr.gateway_plan
+            ? 'Both routers saved their own recovery snapshots. Applying starts independent rollback timers.'
+            : tr.state === 'prepared'
+              ? 'The access point saved its own recovery snapshot. Applying starts its independent rollback timer.'
+              : tr.state === 'applied'
+                ? 'Connect a device through this access point and complete the checks below before the deadline.'
+                : tr.state === 'confirmed'
+                  ? 'You confirmed the client checks. Future link quality is still reported separately from WAN quality.'
+                  : tr.state === 'rolled-back'
+                    ? 'The access point reports that it restored the saved configuration. Verify management and client connectivity.'
+                    : tr.error_code
+                      ? 'The access point reported ' +
+                        tr.error_code +
+                        '. Read its status before trying again.'
+                      : 'The access point owns this operation; closing the panel does not cancel its rollback timer.';
       $('coverage-apply').hidden = tr.state !== 'prepared';
       $('coverage-checks').hidden = tr.state !== 'applied';
       $('coverage-confirm').hidden = tr.state !== 'applied';
@@ -520,18 +594,38 @@
     $('coverage-wifi-toggle').hidden = wifi;
     $('coverage-radio-fields').hidden = !wifi && !$('coverage-set-wifi').checked;
     $('coverage-wireless-protocol').hidden = !wifi;
-    for (const field of [
-      'coverage-radio',
-      'coverage-ssid',
-      'coverage-password',
-      'coverage-channel',
-    ])
-      $(field).required = !$('coverage-radio-fields').hidden;
+    $('coverage-gateway-wifi').hidden = !wifi;
+    $('coverage-custom-wifi').hidden = wifi;
+    $('coverage-main-ap').required = wifi;
+    $('coverage-adopt-main-ap').required = wifi;
+    $('coverage-radio').required = !$('coverage-radio-fields').hidden;
+    for (const field of ['coverage-ssid', 'coverage-password', 'coverage-channel'])
+      $(field).required = !wifi && !$('coverage-radio-fields').hidden;
     $('coverage-compatibility').textContent = wifi
       ? 'The cable uplink will be removed from the bridge before encrypted Wi-Fi backhaul starts. This radio shares airtime with client devices.'
       : coverage.modes.some((m) => m !== 'ethernet')
         ? 'Ethernet keeps one cable uplink and disables any OpenRHP wireless backhaul.'
-        : 'Wi-Fi setup is unavailable: both routers must prove encrypted bridge compatibility and the gateway backhaul must already be ready. Ethernet remains available when detected.';
+        : 'Wi-Fi setup is unavailable: both routers must prove encrypted bridge compatibility and the main router must support managed setup. Ethernet remains available when detected.';
+  }
+
+  function selectedGatewayAP() {
+    return (gatewaySetup?.aps || []).find((ap) => ap.section === $('coverage-main-ap').value);
+  }
+
+  function fillGatewayAP() {
+    const ap = selectedGatewayAP();
+    const previousMode = $('coverage-protocol').value;
+    $('coverage-protocol').replaceChildren();
+    for (const mode of coverage.modes.filter((m) => ap?.candidate_modes?.includes(m))) {
+      $('coverage-protocol').append(
+        new Option(mode === 'wds' ? 'WDS / four-address bridge' : '802.11s encrypted mesh', mode),
+      );
+    }
+    if (ap?.candidate_modes?.includes(previousMode)) $('coverage-protocol').value = previousMode;
+    $('coverage-main-ap-detail').textContent = ap
+      ? ap.ssid + ' · ' + ap.radio + ' · channel ' + ap.channel + '. ' + (ap.reason || '')
+      : 'No eligible home Wi-Fi network was detected on the main router.';
+    syncCoverageButtons();
   }
 
   function fillCoverageBridge() {
@@ -581,7 +675,11 @@
       option.disabled = r.foreign_active;
       $('coverage-radio').append(option);
     }
-    const radio = (setup.radios || []).find((r) => !r.foreign_active);
+    const radio = (setup.radios || []).find(
+      (r) =>
+        !r.foreign_active &&
+        (!coverage.modes.some((m) => m !== 'ethernet') || r.name === peer.verified_radio),
+    );
     if (radio) {
       $('coverage-radio').value = radio.name;
       $('coverage-channel').value = radio.channel || '';
@@ -589,11 +687,15 @@
       $('coverage-set-wifi').disabled = true;
       $('coverage-set-wifi').checked = false;
     }
-    $('coverage-protocol').replaceChildren();
-    for (const mode of coverage.modes.filter((m) => m !== 'ethernet'))
-      $('coverage-protocol').append(
-        new Option(mode === 'wds' ? 'WDS / four-address bridge' : '802.11s encrypted mesh', mode),
-      );
+    $('coverage-main-ap').replaceChildren();
+    for (const ap of gatewaySetup?.aps || []) {
+      if (
+        ap.radio === gatewayCoverage?.verified_radio &&
+        ap.candidate_modes?.some((mode) => coverage.modes.includes(mode))
+      )
+        $('coverage-main-ap').append(new Option(ap.ssid + ' — ' + ap.radio, ap.section));
+    }
+    fillGatewayAP();
     const wifi = coverage.modes.some((m) => m !== 'ethernet');
     $('coverage-connection').querySelector('[value="wifi"]').disabled = !wifi;
     $('coverage-connection').querySelector('[value="ethernet"]').disabled =
@@ -601,6 +703,7 @@
     $('coverage-connection').value = wifi ? 'wifi' : 'ethernet';
     $('coverage-capability-evidence').textContent = [
       gatewayCoverage?.reason,
+      gatewaySetup?.reason,
       peer.reason,
       ...(setup.wireless_evidence || []).map(
         (e) => e.phy + ' advertises ' + e.advertised_modes.join(', ') + '. ' + e.reason,
@@ -624,6 +727,9 @@
     if (coverage !== current) return;
     if (status.capabilities) current.peer = status.capabilities;
     if (status.setup) current.setup = status.setup;
+    if (status.gateway_setup) gatewaySetup = status.gateway_setup;
+    if (status.gateway_capabilities) gatewayCoverage = status.gateway_capabilities;
+    if (status.gateway_fingerprint) gatewayFingerprint = status.gateway_fingerprint;
     current.nodeLink = status.node_link || null;
     renderCoverageLink();
     if (status.transaction) current.transaction = status.transaction;
@@ -700,9 +806,27 @@
     if (wifi) p.ethernet_uplink = $('coverage-port').value;
     if (setWiFi) {
       p.radio = $('coverage-radio').value;
-      p.ssid = $('coverage-ssid').value;
-      p.passphrase = $('coverage-password').value;
-      p.channel = Number($('coverage-channel').value);
+      if (wifi) {
+        if (p.radio !== coverage.peer?.verified_radio)
+          throw Error('Select the access point radio verified for this router pair.');
+        const ap = selectedGatewayAP();
+        if (!ap || !ap.candidate_modes?.includes(p.mode) || !$('coverage-adopt-main-ap').checked)
+          throw Error(
+            'Choose an eligible home Wi-Fi network and approve its use for this paired access point.',
+          );
+        p.gateway_plan = {
+          mode: p.mode,
+          ap_section: ap.section,
+          network: ap.network,
+          peer_fingerprint: coverage.node.fingerprint,
+          adopt_existing_ap: true,
+          preserve_management_path: p.preserve_management_path,
+        };
+      } else {
+        p.ssid = $('coverage-ssid').value;
+        p.passphrase = $('coverage-password').value;
+        p.channel = Number($('coverage-channel').value);
+      }
     }
     return p;
   }
@@ -712,8 +836,12 @@
     try {
       const report = await api('nodes/discover', { method: 'POST', data: {} });
       gatewayCoverage = report.gateway_capabilities || null;
+      gatewaySetup = report.gateway_setup || null;
+      gatewayFingerprint = report.gateway_fingerprint || '';
     } catch {
       gatewayCoverage = null;
+      gatewaySetup = null;
+      gatewayFingerprint = '';
     }
     $('node-list').replaceChildren();
     for (const n of Array.isArray(nodes) ? nodes : nodes.nodes || []) {
@@ -851,6 +979,7 @@
         fallback: $('fallback').value,
         improvement_percent: Number($('improvement').value),
         confirmations: Number($('confirmations').value),
+        break_existing: $('break-existing').checked,
       };
       policy.pinned = policy.mode === 'manual' ? $('pinned-source').value : '';
       return api('policy', { method: 'PUT', cas: true, data: policy });
@@ -894,7 +1023,7 @@
       });
       transaction = op.result?.id || op.result?.transaction?.id;
       $('transaction-panel').hidden = false;
-      $('transaction-detail').textContent = JSON.stringify(op.result);
+      renderRoutingTransaction(op.result);
       if (!transaction) throw Error('The helper did not return a transaction identifier.');
     }, S.preparing),
   );
@@ -910,7 +1039,7 @@
           method: 'POST',
           data: {},
         });
-        $('transaction-detail').textContent = JSON.stringify(op.result);
+        renderRoutingTransaction(op.result);
       }, message),
     );
   $('download-diagnostics').addEventListener('click', () =>
@@ -960,6 +1089,10 @@
     coverageAction((c) => readCoverageStatus(c)),
   );
   $('coverage-bridge').addEventListener('change', fillCoverageBridge);
+  $('coverage-main-ap').addEventListener('change', () => {
+    $('coverage-adopt-main-ap').checked = false;
+    fillGatewayAP();
+  });
   $('coverage-connection').addEventListener('change', setCoverageConnection);
   $('coverage-set-wifi').addEventListener('change', setCoverageConnection);
   $('coverage-radio').addEventListener('change', () => {
@@ -990,7 +1123,11 @@
         ],
         [
           'Wi-Fi settings',
-          p.radio ? p.ssid + ' (password hidden)' : 'Keep existing Wi-Fi settings',
+          p.gateway_plan
+            ? selectedGatewayAP()?.ssid + ' (use the main router settings privately)'
+            : p.radio
+              ? p.ssid + ' (password hidden)'
+              : 'Keep existing Wi-Fi settings',
         ],
         ['Address server and routing', 'Main router only'],
       ]);
@@ -1004,11 +1141,12 @@
   $('coverage-prepare').addEventListener('click', () =>
     coverageAction(async (c) => {
       if (!c.draft) throw Error('Review a connection first.');
+      const { gateway_plan, ...plan } = c.draft.plan;
       const result = nodeResult(
         await api('nodes/' + encodeURIComponent(c.node.id) + '/prepare', {
           method: 'POST',
           key: c.draft.key,
-          data: { key: c.draft.key, plan: c.draft.plan },
+          data: { key: c.draft.key, plan, ...(gateway_plan ? { gateway_plan } : {}) },
         }),
       );
       if (coverage !== c) return;
@@ -1050,7 +1188,9 @@
           method === 'apply'
             ? 'Settings applied. Test a client connection before confirming.'
             : method === 'confirm'
-              ? 'The access point accepted your connectivity confirmation.'
+              ? c.transaction?.state === 'confirmed'
+                ? 'The connection is confirmed on every participating router.'
+                : 'Confirmation is still in progress. Refresh status before making another change.'
               : 'The access point reported its rollback result.';
       }),
     );

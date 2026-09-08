@@ -237,6 +237,11 @@ func serve(args []string) error {
 	if e = wireServices(server, *state, *helperSocket); e != nil {
 		return e
 	}
+	defer func() {
+		if service, ok := server.Coverage.(interface{ Close() error }); ok {
+			_ = service.Close()
+		}
+	}()
 	srv := &http.Server{
 		Addr:              *listen,
 		Handler:           server.Handler(),

@@ -16,7 +16,7 @@ func TestCheckpointPruningKeepsOnlyCurrentCandidateAndUnrelatedFiles(t *testing.
 	}
 	defer func() { _ = store.Close() }()
 	keep := strings.Repeat("ab", 16)
-	for i := 0; i < 12; i++ {
+	for i := range 12 {
 		if e = store.SaveCheckpoint(fmt.Sprintf("%032x", i), store.Get()); e != nil {
 			t.Fatal(e)
 		}

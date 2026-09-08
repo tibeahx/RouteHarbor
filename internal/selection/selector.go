@@ -246,10 +246,7 @@ func (s *Selector) health(o *observation, now time.Time) model.SourceHealth {
 	}
 	// Speed checks are intentionally less frequent than light checks, but light
 	// checks cannot keep old throughput/loss evidence alive forever.
-	metricTTL := time.Duration(s.policy.StaleAfterSeconds) * 10 * time.Second
-	if metricTTL < 5*time.Minute {
-		metricTTL = 5 * time.Minute
-	}
+	metricTTL := max(time.Duration(s.policy.StaleAfterSeconds)*10*time.Second, 5*time.Minute)
 	if now.Sub(o.speedAt) > metricTTL {
 		h.SpeedBPS = nil
 	}

@@ -66,6 +66,15 @@ define Package/openrhp-node
   USERID:=openrhp-node:openrhp-node
 endef
 
+# Optional feature package: core gateway installation does not require it.
+define Package/openrhp-conntrack
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=Routing and Redirection
+  TITLE:=OpenRHP optional scoped connection tracking reset
+  DEPENDS:=+openrhp +conntrack
+endef
+
 define Package/openrhp-sing-box
   SECTION:=net
   CATEGORY:=Network
@@ -146,6 +155,10 @@ define Package/openrhp-node/install
 	$(INSTALL_BIN) ./files/openrhp-node-setup $(1)/usr/libexec/openrhp-node-setup
 endef
 
+define Package/openrhp-conntrack/install
+	true
+endef
+
 define Package/openrhp-sing-box/install
 	true
 endef
@@ -185,3 +198,5 @@ $(eval $(call BuildPackage,openrhp))
 $(eval $(call BuildPackage,openrhp-node))
 $(eval $(call BuildPackage,openrhp-sing-box))
 $(eval $(call BuildPackage,openrhp-xray))
+
+$(eval $(call BuildPackage,openrhp-conntrack))

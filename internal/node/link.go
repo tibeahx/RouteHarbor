@@ -92,7 +92,7 @@ func ParseStationMetrics(data []byte) (signal, rx, tx *float64) {
 		return nil, nil, nil
 	}
 	stations := 0
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) == 0 {
 			continue

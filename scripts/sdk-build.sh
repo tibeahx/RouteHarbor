@@ -24,7 +24,7 @@ cp -R "$source_dir/packaging/openwrt/openrhp/." "$recipe/"
 if [ ! -f "$sdk_dir/.config" ]; then
  printf '%s\n' '# CONFIG_ALL is not set' '# CONFIG_ALL_KMODS is not set' '# CONFIG_ALL_NONSHARED is not set' \
   'CONFIG_PACKAGE_openrhp=m' 'CONFIG_PACKAGE_openrhp-guard=m' 'CONFIG_PACKAGE_openrhp-node=m' \
-  'CONFIG_PACKAGE_openrhp-sing-box=m' 'CONFIG_PACKAGE_openrhp-xray=m' > "$sdk_dir/.config"
+  'CONFIG_PACKAGE_openrhp-conntrack=m' 'CONFIG_PACKAGE_openrhp-sing-box=m' 'CONFIG_PACKAGE_openrhp-xray=m' > "$sdk_dir/.config"
 fi
 # The SDK, not filename guessing, chooses ipk/opkg or apk packaging and arch names.
 make -C "$sdk_dir" defconfig
@@ -35,5 +35,5 @@ make -C "$sdk_dir" package/openrhp/clean NO_DEPS=1 V=s
 # rebuilding runtime dependencies (notably the SDK's fixed all-kmod selection).
 # NO_DEPS is the SDK's supported build-graph switch; package DEPENDS metadata stays
 # intact, and the target package manager must install/check runtime dependencies.
-make -C "$sdk_dir" package/openrhp/compile NO_DEPS=1 V=s OPENRHP_SOURCE="$source_dir" OPENRHP_GO="$go_binary"
+make -C "$sdk_dir" package/openrhp/compile NO_DEPS=1 V=s CONFIG_PACKAGE_openrhp-conntrack=m OPENRHP_SOURCE="$source_dir" OPENRHP_GO="$go_binary"
 printf '%s\n' 'SDK packages are in the SDK bin/packages and bin/targets trees. These are development artifacts, not a signed release.'

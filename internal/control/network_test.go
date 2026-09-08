@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
 	"github.com/tibeahx/OpenRHP/internal/helper"
 	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/OpenRHP/internal/platform"
 )
 
 type coordinatorClient struct {
@@ -46,6 +48,38 @@ func (c *coordinatorClient) Rollback(context.Context, string) (helper.Transactio
 func (c *coordinatorClient) Switch(context.Context, string) (helper.Transaction, error) {
 	c.switched++
 	return helper.Transaction{}, nil
+}
+
+func TestPrepareUsesPrivilegedPlatformDiscovery(t *testing.T) {
+	r := runtimeFixture(t)
+	called := false
+	n := &NetworkCoordinator{
+		Runtime: r,
+		Client:  &coordinatorClient{},
+		Platform: func(context.Context) (platform.Report, error) {
+			called = true
+			return platform.Report{Supported: true, OS: "OpenWrt"}, nil
+		},
+	}
+	if _, err := n.Prepare(
+		context.Background(),
+		r.Store.Get(),
+		120,
+	); err == nil || err.Error() != "network disabled" ||
+		!called {
+		t.Fatalf("privileged platform discovery was not used: called=%v err=%v", called, err)
+	}
+	n.Platform = func(context.Context) (platform.Report, error) {
+		return platform.Report{Supported: true}, errors.New("private discovery failure")
+	}
+	if _, err := n.Prepare(
+		context.Background(),
+		r.Store.Get(),
+		120,
+	); err == nil ||
+		err.Error() != "privileged platform discovery is unavailable" {
+		t.Fatalf("failed platform discovery was accepted: %v", err)
+	}
 }
 
 func TestCommittedPathEditsRequireSafeRemovalAndPendingTransactionsLockConfig(t *testing.T) {
@@ -123,5 +157,30 @@ func TestGuardedNetworkIsNotReportedApplied(t *testing.T) {
 	n.Sync(context.Background())
 	if client.switched != 1 {
 		t.Fatal("same selected path was not restored after an independent fw4 guard")
+	}
+}
+
+func TestCurrentExposesResetFailureWithoutLosingCommittedRoute(t *testing.T) {
+	r := runtimeFixture(t)
+	d := dataplane.Desired{Selected: "new-source"}
+	client := &coordinatorClient{
+		state: helper.State{Committed: &d, Transaction: &helper.Transaction{
+			ID:              "confirmed-switch",
+			State:           "confirmed",
+			FlowTermination: "failed",
+			ErrorCode:       "conntrack_delete_failed",
+		}},
+	}
+	n := &NetworkCoordinator{Runtime: r, Client: client}
+	status, err := n.Current(context.Background())
+	if err != nil || status["applied"] != true || status["selected"] != "new-source" ||
+		status["last_error"] != "conntrack_delete_failed" || status["flow_termination"] != "failed" {
+		t.Fatal(status, err)
+	}
+	client.state.Transaction.FlowTermination = "completed"
+	client.state.Transaction.ErrorCode = ""
+	status, err = n.Current(context.Background())
+	if err != nil || status["last_error"] != "" {
+		t.Fatal(status, err)
 	}
 }

@@ -23,6 +23,7 @@ sh scripts/lab-paths.sh
 sh scripts/lab-network.sh
 sh scripts/lab-uci.sh
 sh scripts/lab-node-link.sh
+sh scripts/lab-wireless.sh
 sh scripts/lab-admin.sh
 ```
 

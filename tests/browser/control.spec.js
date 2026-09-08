@@ -1,6 +1,5 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
-const path = require('node:path');
 const tokenFile = process.env.OPENRHP_TEST_TOKEN_FILE;
 if (!tokenFile)
   throw new Error('OPENRHP_TEST_TOKEN_FILE must point to a private local test credential.');
@@ -13,6 +12,7 @@ test.beforeEach(async ({ request }) => {
   c.targets = [];
   c.policy.mode = 'off';
   c.policy.pinned = '';
+  c.policy.break_existing = false;
   const saved = await request.put('/api/v1/config', {
     headers: {
       ...headers,
@@ -29,6 +29,31 @@ async function login(page) {
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Your network', exact: true })).toBeVisible();
 }
+
+test('resetting old connection tracking requires an explicit saved opt-in', async ({
+  page,
+  request,
+}) => {
+  await login(page);
+  await page.getByText('Selection thresholds and fallback', { exact: true }).click();
+  const reset = page.getByLabel('Reset old connection tracking when switching paths', {
+    exact: true,
+  });
+  await expect(reset).not.toBeChecked();
+  await reset.check();
+  await page.getByRole('button', { name: 'Save selection', exact: true }).click();
+  await expect(page.locator('#notice')).toContainText('Settings saved');
+  const response = await request.get('/api/v1/config', {
+    headers: { Authorization: 'Bearer ' + token },
+  });
+  expect((await response.json()).policy.break_existing).toBe(true);
+  await page.reload();
+  await login(page);
+  await page.getByText('Selection thresholds and fallback', { exact: true }).click();
+  await expect(reset).toBeChecked();
+  await expect(page.locator('#routing-banner')).toContainText('Traffic routing is not applied');
+});
+
 test('manual user adds, checks, selects and removes a path through the public API', async ({
   page,
 }) => {

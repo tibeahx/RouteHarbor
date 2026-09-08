@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/tibeahx/OpenRHP/internal/helper"
+	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/OpenRHP/internal/wireless"
 )
 
 func main() {
@@ -32,6 +34,10 @@ func run() error {
 		return errors.New(
 			"privileged helper requires Linux and root; network mutation is unavailable on this host",
 		)
+	}
+	if os.Args[1] == "verify-wireless" {
+		return wireless.NewVerifier("/etc/openrhp-helper", "gateway", "/etc/openrhp/nodes").
+			RecordCommand(context.Background(), os.Args[2:], os.Stdout)
 	}
 	if os.Args[1] == "packet-worker" {
 		workerFlags := flag.NewFlagSet("packet-worker", flag.ContinueOnError)
@@ -58,6 +64,11 @@ func run() error {
 	}
 	fs := flag.NewFlagSet("openrhp-helper "+os.Args[1], flag.ContinueOnError)
 	dir := fs.String("state-dir", "/etc/openrhp-helper", "private durable journal directory")
+	identityDir := fs.String(
+		"identity-dir",
+		"/etc/openrhp/nodes",
+		"gateway paired-node identity directory",
+	)
 	socket := fs.String("socket", "/var/run/openrhp/helper.sock", "local helper socket")
 	uid := fs.Uint("uid", 65534, "UID permitted to connect to the local helper")
 	transaction := fs.String("transaction", "", "watchdog transaction identity")
@@ -69,7 +80,12 @@ func run() error {
 	if fs.NArg() != 0 {
 		return errors.New("unexpected positional argument")
 	}
+	if os.Args[1] == "gateway-watchdog" {
+		return runGatewayWatchdog(*dir, *transaction, *readyFD)
+	}
 	backend := helper.NewNetworkBackend()
+	verifier := wireless.NewVerifier(*dir, "gateway", *identityDir)
+	backend.Detect = func(ctx context.Context) platform.Report { return helper.VerifiedPlatform(ctx, verifier) }
 	packet := helper.NewPacketManager()
 	backend.Packet = packet
 	defer func() { _ = packet.Close() }()
@@ -100,15 +116,31 @@ func run() error {
 		if err = manager.Resume(context.Background()); err != nil {
 			return err
 		}
+		gateway, e := gatewayManager(filepath.Join(*dir, "gateway"), exe, verifier)
+		if e != nil {
+			return e
+		}
+		defer func() { _ = gateway.Close() }()
+		if e = gateway.Resume(); e != nil {
+			return e
+		}
 		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer cancel()
-		return (&helper.Server{Manager: manager, AllowedUID: uint32(*uid), SocketPath: *socket, Packet: packet}).Serve(
+		return (&helper.Server{Manager: manager, Gateway: gateway, AllowedUID: uint32(*uid), SocketPath: *socket, Packet: packet}).Serve(
 			ctx,
 		)
 	case "quarantine":
 		return manager.BootGuard(context.Background())
 	case "can-remove":
-		return manager.CanRemove()
+		if err = manager.CanRemove(); err != nil {
+			return err
+		}
+		gateway, e := gatewayManager(filepath.Join(*dir, "gateway"), exe, verifier)
+		if e != nil {
+			return e
+		}
+		defer func() { _ = gateway.Close() }()
+		return gateway.CanRemove()
 	case "decommission":
 		return manager.Decommission(context.Background(), *policy)
 	case "recover":
@@ -132,6 +164,11 @@ func run() error {
 			}
 		}
 		for {
+			state, statusErr := manager.Status()
+			if statusErr == nil &&
+				(state.Transaction == nil || state.Transaction.ID != *transaction) {
+				return nil
+			}
 			done, recoverErr := manager.Recover(context.Background())
 			if done && recoverErr == nil {
 				return nil

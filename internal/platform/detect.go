@@ -26,19 +26,22 @@ type Interface struct {
 	Prefixes []string `json:"prefixes"`
 }
 type Report struct {
-	Supported            bool                  `json:"supported"`
-	OS                   string                `json:"os"`
-	Version              string                `json:"version"`
-	PackageArch          string                `json:"package_arch"`
-	GoArch               string                `json:"go_arch"`
-	PackageManager       string                `json:"package_manager"`
-	Firewall             string                `json:"firewall"`
-	Init                 string                `json:"init"`
-	MemoryAvailableBytes uint64                `json:"memory_available_bytes"`
-	FlashAvailableBytes  uint64                `json:"flash_available_bytes"`
-	Interfaces           []Interface           `json:"interfaces"`
-	Capabilities         map[string]Capability `json:"capabilities"`
-	Issues               []string              `json:"issues"`
+	Supported               bool                  `json:"supported"`
+	OS                      string                `json:"os"`
+	Version                 string                `json:"version"`
+	PackageArch             string                `json:"package_arch"`
+	GoArch                  string                `json:"go_arch"`
+	PackageManager          string                `json:"package_manager"`
+	Firewall                string                `json:"firewall"`
+	Init                    string                `json:"init"`
+	MemoryAvailableBytes    uint64                `json:"memory_available_bytes"`
+	FlashAvailableBytes     uint64                `json:"flash_available_bytes"`
+	Interfaces              []Interface           `json:"interfaces"`
+	Capabilities            map[string]Capability `json:"capabilities"`
+	Issues                  []string              `json:"issues"`
+	VerifiedPeerFingerprint string                `json:"verified_peer_fingerprint,omitempty"`
+	VerifiedRadio           string                `json:"verified_radio,omitempty"`
+	VerifiedMode            string                `json:"verified_mode,omitempty"`
 }
 type Detector struct {
 	OS        string
@@ -67,7 +70,7 @@ func (d Detector) Detect(ctx context.Context) Report {
 		Capabilities: map[string]Capability{},
 		Issues:       []string{},
 	}
-	for _, name := range []string{"transparent_tcp", "transparent_udp", "ipv6", "nfqueue", "tproxy", "proxy_engine", "xray", "wireless_ap", "wds", "mesh", "concurrent_radio", "flow_offload_safe", "lifecycle_guard"} {
+	for _, name := range []string{"transparent_tcp", "transparent_udp", "ipv6", "nfqueue", "tproxy", "proxy_engine", "xray", "wireless_ap", "wds", "mesh", "concurrent_radio", "flow_offload_safe", "lifecycle_guard", "break_existing"} {
 		r.Capabilities[name] = Capability{
 			Reason: "Not detected; capability must be verified before use",
 		}
@@ -121,7 +124,7 @@ func (d Detector) Detect(ctx context.Context) Report {
 		r.Issues = append(r.Issues, "No netifd interfaces were discovered")
 	}
 	mem, _ := d.ReadFile("/proc/meminfo")
-	for _, line := range strings.Split(string(mem), "\n") {
+	for line := range strings.SplitSeq(string(mem), "\n") {
 		if strings.HasPrefix(line, "MemAvailable:") {
 			f := strings.Fields(line)
 			if len(f) > 1 {
@@ -168,7 +171,7 @@ func (d Detector) Detect(ctx context.Context) Report {
 		r.Issues = append(r.Issues, "Cannot verify firewall flow offload settings")
 	} else {
 		offload := false
-		for _, line := range strings.Split(string(uci), "\n") {
+		for line := range strings.SplitSeq(string(uci), "\n") {
 			if (strings.Contains(line, ".flow_offloading=") || strings.Contains(line, ".flow_offloading_hw=")) &&
 				strings.Trim(strings.SplitN(line, "=", 2)[1], "'\" ") == "1" {
 				offload = true
@@ -227,7 +230,7 @@ func (d Detector) Detect(ctx context.Context) Report {
 
 func parseRelease(input string) map[string]string {
 	r := map[string]string{}
-	for _, line := range strings.Split(input, "\n") {
+	for line := range strings.SplitSeq(input, "\n") {
 		k, v, ok := strings.Cut(line, "=")
 		if ok && strings.HasPrefix(k, "DISTRIB_") {
 			r[k] = strings.Trim(v, "'\"")

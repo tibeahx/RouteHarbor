@@ -160,6 +160,13 @@ func secureRegular(f *os.File) error {
 }
 
 func (s *Store) lock() (*os.File, error) {
+	before, inspectErr := s.root.Lstat(".lock")
+	if inspectErr != nil && !errors.Is(inspectErr, os.ErrNotExist) {
+		return nil, errors.New("cannot inspect configuration lock")
+	}
+	if inspectErr == nil && !before.Mode().IsRegular() {
+		return nil, errors.New("configuration lock must be regular")
+	}
 	f, err := s.root.OpenFile(
 		".lock",
 		os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_NONBLOCK,
@@ -171,6 +178,11 @@ func (s *Store) lock() (*os.File, error) {
 	if err := secureRegular(f); err != nil {
 		_ = f.Close()
 		return nil, err
+	}
+	after, inspectErr := f.Stat()
+	if inspectErr != nil || (before != nil && !os.SameFile(before, after)) {
+		_ = f.Close()
+		return nil, errors.New("configuration lock changed")
 	}
 	deadline := time.Now().Add(2 * time.Second)
 	for {
@@ -200,6 +212,13 @@ func (s *Store) read() (model.Config, error) {
 }
 
 func (s *Store) readNamed(name string) (model.Config, error) {
+	before, err := s.root.Lstat(name)
+	if err != nil {
+		return model.Config{}, err
+	}
+	if !before.Mode().IsRegular() {
+		return model.Config{}, errors.New("configuration must not be a symlink or special file")
+	}
 	f, err := s.root.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
@@ -210,6 +229,10 @@ func (s *Store) readNamed(name string) (model.Config, error) {
 	defer func() { _ = f.Close() }()
 	if err := secureRegular(f); err != nil {
 		return model.Config{}, err
+	}
+	after, err := f.Stat()
+	if err != nil || !os.SameFile(before, after) {
+		return model.Config{}, errors.New("configuration changed while opening")
 	}
 	data, err := io.ReadAll(io.LimitReader(f, MaxConfigBytes+1))
 	if err != nil {

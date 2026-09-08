@@ -78,9 +78,7 @@ func New(store *config.Store, adapters *adapter.Manager, journal *Journal) *Runt
 }
 
 func (r *Runtime) Start() {
-	r.wg.Add(1)
-	go func() {
-		defer r.wg.Done()
+	r.wg.Go(func() {
 		t := time.NewTicker(time.Second)
 		defer t.Stop()
 		for {
@@ -96,7 +94,7 @@ func (r *Runtime) Start() {
 				}
 			}
 		}
-	}()
+	})
 }
 
 func (r *Runtime) Close() {
@@ -180,10 +178,11 @@ func (r *Runtime) tick(now time.Time) {
 			continue
 		}
 		r.mu.Lock()
-		due := !now.Before(r.next[s.ID])
+		degradation := r.degradationSpeedDueLocked(s.ID, c, now)
+		due := !now.Before(r.next[s.ID]) || degradation
 		space := len(r.active) < c.Probes.Concurrency
 		busy := r.active[s.ID]
-		speed := r.speedAt[s.ID].IsZero() ||
+		speed := degradation || r.speedAt[s.ID].IsZero() ||
 			now.Sub(r.speedAt[s.ID]) >= time.Duration(c.Probes.SpeedIntervalSeconds)*time.Second
 		r.mu.Unlock()
 		if due && space && !busy {

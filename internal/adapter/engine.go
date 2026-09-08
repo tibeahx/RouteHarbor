@@ -48,7 +48,7 @@ func trustedEngine(binary string) error {
 }
 
 func supportedEngineVersion(engine, output string) bool {
-	for _, line := range strings.Split(output, "\n") {
+	for line := range strings.SplitSeq(output, "\n") {
 		if engine == "sing-box" && line == "sing-box version "+SingBoxVersion {
 			return true
 		}

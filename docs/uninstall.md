@@ -44,7 +44,10 @@ opkg remove openrhp openrhp-guard
 On apk systems, the final command is `apk del openrhp openrhp-guard`. The helper
 removes only its own policy rules, routes and firewall processing. It never rewrites
 WAN/LAN, DHCP, PPPoE or SSID configuration. The guard package refuses removal while
-a protected configuration or pending transaction remains.
+a protected configuration or pending transaction remains. This check also covers
+an unresolved gateway backhaul transaction in `/etc/openrhp-helper/gateway`.
+Complete or roll back the paired coverage transaction before removing the
+controller needed to coordinate its two participants.
 
 If decommission fails partway, the guard remains in place. Repeat the same command
 after resolving the reported platform or ownership conflict. Do not fix it with

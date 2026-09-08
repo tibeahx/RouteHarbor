@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tibeahx/OpenRHP/internal/platform"
 )
@@ -30,6 +31,12 @@ func NewUCIBackend() *UCIBackend {
 		Runner:       nodeRunner{},
 		Capabilities: func(ctx context.Context) Capabilities { return CapabilitiesFrom(platform.Detect(ctx)) },
 	}
+}
+
+func (b *UCIBackend) ReportCapabilities(ctx context.Context) Capabilities {
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	return b.Capabilities(ctx)
 }
 
 var packages = []string{"network", "wireless", "dhcp", "firewall"}
@@ -64,7 +71,7 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) error {
 	}
 	// Keep the verified management address throughout apply and rollback. Address
 	// reassignment is intentionally separate from a backhaul transaction.
-	address := strings.Split(p.ManagementAddress, "/")[0]
+	address, _, _ := strings.Cut(p.ManagementAddress, "/")
 	if n["network."+p.ManagementInterface+".ipaddr"] != p.ManagementAddress &&
 		n["network."+p.ManagementInterface+".ipaddr"] != address {
 		return errors.New(
@@ -163,7 +170,7 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) error {
 
 func parseUCI(data []byte) map[string]string {
 	values := map[string]string{}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		key, value, ok := strings.Cut(line, "=")
 		if ok {
 			values[key] = strings.Trim(value, "'")
@@ -347,7 +354,7 @@ func (b *UCIBackend) Restore(ctx context.Context, s Snapshot, p Plan) error {
 		}
 	}
 	wireless := p.Radio != ""
-	for _, line := range strings.Split(string(s["wireless"]), "\n") {
+	for line := range strings.SplitSeq(string(s["wireless"]), "\n") {
 		fields := strings.Fields(line)
 		if len(fields) >= 3 && fields[0] == "config" &&
 			strings.Trim(fields[1], "'\"") == "wifi-iface" &&

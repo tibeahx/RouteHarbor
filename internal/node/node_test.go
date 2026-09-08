@@ -169,7 +169,7 @@ func TestEnrollmentExpiryAttemptsReplayAndRevocation(t *testing.T) {
 					t.Fatal("expired code accepted")
 				}
 			case "attempts":
-				for i := 0; i < 5; i++ {
+				for range 5 {
 					if p.Enroll(strings.Repeat("x", 43), pin) == nil {
 						t.Fatal("wrong code accepted")
 					}
@@ -225,7 +225,7 @@ func TestEnrollmentRaceHasExactlyOneWinner(t *testing.T) {
 	}
 	var winners atomic.Int64
 	var wg sync.WaitGroup
-	for i := 0; i < 10; i++ {
+	for i := range 10 {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()

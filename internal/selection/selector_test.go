@@ -68,12 +68,12 @@ func TestSustainedFasterSourceNeedsFreshConfirmations(t *testing.T) {
 	pickA(t, s, sources, now)
 	now = now.Add(11 * time.Second)
 	s.Observe(measure("b", now, 10000))
-	for i := 0; i < 20; i++ {
+	for range 20 {
 		if d := s.Evaluate(sources, now); d.Selected != "a" {
 			t.Fatalf("polls count as measurements: %+v", d)
 		}
 	}
-	for i := 0; i < 2; i++ {
+	for i := range 2 {
 		now = now.Add(time.Second)
 		s.Observe(measure("b", now, 10000))
 		d := s.Evaluate(sources, now)
@@ -124,7 +124,7 @@ func TestOneLatencySpikeDoesNotFlap(t *testing.T) {
 	if d := s.Evaluate(sources, now); d.Selected != "a" {
 		t.Fatalf("single latency spike switched: %+v", d)
 	}
-	for i := 0; i < 10; i++ {
+	for range 10 {
 		now = now.Add(time.Second)
 		s.Observe(measure("a", now, 1000))
 		s.Observe(measure("b", now, 500))
@@ -324,7 +324,7 @@ func TestUnknownTelemetryIsNotZeroAndMeasuredLossIsSeparate(t *testing.T) {
 func TestHistoriesBoundedAndCopiesDetached(t *testing.T) {
 	s, _, now := setup()
 	s.SetHistoryLimit(4)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		s.Observe(measure("a", now.Add(time.Duration(i)*time.Second), 100))
 	}
 	history := s.History("a")
@@ -380,7 +380,7 @@ func TestRejectInvalidOrRepeatedTelemetry(t *testing.T) {
 func TestConcurrentObserveEvaluateAndRead(t *testing.T) {
 	s, sources, now := setup()
 	var wg sync.WaitGroup
-	for worker := 0; worker < 8; worker++ {
+	for worker := range 8 {
 		wg.Add(1)
 		go func(worker int) {
 			defer wg.Done()

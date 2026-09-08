@@ -33,14 +33,15 @@ type Backend interface {
 type (
 	Watchdog    interface{ Arm(string) error }
 	Transaction struct {
-		ID        string             `json:"id"`
-		State     string             `json:"state"`
-		CreatedAt time.Time          `json:"created_at"`
-		Deadline  time.Time          `json:"deadline,omitempty"`
-		Candidate dataplane.Desired  `json:"candidate"`
-		Rollback  dataplane.Desired  `json:"rollback"`
-		Previous  *dataplane.Desired `json:"previous,omitempty"`
-		ErrorCode string             `json:"error_code,omitempty"`
+		ID              string             `json:"id"`
+		State           string             `json:"state"`
+		CreatedAt       time.Time          `json:"created_at"`
+		Deadline        time.Time          `json:"deadline,omitempty"`
+		Candidate       dataplane.Desired  `json:"candidate"`
+		Rollback        dataplane.Desired  `json:"rollback"`
+		Previous        *dataplane.Desired `json:"previous,omitempty"`
+		ErrorCode       string             `json:"error_code,omitempty"`
+		FlowTermination string             `json:"flow_termination,omitempty"`
 	}
 )
 
@@ -140,6 +141,12 @@ func (m *Manager) read() (State, error) {
 				return s, errors.New("journal_invalid: previous policy is invalid")
 			}
 		}
+		if t.FlowTermination != "" {
+			if t.State != "confirmed" || previousResetSlot(t) == 0 ||
+				(t.FlowTermination != "pending" && t.FlowTermination != "completed" && t.FlowTermination != "failed") {
+				return s, errors.New("journal_invalid: invalid connection tracking reset state")
+			}
+		}
 		switch t.State {
 		case "prepared",
 			"applying",
@@ -213,6 +220,12 @@ func (m *Manager) Prepare(ctx context.Context, d dataplane.Desired) (Transaction
 		return out, err
 	}
 	err = m.locked(func(s *State) error {
+		if s.Transaction != nil && s.Transaction.State == "confirmed" &&
+			s.Transaction.FlowTermination == "pending" {
+			if err := m.finishFlowReset(ctx, s); err != nil {
+				return err
+			}
+		}
 		if active(s.Transaction) {
 			return ErrBusy
 		}
@@ -236,6 +249,17 @@ func (m *Manager) Prepare(ctx context.Context, d dataplane.Desired) (Transaction
 						)
 					}
 				}
+			}
+		}
+		if d.BreakExisting {
+			resetter, ok := m.backend.(flowResetBackend)
+			if !ok {
+				return errors.New(
+					"capability_unavailable: scoped connection tracking reset is unavailable",
+				)
+			}
+			if err := resetter.CheckFlowReset(ctx); err != nil {
+				return err
 			}
 		}
 		if err := m.backend.Check(ctx, plan); err != nil {
@@ -345,7 +369,9 @@ func (m *Manager) Confirm(id string) (Transaction, error) {
 		}
 		out = *t
 		if t.State == "confirmed" {
-			return nil
+			err := m.finishFlowReset(context.Background(), s)
+			out = *t
+			return err
 		}
 		if t.State != "applied" {
 			return errors.New("invalid_state: only an applied transaction can be confirmed")
@@ -356,7 +382,13 @@ func (m *Manager) Confirm(id string) (Transaction, error) {
 		t.State = "confirmed"
 		d := t.Candidate
 		s.Committed = &d
+		if previousResetSlot(t) != 0 {
+			t.FlowTermination = "pending"
+		}
 		if err := m.save(s); err != nil {
+			return err
+		}
+		if err := m.finishFlowReset(context.Background(), s); err != nil {
 			return err
 		}
 		out = *t
@@ -442,6 +474,9 @@ func (m *Manager) Recover(ctx context.Context) (bool, error) {
 	done := true
 	err := m.locked(func(s *State) error {
 		t := s.Transaction
+		if t != nil && t.State == "confirmed" && t.FlowTermination == "pending" {
+			return m.finishFlowReset(ctx, s)
+		}
 		if t == nil || !active(t) || t.State == "prepared" {
 			return nil
 		}

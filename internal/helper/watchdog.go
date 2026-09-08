@@ -19,6 +19,10 @@ type ProcessWatchdog struct {
 }
 
 func (w ProcessWatchdog) Arm(id string) error {
+	return w.arm(id, "watchdog")
+}
+
+func (w ProcessWatchdog) arm(id, mode string) error {
 	if runtime.GOOS != "linux" {
 		return errors.New("watchdog_unavailable: independent privileged watchdog requires Linux")
 	}
@@ -39,7 +43,7 @@ func (w ProcessWatchdog) Arm(id string) error {
 	defer func() { _ = read.Close() }()
 	cmd := exec.Command(
 		w.Binary,
-		"watchdog",
+		mode,
 		"--state-dir",
 		w.StateDir,
 		"--transaction",

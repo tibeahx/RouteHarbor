@@ -14,6 +14,13 @@ import (
 const maxStateBytes = 2 << 20
 
 func stateLock(r *os.Root, name string) (*os.File, error) {
+	before, inspectErr := r.Lstat(name)
+	if inspectErr != nil && !errors.Is(inspectErr, os.ErrNotExist) {
+		return nil, inspectErr
+	}
+	if inspectErr == nil && !before.Mode().IsRegular() {
+		return nil, errors.New("private state lock must be regular")
+	}
 	f, e := r.OpenFile(name, os.O_RDWR|os.O_CREATE|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0o600)
 	if e != nil {
 		return nil, e
@@ -21,6 +28,11 @@ func stateLock(r *os.Root, name string) (*os.File, error) {
 	if e = privateRegular(f); e != nil {
 		_ = f.Close()
 		return nil, e
+	}
+	after, inspectErr := f.Stat()
+	if inspectErr != nil || (before != nil && !os.SameFile(before, after)) {
+		_ = f.Close()
+		return nil, errors.New("private state lock changed")
 	}
 	deadline := time.Now().Add(3 * time.Second)
 	for {
@@ -82,6 +94,13 @@ func openStateRoot(dir string) (*os.Root, error) {
 }
 
 func readPrivate(r *os.Root, name string) ([]byte, error) {
+	before, err := r.Lstat(name)
+	if err != nil {
+		return nil, err
+	}
+	if !before.Mode().IsRegular() {
+		return nil, errors.New("private state must not be a symlink or special file")
+	}
 	f, e := r.OpenFile(name, os.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK, 0)
 	if e != nil {
 		return nil, e
@@ -89,6 +108,10 @@ func readPrivate(r *os.Root, name string) ([]byte, error) {
 	defer func() { _ = f.Close() }()
 	if e = privateRegular(f); e != nil {
 		return nil, e
+	}
+	after, err := f.Stat()
+	if err != nil || !os.SameFile(before, after) {
+		return nil, errors.New("private state changed while opening")
 	}
 	data, e := io.ReadAll(io.LimitReader(f, maxStateBytes+1))
 	if len(data) > maxStateBytes {

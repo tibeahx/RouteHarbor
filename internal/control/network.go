@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"slices"
 	"sync"
 	"time"
 
@@ -28,6 +29,7 @@ type NetworkClient interface {
 type NetworkCoordinator struct {
 	Runtime           *Runtime
 	Client            NetworkClient
+	Platform          func(context.Context) (platform.Report, error)
 	mu                sync.Mutex
 	preparedRevision  uint64
 	confirmedRevision uint64
@@ -72,7 +74,15 @@ func (n *NetworkCoordinator) Prepare(
 			}
 		}
 	}
-	report := platform.Detect(ctx)
+	var report platform.Report
+	if n.Platform == nil {
+		report = platform.Detect(ctx)
+	} else {
+		report, e = n.Platform(ctx)
+		if e != nil {
+			return nil, errors.New("privileged platform discovery is unavailable")
+		}
+	}
 	if !report.Supported {
 		return nil, errors.New("unsupported platform")
 	}
@@ -80,12 +90,36 @@ func (n *NetworkCoordinator) Prepare(
 		return nil, errors.New("network disabled")
 	}
 	paths := []dataplane.Path{}
+	unavailable := []string{}
+	committed := map[string]bool{}
+	if previous.Committed != nil {
+		for _, path := range previous.Committed.Paths {
+			committed[path.SourceID] = true
+		}
+	}
+	n.Runtime.mu.Lock()
+	selected := n.Runtime.decision.Selected
+	n.Runtime.mu.Unlock()
 	for _, s := range c.Sources {
 		if !s.Enabled {
 			continue
 		}
-		if e := n.Runtime.Adapters.Start(ctx, s); e != nil {
+		if e := n.Runtime.Adapters.Validate(s); e != nil {
 			return nil, e
+		}
+		if e := n.Runtime.Adapters.Start(ctx, s); e != nil {
+			if committed[s.ID] {
+				return nil, errors.New(
+					"retained source engine is unavailable; restore it before changing routing so existing flows cannot reach an untrusted input",
+				)
+			}
+			if s.ID == selected {
+				return nil, errors.New(
+					"selected source is unavailable; select a healthy prepared source before applying routing",
+				)
+			}
+			unavailable = append(unavailable, s.ID)
+			continue
 		}
 		p, e := n.Runtime.Adapters.ProbePath(ctx, s)
 		if e != nil {
@@ -109,14 +143,13 @@ func (n *NetworkCoordinator) Prepare(
 			},
 		)
 	}
-	n.Runtime.mu.Lock()
-	selected := n.Runtime.decision.Selected
-	n.Runtime.mu.Unlock()
 	d := dataplane.Desired{
-		Network:  c.Network,
-		Paths:    paths,
-		Selected: selected,
-		Fallback: c.Policy.Fallback,
+		Network:       c.Network,
+		Paths:         paths,
+		Unavailable:   unavailable,
+		Selected:      selected,
+		Fallback:      c.Policy.Fallback,
+		BreakExisting: c.Policy.BreakExisting,
 	}
 	if _, e := dataplane.Compile(d); e != nil {
 		return nil, e
@@ -219,11 +252,16 @@ func (n *NetworkCoordinator) Current(ctx context.Context) (map[string]any, error
 	}
 	if s.Committed != nil {
 		out["selected"] = s.Committed.Selected
+		out["unavailable_sources"] = append([]string{}, s.Committed.Unavailable...)
 	}
 	if s.Transaction != nil {
 		out["transaction_id"] = s.Transaction.ID
 		out["transaction_state"] = s.Transaction.State
 		out["deadline"] = s.Transaction.Deadline
+		out["flow_termination"] = s.Transaction.FlowTermination
+		if s.Transaction.State == "confirmed" && s.Transaction.FlowTermination == "failed" {
+			out["last_error"] = s.Transaction.ErrorCode
+		}
 	}
 	return out, nil
 }
@@ -255,6 +293,10 @@ func (n *NetworkCoordinator) Sync(ctx context.Context) {
 		return
 	}
 	if s.Committed == nil || (s.Committed.Selected == selected && !s.Guarded) {
+		return
+	}
+	if slices.Contains(s.Committed.Unavailable, selected) {
+		n.lastError = "recovered_source_requires_routing_prepare"
 		return
 	}
 	if _, e = n.Client.Switch(ctx, selected); e != nil {

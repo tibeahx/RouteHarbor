@@ -31,6 +31,14 @@ func (l LocalOperator) Do(ctx context.Context, o Operation) (map[string]any, err
 	var t Transaction
 	var e error
 	switch o.Action {
+	case "capabilities":
+		backend, ok := l.Manager.backend.(interface {
+			ReportCapabilities(context.Context) Capabilities
+		})
+		if !ok {
+			return nil, errors.New("node_capabilities_unavailable")
+		}
+		return map[string]any{"capabilities": backend.ReportCapabilities(ctx)}, nil
 	case "inspect":
 		return l.Manager.Inspect(ctx)
 	case "link":
@@ -57,6 +65,22 @@ func (l LocalOperator) Do(ctx context.Context, o Operation) (map[string]any, err
 		return nil, e
 	}
 	return map[string]any{"transaction": t}, nil
+}
+
+func (c HelperClient) Capabilities(ctx context.Context) (Capabilities, error) {
+	result, err := c.Do(ctx, Operation{Action: "capabilities"})
+	if err != nil {
+		return Capabilities{}, err
+	}
+	data, err := json.Marshal(result["capabilities"])
+	if err != nil {
+		return Capabilities{}, errors.New("node_capabilities_invalid")
+	}
+	var out Capabilities
+	if adapter.StrictDecode(data, &out) != nil {
+		return Capabilities{}, errors.New("node_capabilities_invalid")
+	}
+	return out, nil
 }
 
 type (

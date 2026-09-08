@@ -147,7 +147,7 @@ func PinnedTLS(identity Identity, pin string) (*tls.Config, error) {
 type enrollment struct {
 	Version            int       `json:"version"`
 	CodeHash           string    `json:"code_hash,omitempty"`
-	Expires            time.Time `json:"expires,omitempty"`
+	Expires            time.Time `json:"expires"`
 	Attempts           int       `json:"attempts"`
 	GatewayFingerprint string    `json:"gateway_fingerprint,omitempty"`
 }

@@ -43,6 +43,17 @@ Probes require HTTPS on port 443, expected HTTP status codes, and a body budget 
 
 The gateway records per-resource success, status, latency, bytes read, and useful speed when a speed measurement was requested. Packet-loss telemetry stays absent unless measured by a suitable adapter. An HTTP error is never recorded as packet loss. Lightweight probes read at most 32 KiB and do not invent a speed metric. Failures use stable error codes and omit endpoint URLs, credentials, and server-provided content.
 
+The scheduler can request a speed check before its regular interval when fresh
+lightweight evidence shows a required-resource failure, a measured packet-loss
+increase of at least ten percentage points, or latency at least twice a recent
+per-resource baseline with a minimum 100 ms increase. Latency needs at least two
+successful baseline samples. Extra checks have a per-source cooldown of at least
+one minute and twice its normal lightweight interval after any speed attempt. Evidence from
+before that attempt or beyond the configured freshness window cannot retrigger
+it. These checks share the existing concurrency, timeout and target-byte limits;
+the usual 10-second active, 30-second other and 300-second speed defaults stay
+unchanged. A speed-check trigger alone never switches a route.
+
 Engine endpoint hostnames are resolved during preparation and pinned to a numeric address in the generated config, retaining their original TLS identity. This bootstrap lookup uses the gateway's existing system resolver and occurs before starting the candidate engine. It is distinct from client DNS; no hidden DNS resolver is added inside the engine. Sources needing to avoid bootstrap hostname disclosure can specify a numeric server and an explicit TLS server name.
 
 When network management is enabled, **probe target DNS also uses each candidate source**. A per-run resolver sends TCP DNS to the explicitly configured `network.dns_resolver` through that source's numeric SOCKS/CONNECT endpoint or helper-marked socket. It never falls back to the system resolver. Without an explicit resolver, hostname targets fail with `target_dns_resolver_required`; public IP literal targets remain usable. Unmanaged local development may use the system resolver. A DNS wire-format test supplies different answers over two source-specific TCP paths and verifies no global resolver is used.
@@ -55,6 +66,10 @@ The controller saves the complete candidate configuration to a private transacti
 
 Engine process generations are reaped independently. A failed process is cleared so the next recovery probe can restart it with the same inputs. Startup becomes `running` only after the generated TCP listeners accept connections. Managed engines have a root supervisor controlled by the authenticated API connection and a private helper-liveness pipe. API disconnect, helper death or worker death terminates the engine; an explicit stop waits for its listeners to close before releasing ownership. Engine readiness verifies that the required TCP/UDP IPv4/IPv6 listener inodes belong to that exact child. nfqws likewise uses a separate root supervisor and private liveness pipe because nfqws drops credentials. Network policy remains governed by the independent helper watchdog.
 
+A new, uncommitted source whose engine cannot start remains saved and visibly unhealthy. A routing transaction can include healthy paths while explicitly recording that source in `candidate.unavailable`; paths and unavailable IDs together must exactly match the enabled sources in its private checkpoint. An unavailable source cannot be selected. After it recovers, prepare and confirm routing again before using it for LAN traffic. `unavailable_sources` and `recovered_source_requires_routing_prepare` explain this state in routing status.
+
+A failed engine that already owns committed transparent inputs is different: preparing a routing change still requires restoring that engine. Existing sticky flows must never be redirected to an unrelated process that happens to bind its old local port. The helper retains strict ownership checks for every committed input; this limitation is explicit rather than silently removing an old protected path.
+
 ## Reproducing the Linux isolation prototype
 
 Run `scripts/lab-paths.sh` with Docker. It builds a pinned Debian image and runs a disposable privileged container with **no external network and no host mounts**. All interfaces, queues, and rules exist inside dedicated container namespaces; the host network is not changed.
@@ -63,7 +78,7 @@ The prototype uses a local verified TLS test origin and a local CONNECT proxy. I
 
 Observed on the development Docker Linux ARM64 lab: 32 concurrent requests passed; each profile counted 72 queued packets in that run; killing A failed closed and B/direct/proxy remained available. Counts may vary with retransmission. This proves source-path independence and crash isolation on that lab; it does not prove censorship bypass for an ISP, OpenWrt package compatibility, Wi-Fi performance, or physical-router acceptance.
 
-`scripts/lab-engines.sh` checks generated source configurations against the exact pinned sing-box and Xray binaries in a second disposable container. It is currently an ARM64 laboratory fixture, separate from the OpenWrt build matrix. The tests include explicit selected-path DNS and protocol UDP/IPv6 capability configurations, real native listener startup, engine death and recovery with unchanged inputs, and controller SIGKILL followed by restoration of committed listener ports. Ordinary Go tests cover hostile imports, DNS rebinding, mapped IPv6, redirect refusal, numeric proxy destinations, body budgets, concurrency, and absent telemetry.
+`scripts/lab-engines.sh` checks generated source configurations against the exact pinned sing-box and Xray binaries in a second disposable container. It supports Docker Linux amd64 and arm64 and is separate from the OpenWrt build matrix. The tests include explicit selected-path DNS and protocol UDP/IPv6 capability configurations, real native listener startup, engine death and recovery with unchanged inputs, and controller SIGKILL followed by restoration of committed listener ports. Ordinary Go tests cover hostile imports, DNS rebinding, mapped IPv6, redirect refusal, numeric proxy destinations, body budgets, concurrency, and absent telemetry.
 
 Primary contracts: [sing-box TCP DNS](https://sing-box.sagernet.org/configuration/dns/server/tcp/), [sing-box routing actions](https://sing-box.sagernet.org/configuration/route/rule_action/), [Xray transport](https://xtls.github.io/en/config/transport.html), and [pinned zapret release](https://github.com/bol-van/zapret/releases/tag/v72.10).
 

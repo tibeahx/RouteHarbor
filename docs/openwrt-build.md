@@ -13,6 +13,7 @@ network dependency downloads. It produces these separate packages:
 | `openrhp` | Unprivileged gateway controller, embedded English UI and setup command |
 | `openrhp-guard` | Root helper, detached watchdog and persistent safety policy |
 | `openrhp-node` | Unprivileged paired-node TLS agent and separate root node helper |
+| `openrhp-conntrack` | Optional connection tracking utility and kernel dependencies for old-source tracking reset |
 | `openrhp-sing-box` | Optional dependency bundle for the upstream sing-box package and TPROXY modules |
 | `openrhp-xray` | Optional dependency bundle for the upstream Xray package and TPROXY modules |
 
@@ -21,10 +22,14 @@ does not make an incompatible engine version supported. nfqws v72.10 remains a
 separate, administrator-verified engine installation; the project does not ship
 an unverified executable download or redistribute that engine in its own package.
 
-Switches preserve established connections using their source marks. The optional
-`policy.break_existing` field must remain false: true is rejected by both configuration
-validation and the privileged planner because scoped connection interruption is not
-implemented.
+Switches preserve established connection marks by default. The optional
+`policy.break_existing` field enables a bounded reset of the previous source's
+tracking after routing confirmation. Install `openrhp-conntrack` and pass both-family
+privileged preflight before enabling it. A failed reset remains visible while the
+new route stays confirmed; see [configuration](configuration.md). The upstream
+[conntrack package](https://github.com/openwrt/packages/blob/openwrt-24.10/net/conntrack-tools/Makefile)
+installs the fixed `/usr/sbin/conntrack` utility and pulls kernel netlink support
+through its library dependencies.
 
 ## Build from a verified SDK
 
@@ -142,10 +147,20 @@ The engine-worker lab checks both native engines' service credentials and
 capability sets, owned TCP/UDP/IPv6 sockets, API and helper SIGKILL cleanup, and
 restoration of the confirmed input ports through a new unprivileged API process.
 
+The separate [OpenWrt SDK/userland lab](evidence/openwrt-sdk.md) built real IPKs
+and tested normal opkg installation, packaged procd services, repeat setup,
+unprivileged capability discovery through the helper, API transactions, fw4
+lifecycle and protected removal. Run it with independently verified inputs:
+
+```sh
+python3 scripts/lab-openwrt.py --packages /absolute/current-sdk-ipks
+```
+
 The labs use isolated Docker containers with no host or external networking.
-It is not an OpenWrt boot, procd, radio or physical-router test. Native SDK build
-results and physical acceptance status are recorded separately in the release
-matrix. Do not claim those missing checks from the Linux lab result.
+The Linux kernel/engine labs do not test procd. The OpenWrt userland lab runs real
+procd as a child of the container shell and uses the Docker Linux kernel. Neither
+is a full OpenWrt boot, kernel-module ABI, radio or physical-router test. Physical
+acceptance status is recorded separately in the release matrix.
 
 The integration follows OpenWrt's [fw4 include discovery](https://github.com/openwrt/firewall4/blob/master/root/usr/share/ucode/fw4.uc)
 and [firewall lifecycle](https://github.com/openwrt/firewall4/blob/master/root/etc/init.d/firewall).

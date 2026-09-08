@@ -32,7 +32,8 @@ there is no required cloud account or hardware vendor lock-in.
 - Uses a small privileged helper for owned nftables/routes, with local peer
   authentication, a durable journal and a separate rollback process.
 - Pairs an OpenWrt access-point agent using verified device fingerprints and mutual
-  TLS. Wi-Fi modes are chosen from actual device capabilities; Ethernet is supported.
+  TLS. Coordinates both routers' Wi-Fi changes with independent recovery. Wi-Fi
+  requires [verification of the exact pair](docs/wireless-verification.md); Ethernet is supported.
   Discovery alone grants no authority. Uplink quality stays separate from WAN quality.
 
 The control daemon is Go with the standard library. It embeds a small HTML/CSS/JS

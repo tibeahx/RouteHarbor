@@ -43,10 +43,27 @@ every check. Changing source/target configuration invalidates affected decisions
   minimum dwell and cooldown: 60 seconds; freshness: 90 seconds.
 - Default probes: active every 10 seconds, other sources every 30 seconds with
   jitter, speed every 300 seconds, timeout 8 seconds, concurrency 2, history 32.
-- `break_existing` must be false (the default). Setting it to true returns
-  `capability_unavailable`: scoped conntrack termination is not implemented.
-  Existing marked connections retain their allocated path while it remains prepared;
-  removing a path may terminate them, and changing external IP cannot preserve TCP.
+- `break_existing` is false by default. Opting in resets **only the previous
+  selected source's connection tracking** after the next routing change is
+  confirmed. Existing marked connections otherwise retain their allocated path
+  while it remains prepared. Install the optional `openrhp-conntrack` package
+  (`conntrack` and its kernel netlink dependencies); privileged preflight checks
+  IPv4 and IPv6 before accepting the opt-in. No table flush or arbitrary mark
+  deletion is exposed. No source change means no reset. The matching and deletion
+  semantics follow the [Netfilter conntrack manual](https://netfilter.org/projects/conntrack-tools/conntrack-manpage.html).
+
+The reset matches the old source's exact reserved high 16-bit connmark; low bits
+are preserved as independent metadata. Both IPv4 and IPv6 are checked. New/current
+source entries and foreign marks remain intact. Deletion resets tracking/NAT
+state; it does not directly close endpoint sockets, force applications to reconnect
+immediately, or migrate TCP sessions between external IPs.
+
+Routing is durably confirmed before reset. The transaction reports
+`flow_termination:pending|completed|failed`; a failure keeps the new route confirmed
+and exposes `conntrack_delete_failed` in network `last_error`. Interrupted pending
+work is replayed by the independent watchdog/restart. Reconfirming the same failed
+transaction explicitly retries the bounded, idempotent reset. A completed reset is
+never repeated by a duplicate confirmation. Rollback does not reset connections.
 
 ## Network intent
 

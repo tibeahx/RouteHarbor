@@ -50,6 +50,7 @@ type Server struct {
 	UI           http.Handler
 	Network      NetworkService
 	Coverage     CoverageService
+	Platform     func(context.Context) (platform.Report, error)
 	mu           sync.Mutex
 	limitMu      sync.Mutex
 	limits       map[string]bucket
@@ -286,13 +287,30 @@ func (s *Server) read(w http.ResponseWriter, r *http.Request) {
 		}
 		write(w, 200, status)
 	case "/api/v1/capabilities", "/api/v1/preflight":
-		report := platform.Detect(r.Context())
+		var report platform.Report
+		helperAvailable := s.Network != nil
+		if s.Platform == nil {
+			report = platform.Detect(r.Context())
+		} else {
+			var err error
+			report, err = s.Platform(r.Context())
+			if err != nil {
+				helperAvailable = false
+				report = platform.Report{
+					Interfaces:   []platform.Interface{},
+					Capabilities: map[string]platform.Capability{},
+					Issues: []string{
+						"Privileged platform discovery is unavailable; restore the local helper and retry.",
+					},
+				}
+			}
+		}
 		write(
 			w,
 			200,
 			map[string]any{
 				"platform":          report,
-				"network_helper":    s.Network != nil,
+				"network_helper":    helperAvailable,
 				"coverage_agent":    s.Coverage != nil,
 				"release_status":    "development",
 				"hardware_verified": false,

@@ -39,6 +39,7 @@ type Path struct {
 type Desired struct {
 	Network       model.Network `json:"network"`
 	Paths         []Path        `json:"paths"`
+	Unavailable   []string      `json:"unavailable,omitempty"`
 	Selected      string        `json:"selected"`
 	Fallback      string        `json:"fallback"`
 	BreakExisting bool          `json:"break_existing,omitempty"`
@@ -75,11 +76,6 @@ func Build(network model.Network, paths []Path, selected, fallback string) (Plan
 
 func Compile(d Desired) (Plan, error) {
 	p := Plan{Desired: d, Routes: []Route{}, Warnings: []string{}}
-	if d.BreakExisting {
-		return p, errors.New(
-			"capability_unavailable: break_existing is unsupported; existing connections retain their source marks",
-		)
-	}
 	if !d.Network.Enabled {
 		return p, errors.New("network_disabled: explicit enabled network intent is required")
 	}
@@ -135,6 +131,25 @@ func Compile(d Desired) (Plan, error) {
 	}
 	slots := map[uint16]bool{}
 	ids := map[string]bool{}
+	if len(d.Unavailable) > 250 {
+		return p, errors.New(
+			"resource_exhausted: unavailable source metadata exceeds the transaction limit",
+		)
+	}
+	for _, id := range d.Unavailable {
+		if len(id) == 0 || len(id) > 80 || !validID(id) || ids[id] || id == d.Selected {
+			return p, errors.New(
+				"invalid_path: unavailable identities must be unique and cannot be selected",
+			)
+		}
+		ids[id] = true
+	}
+	if len(d.Unavailable) > 0 {
+		p.Warnings = append(
+			p.Warnings,
+			"New unavailable sources are excluded from this routing transaction; prepare and confirm again after they recover",
+		)
+	}
 	ports := map[uint16]bool{}
 	found := d.Selected == ""
 	for _, path := range d.Paths {
@@ -264,6 +279,12 @@ func Compile(d Desired) (Plan, error) {
 				"The selected source supports TCP only; external UDP is blocked to prevent direct escape.",
 			)
 		}
+	}
+	if d.BreakExisting {
+		p.Warnings = append(
+			p.Warnings,
+			"After confirmation, reset only the previous selected source connection tracking; applications may need to reconnect",
+		)
 	}
 	p.NFT = render(d, false)
 	p.GuardNFT = render(d, true)

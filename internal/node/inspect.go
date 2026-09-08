@@ -48,10 +48,10 @@ func ParseWirelessEvidence(data []byte) []WirelessEvidence {
 	out := []WirelessEvidence{}
 	current := -1
 	seen := map[string]bool{}
-	for _, line := range strings.Split(string(data), "\n") {
+	for line := range strings.SplitSeq(string(data), "\n") {
 		line = strings.TrimSpace(line)
-		if strings.HasPrefix(line, "Wiphy ") {
-			phy := strings.TrimPrefix(line, "Wiphy ")
+		if after, ok := strings.CutPrefix(line, "Wiphy "); ok {
+			phy := after
 			if !platform.ValidInterfaceName(phy) {
 				current = -1
 				continue
@@ -150,7 +150,7 @@ func (b *UCIBackend) Inspect(ctx context.Context) (Setup, error) {
 		}
 		ports := []string{}
 		seen := map[string]bool{}
-		for _, port := range strings.Fields(strings.ReplaceAll(network["network."+section+".ports"], "' '", " ")) {
+		for port := range strings.FieldsSeq(strings.ReplaceAll(network["network."+section+".ports"], "' '", " ")) {
 			port = strings.Trim(port, "'")
 			if platform.ValidInterfaceName(port) && !seen[port] {
 				ports = append(ports, port)

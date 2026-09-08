@@ -8,24 +8,33 @@ The English **Coverage** panel pairs an access point, reads its detected bridge,
 management address, cable ports, and radios, then guides **Connection → Review →
 Test and confirm**. The normal path uses labelled fields and never requires a
 user to compose JSON. **Review setup** checks the plan; **Prepare access point**
-stores the node snapshot; **Apply with a 90-second rollback timer** starts the
+stores the participant snapshots; **Apply with a 90-second rollback timer** starts the
 change. Confirmation remains disabled until the user records the management,
-address/DNS, and client traffic checks. **Roll back** and **Refresh access point
-status** remain available for the active transaction. Reopening setup reads the
-persisted node transaction instead of assuming an interrupted request succeeded.
+address/DNS, and client traffic checks. **Roll back** is available before confirmation
+starts; an uncertain `confirming` result must reconcile because the node may already
+have committed. **Refresh access point status** reads the persisted transaction
+instead of assuming an interrupted request succeeded.
 
-The node agent, pairing protocol, capability checks, typed UCI backend, and local
-rollback journal are implemented. Automated tests exercise real local TLS
-enrollment and a simulated UCI command boundary. **No physical WDS, mesh, or
-Ethernet device pair is certified by these tests.** Generic OpenWrt discovery
-currently reports WDS, encrypted mesh, and concurrent-radio compatibility as
-unverified; those options remain unavailable until a platform adapter can prove
-the specific pair's capabilities. Compilation alone does not enable them.
-**Gateway-side wireless backhaul provisioning is not implemented in this
-version.** A compatible gateway backhaul must already be established and verified;
-the capability `gateway_backhaul_ready` remains false in production discovery.
-This is an explicit blocking gate for automatic Wi-Fi setup, not a claim that a
-wireless coverage feature has been delivered or certified.
+The node agent, pairing protocol, both gateway/node UCI backends and independent
+rollback journals are implemented. The gateway adopts an explicitly approved,
+detected main AP; it preserves LAN/WAN addresses, DHCP, NAT and unrelated wireless
+settings. Its existing Wi-Fi password is transferred privately to the paired node
+and never through the browser. The public API accepts a `gateway_plan` alongside
+the node plan for managed Wi-Fi; Ethernet retains its existing node-only flow.
+
+Generic radio advertisements remain insufficient. Both devices require current,
+root-recorded verification for the exact reciprocal TLS identities, radio and
+mode. See [wireless-verification.md](wireless-verification.md) for the live evidence,
+client checks, commands and expiry policy. **No physical WDS, mesh, or Ethernet
+device pair is certified by our automated tests.** Tests exercise real local TLS,
+the upstream UCI parser, private receipt storage and detached rollback processes;
+they do not substitute for qualifying the actual device pair.
+
+Wi-Fi operations return one durable paired transaction with separately reported
+gateway and node participants. Apply runs gateway first, then node; confirmation
+retains a gateway compensation snapshot until the node's confirmation is known.
+Interrupted confirmation remains `confirming` and resumes from the durable intent.
+This is recoverable sequential coordination, not globally atomic two-device change.
 
 ## Trust and bootstrap
 
@@ -86,8 +95,9 @@ documented in the API contract. Keep enrollment codes and Wi-Fi keys out of URLs
 logs, and shared examples.
 
 1. Read `GET /api/v1/nodes` and `POST /api/v1/nodes/discover`. The latter reports
-   known nodes, gateway capabilities, and explicit address entry; it does not
-   grant authority or claim a subnet scan happened.
+   known nodes, `gateway_fingerprint`, gateway capabilities, detected
+   `gateway_setup.aps`, and explicit address entry; it does not grant authority or
+   claim a subnet scan happened.
 2. Pair with `POST /api/v1/nodes/pair`, passing `address`, `fingerprint`, `code`, and
    an optional `name`. `address` must be an HTTPS origin using an explicit private
    or loopback IP literal. Redirects, URL credentials, query strings, and arbitrary
@@ -95,31 +105,41 @@ logs, and shared examples.
    records. If the enrollment response is lost, retrying can recover the existing
    authenticated association through the node's capabilities endpoint.
 3. Preview a full node plan with `POST /api/v1/nodes/{id}/plan`. Wi-Fi modes are
-   offered before Ethernet only when both peers prove the required capabilities.
+   offered before Ethernet only when both peers prove the required capabilities
+   with reciprocal identity/radio/mode verification. Include `gateway_plan` in the
+   flat node-plan body for Wi-Fi, selecting the explicitly adopted detected AP.
    Stock firmware without a verified device adapter receives no automatic plan.
 4. Prepare with `POST /api/v1/nodes/{id}/prepare`, passing an operation object:
-   `{"key":"a-unique-operation-key","plan":{...}}`. The node validates the plan
-   again and stores its own snapshot. Repeating the same key and plan returns the
-   same transaction; using that key for another plan is rejected.
+   `{"key":"a-unique-operation-key","plan":{...}}` for Ethernet; managed Wi-Fi
+   additionally includes `gateway_plan` alongside `plan`. The gateway privately
+   derives the shared AP settings, then both participants validate and store their
+   own snapshots. Repeating the same key and plan returns the same transaction;
+   using that key for another plan is rejected.
 5. Apply with `POST /api/v1/nodes/{id}/apply`, passing
-   `{"id":"NODE_TRANSACTION_ID","timeout_seconds":90}`. The confirmation window
-   must be 30–180 seconds. The root helper persists the deadline and waits for a
-   detached watchdog's readiness acknowledgement before changing UCI.
+   `{"id":"TRANSACTION_ID","timeout_seconds":90}`. Use the aggregate paired
+   transaction ID for Wi-Fi or the node transaction ID for Ethernet. The window
+   must be 30–180 seconds. Each root helper persists its deadline and waits for its
+   detached watchdog's readiness acknowledgement before changing UCI. Wi-Fi applies
+   the gateway first and gives the node the remaining confirmation window.
 6. Check `GET /api/v1/nodes/{id}/status`, then verify the node management address,
    client DHCP, DNS, address visibility at the gateway, LAN access, and real client
    traffic through the selected gateway policy. An HTTP success from the gateway
    is not a substitute for these checks.
-7. Confirm with `POST /api/v1/nodes/{id}/confirm` and `{"id":"NODE_TRANSACTION_ID"}`.
-   On failure, call the matching `/rollback` operation. Lost gateway, WAN, browser,
-   or TLS-agent process does not cancel the node's persisted rollback deadline.
-   A helper restart resumes overdue or interrupted rollback.
+7. Confirm with `POST /api/v1/nodes/{id}/confirm` and `{"id":"TRANSACTION_ID"}`.
+   A Wi-Fi `confirming` result is unfinished: read status and retry the same
+   confirmation. The gateway retains compensation until node confirmation is known,
+   then finalizes. Manual rollback is rejected during uncertain confirmation to
+   avoid removing backhaul behind a committed node. Prepared/applied transactions
+   can use `/rollback`. Lost gateway, WAN, browser, or TLS-agent process does not
+   cancel an armed local deadline; helper restart resumes interrupted rollback.
 8. Revoke with `DELETE /api/v1/nodes/{id}`. The gateway first revokes its certificate
    on the reachable node, then removes the local record. An offline node produces
    an explicit failure; it is not reported as remotely revoked. Revocation does
    not rotate the shared Wi-Fi password.
 
 Mutation responses may wrap the result in the gateway's operation envelope; the
-node transaction ID inside that result is distinct from the gateway operation ID.
+transaction ID inside that result is distinct from the asynchronous API operation
+ID. Wi-Fi participant IDs are status details and cannot bypass the paired coordinator.
 
 ## Supported plan boundary
 
@@ -144,13 +164,19 @@ usable without these conversion tools. Radio changes additionally require the
 OpenWrt `wifi` reload tool; an Ethernet conversion that changes no radio does not
 invoke it. The package does not silently replace the user's DHCP implementation.
 
-A verified wireless plan additionally supplies `radio`, `ssid`, `passphrase`,
-`channel`, `uplink` for the wireless link, and `ethernet_uplink` identifying the
+A verified wireless node plan additionally supplies `radio`, `uplink` for the
+wireless link, and `ethernet_uplink` identifying the
 physical backhaul port that must leave the bridge. The current model places AP
 clients and backhaul on one radio, so `share_radio: true` and verified concurrent
 mode support are required. Removing the Ethernet uplink before activating WDS or
 mesh, and removing the wireless backhaul before returning to Ethernet, enforce a
 single active uplink. This reserves that physical port while Wi-Fi is active.
+The public `gateway_plan` selects the detected main AP by `ap_section` and `network`,
+binds `peer_fingerprint` and `mode`, and requires `adopt_existing_ap: true` plus
+`preserve_management_path: true`. The gateway helper supplies `ssid`, `passphrase`
+and `channel` to the node privately; the normal managed setup does not ask the user
+to re-enter them. A trusted direct node operation still uses the complete narrow
+node plan and does not configure the gateway counterpart.
 
 Every plan requires `preserve_management_path: true` and keeps `dhcp_server`,
 `nat`, and `router_advertisements` false. A plan containing an executable, script,
@@ -164,9 +190,42 @@ comments, semicolons, and substitution syntax remain literal data. Ordinary plan
 and status responses omit the passphrase and rollback snapshot.
 
 Gateway and node changes are sequential; no distributed atomic commit is claimed.
-The gateway-side backhaul must already be available and verified before changing
-the node. Shared radio airtime can reduce throughput. A common SSID does not
+The actual pair must first be qualified, and the coordinated apply provisions the
+gateway-side backhaul before changing the node. Shared radio airtime can reduce
+throughput. A common SSID does not
 guarantee client roaming, and 802.11s backhaul does not imply 802.11r support.
+
+## Synchronize a separately changed home Wi-Fi key
+
+Revoking node management leaves the Wi-Fi key unchanged. Credential changes use
+the existing node `Plan` fields and a new preparation, separately from unpairing.
+OpenRHP does not provide a privileged operation that writes a new main-AP password.
+
+1. Finish any pending transaction. Preserve independent wired management to both
+   routers and a private backup of the old main-AP settings. Do not create a second
+   active bridged uplink as a recovery shortcut.
+2. Explicitly change the main AP's key through trusted OpenWrt administration.
+   This can disconnect Wi-Fi clients and backhaul immediately. This administrator
+   action is outside OpenRHP's paired transaction and is not silently performed by
+   discovery, unpairing, or an ordinary retry.
+3. For managed Wi-Fi, review the same adopted AP through **Set up connection** and
+   create a fresh preparation. API users supply a **new** prepare `key` with the
+   ordinary node plan and `gateway_plan`. The gateway privately reads the current
+   home key and sends it to the node; applying also updates the owned mesh section
+   when using mesh. Reusing the old idempotency key returns the old transaction and
+   does not synchronize a new password. Valid pair verification remains required.
+4. Apply with the independent rollback timers, reconnect actual clients using the
+   intended key, verify management, addressing/DNS and gateway traffic policy,
+   then confirm. An Ethernet-connected AP can instead receive explicit updated
+   `ssid`/`passphrase` fields through its existing node-only plan.
+
+The rollback boundary matters: the gateway snapshot contains its adopted WDS flags
+and owned mesh settings, **not the administrator-edited main-AP password**. An abort
+can restore the node and owned mesh to their previous credentials while the main
+AP still has its new key. Restore the old main-AP settings separately through the
+preserved wired administrator path if abandoning the change. A shared key change
+affects every device using it; this flow does not claim atomic rotation across all
+home clients or multiple APs.
 
 ## Local uplink observations
 
@@ -187,13 +246,21 @@ plan, the status remains explicitly unavailable.
 
 ## Validation and recovery evidence
 
-`go test -race ./internal/node` covers unique and persistent identities, exact
+`go test -race ./internal/node ./internal/coverage` covers unique and persistent identities, exact
 certificate pinning, unauthorized client rejection, code expiry and attempt
 limits, replay prevention, enrollment races, gateway-to-node TLS operations,
 revocation, capability intersection, one-uplink command generation, preflight
 rejection before mutation, UCI argument safety, idempotent transactions, watchdog
 readiness before apply, independent journal recovery, and interrupted rollback
-retry. The TLS integration test needs permission to bind loopback sockets.
+retry. Paired regressions cover gateway-first ordering, lost prepare/confirmation/
+finalization responses, restart reconciliation, node-deadline compensation, reciprocal
+receipt checks, revoked evidence before apply, participant-ID rejection, and private
+credential erasure. Gateway/node UCI effects are injected fixtures in these tests.
+The TLS integration test needs permission to bind loopback sockets.
+The key synchronization regression uses both real durable transaction managers and
+the pinned node TLS protocol with injected UCI effects. It proves that a new prepare
+uses the current private gateway key, an old request does not silently rotate it,
+and public results and confirmed node state do not retain that credential.
 
 `scripts/lab-uci.sh` builds the upstream OpenWrt UCI parser and libubox at pinned
 commits in a separate Docker image. It verifies exact secret round trips through
@@ -213,7 +280,10 @@ The default browser coverage test uses the real local gateway API for rejected
 unverified pairing and checks credential clearing and mobile layout. The complete
 paired-node prepare/apply/rollback browser test is opt-in and remains skipped until
 an explicitly configured isolated OpenWrt coverage lab is supplied; no successful
-network apply is fabricated in the browser tests.
+network apply is fabricated in that integration suite. The separate
+`coverage-ui.spec.js` uses explicit UI-only response fixtures to exercise Wi-Fi
+choice, AP adoption, no password request and pending confirmation; those fixtures
+are not router execution evidence.
 
 Physical acceptance remains separate: test both Ethernet and each available
 wireless mode with a real client; capture DHCP and IPv6 RA; verify client MAC/IP

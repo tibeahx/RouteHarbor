@@ -56,6 +56,7 @@ jobs:
       - run: sh scripts/lab-network.sh
       - run: sh scripts/lab-uci.sh
       - run: sh scripts/lab-node-link.sh
+      - run: sh scripts/lab-wireless.sh
       - run: sh scripts/lab-admin.sh
       - run: sh scripts/lab-engines.sh
       - run: sh scripts/lab-engine-worker.sh

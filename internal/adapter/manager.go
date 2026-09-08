@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"net"
 	"net/netip"
 	"net/url"
@@ -133,7 +134,7 @@ func AllocatePath(id, kind string, slot int) Path {
 
 func reservePorts(count int) ([]net.Listener, error) {
 	listeners := make([]net.Listener, 0, count)
-	for i := 0; i < count; i++ {
+	for range count {
 		l, e := net.Listen("tcp4", "127.0.0.1:0")
 		if e != nil {
 			for _, open := range listeners {
@@ -796,9 +797,7 @@ func EngineConfig(s model.Source, p Path) ([]byte, error) {
 			}
 			original := inbound.(map[string]any)
 			copy := map[string]any{}
-			for k, v := range original {
-				copy[k] = v
-			}
+			maps.Copy(copy, original)
 			copy["listen"] = "::1"
 			if tag, ok := copy["tag"].(string); ok {
 				copy["tag"] = tag + "-v6"

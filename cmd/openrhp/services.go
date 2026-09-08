@@ -20,16 +20,36 @@ func wireServices(s *api.Server, state, socket string) error {
 	if err != nil {
 		return err
 	}
+	var client *helper.Client
+	discover := func(ctx context.Context) (platform.Report, error) {
+		return platform.Detect(ctx), nil
+	}
+	if socket != "" {
+		client = &helper.Client{SocketPath: socket, ExpectedUID: 0}
+		discover = client.Platform
+		s.Platform = discover
+	}
 	nodes, e := node.NewService(
 		filepath.Join(state, "nodes"),
-		func(ctx context.Context) node.Capabilities { return node.CapabilitiesFrom(platform.Detect(ctx)) },
+		func(ctx context.Context) node.Capabilities {
+			report, err := discover(ctx)
+			if err != nil {
+				return node.Capabilities{Reason: "Privileged gateway discovery is unavailable"}
+			}
+			return node.CapabilitiesFrom(report)
+		},
 	)
 	if e != nil {
 		return e
 	}
+	if client != nil {
+		if err := nodes.ConfigureGateway(client); err != nil {
+			_ = nodes.Close()
+			return err
+		}
+	}
 	s.Coverage = nodes
-	if socket != "" {
-		client := &helper.Client{SocketPath: socket, ExpectedUID: 0}
+	if client != nil {
 		s.Runtime.Adapters.EnableTransparent = true
 		s.Runtime.Adapters.Packet = client
 		s.Runtime.Adapters.NativeProbes = client
@@ -43,7 +63,7 @@ func wireServices(s *api.Server, state, socket string) error {
 				s.Runtime.Store.Get().Network.DNSResolver,
 			)
 		}
-		n := &control.NetworkCoordinator{Runtime: s.Runtime, Client: client}
+		n := &control.NetworkCoordinator{Runtime: s.Runtime, Client: client, Platform: discover}
 		s.Network = n
 		s.Runtime.Network = n
 		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)

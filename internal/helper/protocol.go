@@ -13,27 +13,33 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tibeahx/OpenRHP/internal/coverage"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/platform"
 )
 
 type Request struct {
-	Engine         *EngineRequest     `json:"engine,omitempty"`
-	ProbePath      *NativeProbePath   `json:"probe_path,omitempty"`
-	Operation      string             `json:"operation"`
-	Desired        *dataplane.Desired `json:"desired,omitempty"`
-	TransactionID  string             `json:"transaction_id,omitempty"`
-	TimeoutSeconds int                `json:"timeout_seconds,omitempty"`
-	SourceID       string             `json:"source_id,omitempty"`
-	Address        string             `json:"address,omitempty"`
-	Slot           uint16             `json:"slot,omitempty"`
+	Gateway        *coverage.Operation `json:"gateway,omitempty"`
+	Engine         *EngineRequest      `json:"engine,omitempty"`
+	ProbePath      *NativeProbePath    `json:"probe_path,omitempty"`
+	Operation      string              `json:"operation"`
+	Desired        *dataplane.Desired  `json:"desired,omitempty"`
+	TransactionID  string              `json:"transaction_id,omitempty"`
+	TimeoutSeconds int                 `json:"timeout_seconds,omitempty"`
+	SourceID       string              `json:"source_id,omitempty"`
+	Address        string              `json:"address,omitempty"`
+	Slot           uint16              `json:"slot,omitempty"`
 }
 type Response struct {
-	OK          bool         `json:"ok"`
-	Error       string       `json:"error,omitempty"`
-	State       *State       `json:"state,omitempty"`
-	Transaction *Transaction `json:"transaction,omitempty"`
+	Gateway     map[string]any   `json:"gateway,omitempty"`
+	OK          bool             `json:"ok"`
+	Error       string           `json:"error,omitempty"`
+	State       *State           `json:"state,omitempty"`
+	Transaction *Transaction     `json:"transaction,omitempty"`
+	Platform    *platform.Report `json:"platform,omitempty"`
 }
 type Server struct {
+	Gateway            coverage.Operator
 	probeMu            sync.Mutex
 	nativeProbes       map[string]nativeProbeRegistration
 	engines            map[string]*engineRegistration
@@ -148,6 +154,19 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 	}
 	resp := Response{OK: true}
 	switch req.Operation {
+	case "gateway":
+		if s.Gateway == nil {
+			err = errors.New("gateway_helper_unavailable")
+		} else {
+			resp.Gateway, err = s.Gateway.Do(ctx, *req.Gateway)
+		}
+	case "platform":
+		detect := platform.Detect
+		if backend, ok := s.Manager.backend.(*NetworkBackend); ok && backend.Detect != nil {
+			detect = backend.Detect
+		}
+		report := detect(ctx)
+		resp.Platform = &report
 	case "register_probe":
 		err = s.registerProbe(ctx, *req.ProbePath)
 	case "unregister_probe":
@@ -221,6 +240,9 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 }
 
 func validateRequest(r Request) error {
+	if r.Operation != "gateway" && r.Gateway != nil {
+		return errors.New("invalid_request")
+	}
 	if r.Operation != "start_engine" && r.Engine != nil {
 		return errors.New("invalid_request")
 	}
@@ -232,6 +254,16 @@ func validateRequest(r Request) error {
 		return errors.New("invalid_request")
 	}
 	switch r.Operation {
+	case "gateway":
+		if r.Gateway == nil || r.Engine != nil || r.ProbePath != nil || r.Desired != nil ||
+			r.TransactionID != "" ||
+			r.TimeoutSeconds != 0 ||
+			r.SourceID != "" ||
+			r.Address != "" ||
+			r.Slot != 0 {
+			return errors.New("invalid_request")
+		}
+		return validateGatewayOperation(*r.Gateway)
 	case "start_engine":
 		if r.Engine == nil || r.ProbePath != nil || r.Desired != nil || r.TransactionID != "" ||
 			r.TimeoutSeconds != 0 ||
@@ -268,7 +300,7 @@ func validateRequest(r Request) error {
 		if err := validatePacketRequest(r.SourceID, slot); err != nil {
 			return err
 		}
-	case "status":
+	case "status", "platform":
 		if r.Desired != nil || r.TransactionID != "" || r.TimeoutSeconds != 0 || r.SourceID != "" ||
 			r.Address != "" {
 			return errors.New("invalid_request")

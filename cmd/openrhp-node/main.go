@@ -18,7 +18,7 @@ import (
 
 	"github.com/tibeahx/OpenRHP/internal/helper"
 	"github.com/tibeahx/OpenRHP/internal/node"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/OpenRHP/internal/wireless"
 )
 
 func main() {
@@ -30,7 +30,13 @@ func main() {
 
 func run(args []string) error {
 	if len(args) == 0 {
-		return errors.New("usage: openrhp-node bootstrap|serve|helper|watchdog [options]")
+		return errors.New(
+			"usage: openrhp-node bootstrap|serve|helper|watchdog|verify-wireless [options]",
+		)
+	}
+	if args[0] == "verify-wireless" {
+		return wireless.NewVerifier("/etc/openrhp-node-helper", "node", "/etc/openrhp-node").
+			RecordCommand(context.Background(), args[1:], os.Stdout)
 	}
 	flags := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	state := flags.String("state-dir", "/etc/openrhp-node", "private persistent state directory")
@@ -122,10 +128,18 @@ func run(args []string) error {
 		}
 		defer func() { _ = pairing.Close() }()
 		agent := &node.Agent{
-			Identity:     identity,
-			Pairing:      pairing,
-			Capabilities: func(ctx context.Context) node.Capabilities { return node.CapabilitiesFrom(platform.Detect(ctx)) },
-			Operator:     node.HelperClient{Socket: *socket},
+			Identity: identity,
+			Pairing:  pairing,
+			Capabilities: func(ctx context.Context) node.Capabilities {
+				caps, err := (node.HelperClient{Socket: *socket}).Capabilities(ctx)
+				if err != nil {
+					return node.Capabilities{
+						Reason: "The local privileged helper could not read platform capabilities.",
+					}
+				}
+				return caps
+			},
+			Operator: node.HelperClient{Socket: *socket},
 		}
 		server := &http.Server{
 			Addr:              *listen,
@@ -162,7 +176,12 @@ func run(args []string) error {
 			return e
 		}
 		var watchdog node.Watchdog = helper.ProcessWatchdog{Binary: binary, StateDir: dir}
-		manager, e := node.NewManager(dir, node.NewUCIBackend(), watchdog)
+		backend := node.NewUCIBackend()
+		verifier := wireless.NewVerifier(dir, "node", "/etc/openrhp-node")
+		backend.Capabilities = func(ctx context.Context) node.Capabilities {
+			return node.VerifiedCapabilities(ctx, verifier, "/etc/openrhp-node")
+		}
+		manager, e := node.NewManager(dir, backend, watchdog)
 		if e != nil {
 			return e
 		}
