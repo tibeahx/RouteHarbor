@@ -142,7 +142,7 @@ def main():
                 assert forwarded,'WAN capture missed permitted DNS'
             else:
                 assert not forwarded,'Protected DNS emitted WAN packets (including TCP handshakes)'
-                assert not any(answers.values()),'Uncached query unexpectedly resolved while protected' 
+                assert not any(answers.values()),'Uncached query unexpectedly resolved while protected'
     finally:
         lab.guest('/usr/libexec/openrhp-helper quarantine --state-dir /etc/openrhp-helper\n'
                   'cp '+backup+' /etc/config/dhcp\n/etc/init.d/dnsmasq restart\n'

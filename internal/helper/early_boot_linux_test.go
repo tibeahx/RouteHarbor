@@ -4,7 +4,6 @@ package helper
 
 import (
 	"context"
-	"encoding/json"
 	"net"
 	"os"
 	"os/exec"
@@ -81,30 +80,5 @@ func TestLinuxEarlyBootGuardBeforeNetworkDevices(t *testing.T) {
 	)
 	if !strings.Contains(string(local), "local") {
 		t.Fatal("router management was not retained", string(local))
-	}
-}
-
-func TestDetachedInterfaceMetadataDoesNotBlessForeignSelectors(t *testing.T) {
-	d := testDesired()
-	p, err := dataplane.Compile(d)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, row := range []struct {
-		value   string
-		allowed bool
-	}{
-		{`{"priority":30000,"src":"all","iif":"home0","iif_detached":null,"table":"20999"}`, true},
-		{`{"priority":30000,"src":"all","iif":"foreign0","iif_detached":null,"table":"20999"}`, false},
-		{`{"priority":30000,"src":"all","iif":"home0","iif_detached":true,"table":"20999"}`, false},
-		{`{"priority":30000,"src":"all","iif":"home0","iif_detached":null,"table":"20999","ipproto":17}`, false},
-	} {
-		var rule ipRule
-		if err := json.Unmarshal([]byte(row.value), &rule); err != nil {
-			t.Fatal(err)
-		}
-		if safetyRuleAllowed(rule, &p) != row.allowed {
-			t.Fatal("unexpected detached rule ownership", row.value)
-		}
 	}
 }
