@@ -469,15 +469,44 @@ func TestUDPAdmissionAndMinimumScratchBudget(t *testing.T) {
 	}
 }
 
+type writeGateConn struct {
+	net.Conn
+	release   <-chan struct{}
+	closed    chan struct{}
+	closeOnce sync.Once
+}
+
+func (c *writeGateConn) Write(b []byte) (int, error) {
+	select {
+	case <-c.release:
+		return c.Conn.Write(b)
+	case <-c.closed:
+		return 0, net.ErrClosed
+	}
+}
+
+func (c *writeGateConn) Close() error {
+	c.closeOnce.Do(func() { close(c.closed) })
+	return c.Conn.Close()
+}
+
+func (c *writeGateConn) CloseWrite() error {
+	return c.Conn.(*net.TCPConn).CloseWrite()
+}
+
 func TestSlowReceiverAppliesWindowWithoutFailingHealthyPaths(t *testing.T) {
 	limits := DefaultLimits()
 	limits.FlowBytes = 16 << 10
 	f := newFixture(t, limits)
 	accepted, client := tcpPair(t)
-	_ = accepted.(*net.TCPConn).SetWriteBuffer(1024)
-	_ = client.SetReadBuffer(1024)
+	// Block application delivery deterministically while keeping real TCP/TLS
+	// carriers. Tiny kernel socket buffers also introduce OS-specific TCP
+	// window-update delays after the application resumes reading.
+	release := make(chan struct{})
+	blocked := &writeGateConn{Conn: accepted, release: release, closed: make(chan struct{})}
+	t.Cleanup(func() { _ = blocked.Close() })
 	destination := tcpEcho(t)
-	go func() { _ = f.g.ServeTCP(context.Background(), accepted, destination) }()
+	go func() { _ = f.g.ServeTCP(context.Background(), blocked, destination) }()
 	payload := bytes.Repeat([]byte("backpressure preserves bytes"), 10000)
 	written := make(chan error, 1)
 	go func() { written <- writeAll(client, payload) }()
@@ -496,10 +525,11 @@ func TestSlowReceiverAppliesWindowWithoutFailingHealthyPaths(t *testing.T) {
 	if s.Switches != 0 || len(s.Paths) != 2 || !s.Paths[0].Ready || !s.Paths[1].Ready {
 		t.Fatalf("flow control falsely failed healthy carriers: %+v", s)
 	}
+	close(release)
 	_ = client.SetReadDeadline(time.Now().Add(5 * time.Second))
 	got := make([]byte, len(payload))
-	if _, err := io.ReadFull(client, got); err != nil {
-		t.Fatal(err)
+	if received, err := io.ReadFull(client, got); err != nil {
+		t.Fatalf("received %d/%d bytes: %v", received, len(payload), err)
 	}
 	if err := <-written; err != nil {
 		t.Fatal(err)

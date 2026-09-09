@@ -9,7 +9,6 @@ import (
 	"net"
 	"net/netip"
 	"reflect"
-	"sync"
 	"time"
 
 	"github.com/tibeahx/OpenRHP/internal/adapter"
@@ -223,21 +222,5 @@ func validateLiveContinuityRelay(address string) error {
 			return errors.New("continuity_relay_forbidden")
 		}
 	}
-	return nil
-}
-
-// Liveness closure also closes the status descriptor, which otherwise remains
-// hidden behind bufio.Reader and leaks until a future garbage collection.
-type continuityLifetime struct {
-	once    sync.Once
-	closers []io.Closer
-}
-
-func (l *continuityLifetime) Close() error {
-	l.once.Do(func() {
-		for _, c := range l.closers {
-			_ = c.Close()
-		}
-	})
 	return nil
 }

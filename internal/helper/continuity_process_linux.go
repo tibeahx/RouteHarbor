@@ -14,11 +14,28 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"sync"
 	"syscall"
 	"time"
 )
 
 const continuityWorkerBinary = "/usr/libexec/openrhp-continuity"
+
+// Liveness closure also closes the status descriptor, which otherwise remains
+// hidden behind bufio.Reader and leaks until a future garbage collection.
+type continuityLifetime struct {
+	once    sync.Once
+	closers []io.Closer
+}
+
+func (l *continuityLifetime) Close() error {
+	l.once.Do(func() {
+		for _, c := range l.closers {
+			_ = c.Close()
+		}
+	})
+	return nil
+}
 
 func trustedContinuityBinary(path string) error {
 	for _, name := range []string{"/usr", "/usr/libexec", path} {
