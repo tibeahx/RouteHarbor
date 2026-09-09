@@ -8,7 +8,10 @@
     caps = null,
     poll = null,
     refreshing = false,
-    transaction = null;
+    transaction = null,
+    backupBusy = false,
+    backupLoad = 0,
+    backupPreview = null;
   const id = () => crypto.randomUUID();
   const el = (tag, text, className) => {
     const e = document.createElement(tag);
@@ -23,7 +26,10 @@
     $('notice').hidden = false;
   }
 
-  async function api(path, { method = 'GET', data, cas = false, key } = {}) {
+  async function api(
+    path,
+    { method = 'GET', data, cas = false, key, revision, allowFailed = false, signal } = {},
+  ) {
     const headers = { Authorization: 'Bearer ' + token };
     if (data !== undefined) headers['Content-Type'] = 'application/json';
     if (
@@ -32,25 +38,32 @@
       !path.endsWith('/plan')
     )
       headers['Idempotency-Key'] = key || id();
-    if (cas) headers['If-Match'] = '"' + cfg.revision + '"';
+    if (cas) headers['If-Match'] = '"' + (revision ?? cfg.revision) + '"';
     const r = await fetch('/api/v1/' + path, {
       method,
       headers,
       body: data === undefined ? undefined : JSON.stringify(data),
       cache: 'no-store',
       credentials: 'omit',
+      signal,
     });
     let v;
     try {
       v = await r.json();
     } catch {
-      throw Error(S.requestFailed);
+      const error = Error(S.requestFailed);
+      error.status = r.status;
+      error.location = r.headers.get('Location');
+      throw error;
     }
     if (!r.ok) {
       if (r.status === 401 && path !== 'status') signout();
-      throw Error(v.error?.message || S.requestFailed);
+      const error = Error(v.error?.message || S.requestFailed);
+      error.status = r.status;
+      error.location = r.headers.get('Location');
+      throw error;
     }
-    if (v?.state === 'failed') throw Error(v.error_code || S.requestFailed);
+    if (!allowFailed && v?.state === 'failed') throw Error(v.error_code || S.requestFailed);
     return v;
   }
 
@@ -81,6 +94,14 @@
     $('signout').hidden = true;
     $('access-key').value = '';
     $('connection').textContent = 'Local management';
+    backupPreview = null;
+    backupLoad++;
+    setBackupBusy(false);
+    $('backup-list').replaceChildren();
+    $('backup-config').textContent = '';
+    $('backup-source-preview').replaceChildren();
+    $('backup-settings').open = false;
+    resetMaintenance();
     for (const d of document.querySelectorAll('dialog')) d.close();
   }
 
@@ -301,6 +322,509 @@
     }
   }
 
+  function setBackupBusy(value) {
+    backupBusy = value;
+    for (const button of document.querySelectorAll('#backup-settings button, #restore-backup')) {
+      button.disabled = value;
+    }
+  }
+
+  async function loadBackups() {
+    const access = token,
+      load = ++backupLoad;
+    const result = await api('config/backups');
+    if (!access || access !== token || load !== backupLoad) return;
+    const list = $('backup-list');
+    list.replaceChildren();
+    $('backup-summary').textContent = result.backups.length
+      ? result.backups.length + ' of ' + result.max_backups + ' backups saved · 2 MiB total limit'
+      : 'No backups yet. Save your current settings before making changes.';
+    for (const backup of result.backups) {
+      const row = el('li'),
+        info = el('div'),
+        actions = el('div', undefined, 'backup-actions');
+      row.dataset.backupId = backup.id;
+      info.append(
+        el('strong', 'Revision ' + backup.revision),
+        el(
+          'small',
+          new Date(backup.created_at).toLocaleString() +
+            ' · ' +
+            backup.source_count +
+            ' methods · ' +
+            backup.target_count +
+            ' resources',
+        ),
+      );
+      const preview = el('button', 'Preview', 'secondary');
+      preview.addEventListener('click', () =>
+        previewBackup(backup.id).catch((e) => notice(e.message, true)),
+      );
+      const remove = el('button', 'Delete', 'quiet danger');
+      remove.addEventListener('click', () => {
+        if (!confirm('Delete this saved backup? Your current settings will stay unchanged.'))
+          return;
+        backupAction(
+          () =>
+            api('config/backups/' + encodeURIComponent(backup.id), { method: 'DELETE', cas: true }),
+          'Backup deleted. Current settings are unchanged.',
+        );
+      });
+      actions.append(preview, remove);
+      row.append(info, actions);
+      list.append(row);
+    }
+    setBackupBusy(backupBusy);
+  }
+
+  async function previewBackup(id) {
+    if (backupBusy) return;
+    const access = token,
+      revision = cfg.revision;
+    setBackupBusy(true);
+    try {
+      const result = await api('config/backups/' + encodeURIComponent(id));
+      if (!access || access !== token) return;
+      backupPreview = { id, revision };
+      $('backup-preview-error').textContent = '';
+      $('backup-detail').textContent =
+        'Saved revision ' +
+        result.backup.revision +
+        ' · ' +
+        new Date(result.backup.created_at).toLocaleString();
+      $('backup-config').textContent = JSON.stringify(result.configuration, null, 2);
+      const sources = $('backup-source-preview');
+      sources.replaceChildren();
+      for (const source of result.configuration.sources) {
+        sources.append(el('li', source.name + ' · ' + (S.sourceTypes[source.type] || source.type)));
+      }
+      if (!sources.childElementCount) sources.append(el('li', 'No access methods in this backup.'));
+      $('backup-dialog').showModal();
+      $('restore-backup').focus();
+    } finally {
+      if (access === token) setBackupBusy(false);
+    }
+  }
+
+  async function backupAction(fn, message) {
+    if (backupBusy) return;
+    const access = token;
+    setBackupBusy(true);
+    try {
+      await fn();
+      if (access !== token) return;
+      notice(message);
+      await refresh(true);
+      await loadBackups();
+    } catch (e) {
+      if (access !== token) return;
+      notice(e.message, true);
+      if ($('backup-dialog').open)
+        $('backup-preview-error').textContent =
+          e.message + ' Close and reopen this preview if the current settings have changed.';
+      await refresh(true).catch(() => {});
+      await loadBackups().catch(() => {});
+    } finally {
+      if (access === token) setBackupBusy(false);
+    }
+  }
+
+  const maintenanceComponents = [
+    'openrhp',
+    'openrhp-sing-box',
+    'openrhp-xray',
+    'openrhp-conntrack',
+  ];
+  const maintenanceID = /^[0-9a-f]{32}$/;
+  const maintenanceActive = ['prepared', 'running', 'verifying'];
+  const maintenanceTerminal = ['completed', 'failed', 'interrupted'];
+  let maintenance = {};
+
+  function resetMaintenance() {
+    clearTimeout(maintenance.timer);
+    maintenance = {
+      review: null,
+      attempted: false,
+      rejected: false,
+      busy: false,
+      reading: false,
+      job: null,
+      timer: null,
+    };
+    $('maintenance-form').reset();
+    $('maintenance-settings').open = false;
+    $('maintenance-plan').hidden = true;
+    $('maintenance-progress').hidden = true;
+    $('maintenance-feedback').textContent = '';
+    $('maintenance-operation-id').value = '';
+    $('maintenance-local-command').hidden = true;
+    $('maintenance-local-command').textContent = '';
+    maintenanceControls();
+  }
+
+  async function maintenanceAPI(path, options = {}) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), options.method === 'POST' ? 30000 : 10000);
+    try {
+      return await api('maintenance/' + path, {
+        ...options,
+        signal: controller.signal,
+        allowFailed: true,
+      });
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function maintenanceFinished(m) {
+    return (
+      maintenanceTerminal.includes(m.job?.state) && (!m.attempted || m.job.id === m.operationID)
+    );
+  }
+
+  function maintenanceControls() {
+    const m = maintenance;
+    const terminal = maintenanceFinished(m);
+    const locked =
+      m.uncertainStatus ||
+      (m.attempted && !m.rejected && !terminal) ||
+      maintenanceActive.includes(m.job?.state);
+    for (const input of $('maintenance-form').elements) input.disabled = !!m.busy || locked;
+    $('maintenance-reload').disabled = !!m.busy || locked;
+    $('maintenance-start').disabled = !!m.busy || !m.review || m.attempted;
+    $('maintenance-retry').hidden = !m.attempted || terminal || !m.review;
+    $('maintenance-retry').disabled = !!m.busy;
+    $('maintenance-edit').disabled = !!m.busy || locked;
+    $('maintenance-status').disabled = !!m.reading;
+    const removing = $('maintenance-action').value === 'remove';
+    $('maintenance-bundle-field').hidden = removing;
+    $('maintenance-removal-field').hidden = !removing;
+    $('maintenance-direct-consent-field').hidden =
+      !removing || $('maintenance-removal-policy').value !== 'restore-direct';
+    $('maintenance-self-removal').hidden =
+      !removing ||
+      !document.querySelector('#maintenance-components input[value="openrhp"]').checked;
+  }
+
+  function invalidateMaintenanceReview(message = '') {
+    if (maintenance.attempted && !maintenance.rejected && !maintenanceFinished(maintenance)) return;
+    maintenance.review = null;
+    maintenance.attempted = false;
+    maintenance.rejected = false;
+    $('maintenance-plan').hidden = true;
+    $('maintenance-feedback').textContent = message;
+    maintenanceControls();
+  }
+
+  async function loadMaintenance() {
+    const m = maintenance;
+    if (m.busy || (m.attempted && !m.rejected && !maintenanceFinished(m))) return;
+    m.busy = true;
+    maintenanceControls();
+    const results = await Promise.allSettled([
+      maintenanceAPI('capabilities'),
+      maintenanceAPI('bundles'),
+    ]);
+    if (m !== maintenance || !token) return;
+    const [capability, bundles] = results;
+    $('maintenance-availability').textContent =
+      capability.status === 'fulfilled'
+        ? 'Architecture: ' +
+          (capability.value.architecture || 'unknown') +
+          '. ' +
+          (capability.value.available === false
+            ? 'Maintenance is unavailable: ' +
+              (capability.value.reason || 'required package service or safety package is missing') +
+              '. '
+            : '') +
+          (capability.value.trusted_key_available === false
+            ? 'A trusted verification key is unavailable. '
+            : '') +
+          (capability.value.active
+            ? 'A package operation is active. Read its status before continuing.'
+            : 'Review a plan to check the staged bundle and installed packages.')
+        : capability.reason.message;
+    const selection = $('maintenance-bundle'),
+      previous = selection.value;
+    selection.replaceChildren(new Option('Select a staged signed bundle', ''));
+    if (bundles.status === 'fulfilled') {
+      for (const bundle of bundles.value || []) {
+        if (maintenanceID.test(bundle.id))
+          selection.add(
+            new Option(bundle.version + ' · ' + bundle.architecture + ' · ' + bundle.id, bundle.id),
+          );
+      }
+      selection.value = previous;
+      if (!selection.value) selection.value = '';
+      if (selection.options.length === 1)
+        $('maintenance-availability').textContent +=
+          ' No signed bundles are staged; installation and upgrades require trusted local staging.';
+    } else $('maintenance-availability').textContent += ' ' + bundles.reason.message;
+    if (selection.value !== previous)
+      invalidateMaintenanceReview('Bundle availability changed. Review a fresh plan.');
+    m.busy = false;
+    maintenanceControls();
+    const activeID = capability.status === 'fulfilled' && capability.value.active_operation_id;
+    if (maintenanceID.test(activeID || '') && !$('maintenance-operation-id').value)
+      readMaintenanceStatus(activeID);
+  }
+
+  function maintenanceRequest() {
+    const request = {
+      action: $('maintenance-action').value,
+      components: [...document.querySelectorAll('#maintenance-components input:checked')]
+        .map((input) => input.value)
+        .sort(),
+      expected_installed_digest: '',
+    };
+    if (
+      !request.components.length ||
+      request.components.some((name) => !maintenanceComponents.includes(name))
+    )
+      throw Error('Select at least one supported software component.');
+    if (request.action === 'remove') {
+      request.removal_policy = $('maintenance-removal-policy').value;
+      if (request.removal_policy === 'restore-direct' && !$('maintenance-direct-consent').checked)
+        throw Error('Explicitly allow direct internet access before reviewing this removal plan.');
+    } else {
+      request.bundle_id = $('maintenance-bundle').value;
+      if (!maintenanceID.test(request.bundle_id))
+        throw Error('Select a staged signed bundle first.');
+    }
+    return request;
+  }
+
+  async function reviewMaintenance() {
+    const m = maintenance;
+    if (m.busy || (m.attempted && !m.rejected && !maintenanceFinished(m))) return;
+    m.busy = true;
+    maintenanceControls();
+    $('maintenance-feedback').textContent = '';
+    try {
+      const request = maintenanceRequest(),
+        revision = cfg.revision;
+      const plan = await maintenanceAPI('plan', { method: 'POST', data: request });
+      if (m !== maintenance || !token) return;
+      const canonical = plan.request;
+      if (
+        !/^[0-9a-f]{64}$/.test(plan.installed_digest) ||
+        canonical?.expected_installed_digest !== plan.installed_digest ||
+        canonical.action !== request.action ||
+        (canonical.bundle_id || '') !== (request.bundle_id || '') ||
+        (canonical.removal_policy || '') !== (request.removal_policy || '') ||
+        JSON.stringify([...(canonical.components || [])].sort()) !==
+          JSON.stringify(request.components)
+      )
+        throw Error(
+          'The package service returned an inconsistent plan. Refresh software availability.',
+        );
+      if (cfg.revision !== revision)
+        throw Error('Configuration changed during review. Review a fresh software plan.');
+      const frozen = { ...request, expected_installed_digest: plan.installed_digest };
+      m.review = {
+        request: Object.freeze({ ...frozen, components: Object.freeze([...frozen.components]) }),
+        revision,
+        key: id(),
+      };
+      clearTimeout(m.timer);
+      m.attempted = false;
+      m.rejected = false;
+      m.uncertainStatus = false;
+      m.job = null;
+      m.operationID = '';
+      m.statusID = '';
+      $('maintenance-progress').hidden = true;
+      $('maintenance-operation-id').value = '';
+      $('maintenance-local-command').hidden = true;
+      history.replaceState(null, '', '#overview');
+      $('maintenance-plan').hidden = false;
+      $('maintenance-plan-detail').textContent =
+        request.action +
+        ' · ' +
+        request.components.join(', ') +
+        ' · configuration revision ' +
+        revision +
+        (request.removal_policy ? ' · ' + request.removal_policy : '');
+      $('maintenance-packages').replaceChildren(
+        ...(plan.packages || []).map((pkg) =>
+          el('li', pkg.name + ' · ' + pkg.version + ' · ' + pkg.architecture),
+        ),
+      );
+      $('maintenance-warnings').replaceChildren(
+        ...(plan.warnings || []).map((warning) => el('li', warning)),
+      );
+      $('maintenance-request-reference').textContent =
+        'Installed inventory: ' +
+        plan.installed_digest +
+        '. Request key: ' +
+        m.review.key +
+        '. Retrying will reuse this exact reviewed request and revision.';
+    } catch (error) {
+      if (m === maintenance) {
+        m.review = null;
+        $('maintenance-plan').hidden = true;
+        $('maintenance-feedback').textContent = error.message;
+      }
+    } finally {
+      if (m === maintenance) {
+        m.busy = false;
+        maintenanceControls();
+      }
+    }
+  }
+
+  function maintenanceReference(operationID) {
+    if (!maintenanceID.test(operationID))
+      throw Error('The service did not return a valid maintenance operation ID.');
+    $('maintenance-operation-id').value = operationID;
+    $('maintenance-local-command').textContent =
+      '/usr/libexec/openrhp-helper maintenance-status --operation ' + operationID;
+    $('maintenance-local-command').hidden = false;
+    history.replaceState(null, '', '#overview/maintenance/' + operationID);
+    return operationID;
+  }
+
+  function showMaintenanceOperation(job, expectedID) {
+    if (
+      !job ||
+      job.id !== expectedID ||
+      !maintenanceID.test(job.id) ||
+      typeof job.phase !== 'string' ||
+      !job.phase ||
+      !['install', 'upgrade', 'remove'].includes(job.action) ||
+      ![...maintenanceActive, ...maintenanceTerminal].includes(job.state)
+    )
+      throw Error(
+        'The response is not a verified package-service status. Read the maintenance operation by ID; a dispatch acknowledgement does not prove completion.',
+      );
+    maintenance.job = job;
+    maintenance.uncertainStatus = false;
+    maintenanceReference(job.id);
+    $('maintenance-progress').hidden = false;
+    const detail = {
+      prepared: 'Maintenance is prepared and waiting for its worker.',
+      running: 'Maintenance is running.',
+      verifying: 'Installed software is being verified.',
+      completed: 'Software maintenance completed.',
+      failed:
+        'Software maintenance failed. Inspect trusted local status before deciding how to recover.',
+      interrupted:
+        'Software maintenance was interrupted. Package-manager reconciliation and trusted local operator recovery are required; do not start another operation blindly.',
+    };
+    $('maintenance-operation-detail').textContent =
+      detail[job.state] +
+      ' Operation ' +
+      job.id +
+      ' · phase: ' +
+      job.phase.replaceAll('_', ' ') +
+      (job.error_code ? ' · ' + job.error_code : '');
+    $('maintenance-guard-detail').textContent =
+      (job.guard_retained
+        ? 'The service reports that the safety package is retained.'
+        : 'The service does not report a retained safety package.') +
+      ' This field does not establish the active traffic policy. Check the reviewed removal policy and local network status.';
+    maintenanceControls();
+  }
+
+  async function readMaintenanceStatus(operationID = $('maintenance-operation-id').value.trim()) {
+    const m = maintenance;
+    if (m.reading) return;
+    clearTimeout(m.timer);
+    if (!maintenanceID.test(operationID)) {
+      $('maintenance-feedback').textContent = 'Supply a 32-character maintenance operation ID.';
+      return;
+    }
+    m.reading = true;
+    m.statusID = operationID;
+    m.uncertainStatus = true;
+    maintenanceReference(operationID);
+    maintenanceControls();
+    try {
+      const job = await maintenanceAPI('operations/' + operationID);
+      if (m !== maintenance || !token) return;
+      if (m.statusID !== operationID) return;
+      showMaintenanceOperation(job, operationID);
+      $('maintenance-feedback').textContent =
+        m.attempted && m.operationID !== operationID
+          ? 'This status does not identify the pending reviewed request. Keep its original request key for retry.'
+          : '';
+      if (maintenanceActive.includes(job.state))
+        m.timer = setTimeout(() => readMaintenanceStatus(operationID), 3000);
+    } catch (error) {
+      if (m === maintenance)
+        $('maintenance-feedback').textContent =
+          'Maintenance status could not be verified: ' +
+          error.message +
+          ' Retain operation ' +
+          operationID +
+          ' and use the trusted local status command if the API is unavailable.';
+    } finally {
+      if (m === maintenance) {
+        m.reading = false;
+        maintenanceControls();
+      }
+    }
+  }
+
+  async function startMaintenance() {
+    const m = maintenance,
+      review = m.review;
+    if (m.busy || !review || maintenanceFinished(m)) return;
+    if (!m.attempted && cfg.revision !== review.revision) {
+      invalidateMaintenanceReview('Configuration changed. Review a fresh software plan.');
+      return;
+    }
+    clearTimeout(m.timer);
+    m.statusID = '';
+    m.busy = true;
+    m.attempted = true;
+    m.rejected = false;
+    maintenanceControls();
+    $('maintenance-feedback').textContent = '';
+    try {
+      const result = await maintenanceAPI('operations', {
+        method: 'POST',
+        data: review.request,
+        cas: true,
+        revision: review.revision,
+        key: review.key,
+      });
+      if (m !== maintenance || !token) return;
+      const operationID = maintenanceReference(
+        result.result?.maintenance_operation_id || result.id,
+      );
+      m.operationID = operationID;
+      showMaintenanceOperation(result, operationID);
+      if (maintenanceActive.includes(result.state))
+        m.timer = setTimeout(() => readMaintenanceStatus(operationID), 3000);
+    } catch (error) {
+      if (m !== maintenance) return;
+      const match = /^\/api\/v1\/maintenance\/operations\/([0-9a-f]{32})$/.exec(
+        error.location || '',
+      );
+      if (match) m.operationID = maintenanceReference(match[1]);
+      m.rejected = [400, 403, 409, 428].includes(error.status);
+      $('maintenance-feedback').textContent =
+        error.message +
+        (m.rejected
+          ? ' The request was rejected. Review again if settings changed.'
+          : ' Completion is unverified. Read status by operation ID when available, or retry this same request with its original key.');
+    } finally {
+      if (m === maintenance) {
+        m.busy = false;
+        maintenanceControls();
+      }
+    }
+  }
+
+  function resumeMaintenance() {
+    const match = /^#overview\/maintenance\/([0-9a-f]{32})$/.exec(location.hash);
+    if (!match || !token) return;
+    $('maintenance-settings').parentElement.open = true;
+    $('maintenance-settings').open = true;
+    readMaintenanceStatus(match[1]);
+  }
+
   function renderRoutingTransaction(value) {
     const tr = value?.transaction || value || {};
     const descriptions = {
@@ -339,6 +863,12 @@
       const [c, s] = await Promise.all([api('config'), api('status')]);
       cfg = c;
       state = s;
+      if (
+        maintenance.review &&
+        !maintenance.attempted &&
+        maintenance.review.revision !== cfg.revision
+      )
+        invalidateMaintenanceReview('Configuration changed. Review a fresh software plan.');
       renderOverview();
       renderSources();
       renderTargets();
@@ -892,6 +1422,7 @@
       await loadCapabilities();
       await renderNodes();
       poll = setInterval(() => refresh().catch(() => {}), 5000);
+      resumeMaintenance();
     } catch (err) {
       token = '';
       $('login-error').textContent = err.message;
@@ -1042,6 +1573,64 @@
         renderRoutingTransaction(op.result);
       }, message),
     );
+  resetMaintenance();
+  $('maintenance-settings').addEventListener('toggle', () => {
+    if ($('maintenance-settings').open && token)
+      loadMaintenance().catch((error) => {
+        $('maintenance-feedback').textContent = error.message;
+      });
+  });
+  $('maintenance-reload').addEventListener('click', () =>
+    loadMaintenance().catch((error) => {
+      $('maintenance-feedback').textContent = error.message;
+    }),
+  );
+  $('maintenance-form').addEventListener('change', (event) => {
+    if (['maintenance-action', 'maintenance-removal-policy'].includes(event.target.id))
+      $('maintenance-direct-consent').checked = false;
+    invalidateMaintenanceReview();
+  });
+  $('maintenance-form').addEventListener('submit', (event) => {
+    event.preventDefault();
+    reviewMaintenance();
+  });
+  $('maintenance-start').addEventListener('click', startMaintenance);
+  $('maintenance-retry').addEventListener('click', startMaintenance);
+  $('maintenance-edit').addEventListener('click', () => invalidateMaintenanceReview());
+  $('maintenance-status').addEventListener('click', () => readMaintenanceStatus());
+  $('backup-settings').addEventListener('toggle', () => {
+    if ($('backup-settings').open && token) loadBackups().catch((e) => notice(e.message, true));
+  });
+  $('refresh-backups').addEventListener('click', () =>
+    loadBackups().catch((e) => notice(e.message, true)),
+  );
+  $('create-backup').addEventListener('click', () =>
+    backupAction(
+      () => api('config/backups', { method: 'POST', data: {}, cas: true }),
+      'Backup saved privately on this device.',
+    ),
+  );
+  $('restore-backup').addEventListener('click', () => {
+    if (!backupPreview) return;
+    const preview = backupPreview,
+      access = token;
+    backupAction(async () => {
+      await api('config/backups/' + encodeURIComponent(preview.id) + '/restore', {
+        method: 'POST',
+        data: {},
+        cas: true,
+        revision: preview.revision,
+      });
+      if (access !== token) return;
+      $('backup-dialog').close();
+      backupPreview = null;
+    }, 'Saved settings restored. Prepare, apply, test and confirm a fresh routing plan.');
+  });
+  $('backup-dialog').addEventListener('close', () => {
+    backupPreview = null;
+    $('backup-config').textContent = '';
+    $('backup-source-preview').replaceChildren();
+  });
   $('download-diagnostics').addEventListener('click', () =>
     action(async () => {
       const v = await api('diagnostics'),

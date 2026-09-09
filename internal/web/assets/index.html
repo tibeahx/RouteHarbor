@@ -216,6 +216,128 @@
               ><button id="rollback-network" class="quiet">Roll back</button>
             </div>
             <button id="download-diagnostics" class="quiet">Download diagnostics</button>
+            <details id="backup-settings" class="backup-settings">
+              <summary>Configuration backups</summary>
+              <p>
+                Save your access methods and settings before making changes. Backups stay private on
+                this device; keep a separate encrypted copy for recovery if the device is lost.
+              </p>
+              <div class="backup-actions">
+                <button id="create-backup" class="secondary" type="button">Create backup</button>
+                <button id="refresh-backups" class="quiet" type="button">Refresh backups</button>
+              </div>
+              <p id="backup-summary" class="hint" role="status">Open to load saved backups.</p>
+              <ul id="backup-list" class="backup-list"></ul>
+            </details>
+            <details id="maintenance-settings" class="backup-settings">
+              <summary>Software maintenance</summary>
+              <p>
+                Install, upgrade or remove supported software from this device. Signed bundles must
+                first be staged through trusted local administrator access.
+              </p>
+              <button id="maintenance-reload" class="quiet" type="button">
+                Refresh software availability
+              </button>
+              <p id="maintenance-availability" class="hint">Open to check software availability.</p>
+              <form id="maintenance-form">
+                <label for="maintenance-action">Software action</label>
+                <select id="maintenance-action">
+                  <option value="install">Install</option>
+                  <option value="upgrade">Upgrade</option>
+                  <option value="remove">Remove</option>
+                </select>
+                <fieldset id="maintenance-components">
+                  <legend>Software components</legend>
+                  <label class="check"
+                    ><input type="checkbox" value="openrhp" />OpenRHP controller</label
+                  >
+                  <label class="check"
+                    ><input type="checkbox" value="openrhp-sing-box" />sing-box adapter</label
+                  >
+                  <label class="check"
+                    ><input type="checkbox" value="openrhp-xray" />Xray adapter</label
+                  >
+                  <label class="check"
+                    ><input type="checkbox" value="openrhp-conntrack" />Connection tracking
+                    tools</label
+                  >
+                </fieldset>
+                <div id="maintenance-bundle-field">
+                  <label for="maintenance-bundle">Staged signed bundle</label>
+                  <select id="maintenance-bundle">
+                    <option value="">Load staged bundles first</option>
+                  </select>
+                </div>
+                <div id="maintenance-removal-field" hidden>
+                  <label for="maintenance-removal-policy">Traffic policy after removal</label>
+                  <select id="maintenance-removal-policy">
+                    <option value="preserve-closed">Keep protected traffic blocked</option>
+                    <option value="restore-direct">Restore direct internet access</option>
+                  </select>
+                  <label id="maintenance-direct-consent-field" class="check" hidden>
+                    <input id="maintenance-direct-consent" type="checkbox" />
+                    I explicitly allow protected traffic to use direct internet access after
+                    removal.
+                  </label>
+                </div>
+                <p id="maintenance-self-removal" class="hint" hidden>
+                  Removing the controller can disconnect this page. Retain the operation ID and your
+                  trusted local administrator connection to check completion.
+                </p>
+                <button id="maintenance-review" class="secondary" type="submit">
+                  Review software plan
+                </button>
+              </form>
+              <p id="maintenance-feedback" class="error" role="alert"></p>
+              <section id="maintenance-plan" aria-labelledby="maintenance-plan-title" hidden>
+                <h3 id="maintenance-plan-title">Review software changes</h3>
+                <p id="maintenance-plan-detail"></p>
+                <ul id="maintenance-packages"></ul>
+                <ul id="maintenance-warnings"></ul>
+                <div class="backup-actions">
+                  <button id="maintenance-start" class="primary" type="button">
+                    Start reviewed maintenance
+                  </button>
+                  <button id="maintenance-edit" class="quiet" type="button">
+                    Edit software choices
+                  </button>
+                  <button id="maintenance-retry" class="secondary" type="button" hidden>
+                    Retry the same request
+                  </button>
+                </div>
+                <p id="maintenance-request-reference" class="hint"></p>
+              </section>
+              <section
+                id="maintenance-progress"
+                aria-labelledby="maintenance-progress-title"
+                hidden
+              >
+                <h3 id="maintenance-progress-title">Software operation</h3>
+                <p id="maintenance-operation-detail" role="status"></p>
+                <p id="maintenance-guard-detail"></p>
+              </section>
+              <label for="maintenance-operation-id">Maintenance operation ID</label>
+              <input
+                id="maintenance-operation-id"
+                autocomplete="off"
+                spellcheck="false"
+                maxlength="32"
+                placeholder="Paste an existing operation ID to resume status"
+              />
+              <button id="maintenance-status" class="quiet" type="button">
+                Read maintenance status
+              </button>
+              <p class="hint">
+                This status comes from the privileged package service. A dispatch record in the
+                general operation history does not mean that software installation completed.
+              </p>
+              <p id="maintenance-local-hint" class="hint">
+                Keep this page open until an operation ID is available. If the API disconnects,
+                retain that ID and use trusted local maintenance status; do not start another
+                request blindly.
+              </p>
+              <code id="maintenance-local-command" hidden></code>
+            </details>
           </details>
         </section>
         <section id="sources" class="page" hidden>
@@ -537,6 +659,28 @@
           ><button type="submit" class="primary">Add resource</button>
         </div>
       </form>
+    </dialog>
+    <dialog id="backup-dialog" aria-labelledby="backup-dialog-title">
+      <div class="dialog-heading">
+        <h2 id="backup-dialog-title">Preview backup</h2>
+        <button type="button" class="close quiet" aria-label="Close backup preview">×</button>
+      </div>
+      <p id="backup-detail"></p>
+      <p>
+        Restoring replaces saved settings, including private connection credentials. Routing still
+        needs a fresh plan that you prepare, apply, test and confirm.
+      </p>
+      <ul id="backup-source-preview" class="backup-sources"></ul>
+      <details>
+        <summary>View masked configuration</summary>
+        <p class="hint">Connection credentials are hidden in this preview.</p>
+        <pre id="backup-config"></pre>
+      </details>
+      <p id="backup-preview-error" class="error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" class="close secondary">Cancel</button>
+        <button id="restore-backup" class="primary" type="button">Restore saved settings</button>
+      </div>
     </dialog>
     <dialog id="node-dialog" aria-labelledby="node-dialog-title">
       <form id="node-form">

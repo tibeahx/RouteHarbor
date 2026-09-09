@@ -55,6 +55,8 @@ type Route struct {
 type Plan struct {
 	// SafetyNetworks is trusted helper-only recovery metadata, never client input.
 	SafetyNetworks []model.Network `json:"-"`
+	IngressDevices []string        `json:"-"`
+	DNSGuardUID    uint32          `json:"-"`
 	Desired        Desired         `json:"desired"`
 	NFT            string          `json:"nft"`
 	GuardNFT       string          `json:"guard_nft"`
@@ -537,7 +539,22 @@ func SafeRollback(candidate Desired, previous *Desired) Desired {
 // addresses. This is called by the helper immediately before nft validation and
 // application, so DHCP changes do not turn router services into proxy traffic.
 func WithRouterAddresses(p Plan, addresses []netip.Addr) (Plan, error) {
-	if len(addresses) == 0 || len(addresses) > 512 {
+	return withRouterAddresses(p, addresses, false)
+}
+
+// WithQuarantineRouterAddresses can run before netifd creates or addresses LAN
+// devices. An empty set removes only dynamic router-address exceptions; explicit
+// LAN prefixes and link-local management remain, followed by the early drop.
+// Ordinary routing checks and application must use strict WithRouterAddresses.
+func WithQuarantineRouterAddresses(p Plan, addresses []netip.Addr) (Plan, error) {
+	if p.Desired.Selected != "" || p.Desired.Fallback != "closed" || len(p.Desired.Paths) != 0 {
+		return p, errors.New("quarantine_policy_required")
+	}
+	return withRouterAddresses(p, addresses, true)
+}
+
+func withRouterAddresses(p Plan, addresses []netip.Addr, quarantine bool) (Plan, error) {
+	if len(addresses) == 0 && !quarantine || len(addresses) > 512 {
 		return p, errors.New(
 			"router_addresses_unavailable: cannot discover a bounded local address set",
 		)

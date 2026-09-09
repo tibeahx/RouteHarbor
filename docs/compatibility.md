@@ -47,6 +47,21 @@ supported. If a required target cannot be built, it needs a different implementa
 or toolchain decision, not a renamed artifact. No release claims universal hardware
 support. No QEMU execution evidence is claimed merely from cross-compilation.
 
+## Execution limits
+
+The [user-mode emulator lab](evidence/abi-execution.md) executed the selection,
+configuration and offline release CLI suites successfully on ARMv5, ARMv7,
+MIPS32 big/little-endian soft-float and RISC-V64. MIPS64 big/little-endian and
+i386 failed inside the Go runtime in the recorded QEMU environment; standalone
+standard-library examples reproduce those failures without project imports.
+A separate booted OpenWrt x86/generic 32-bit kernel subsequently passed the same
+i386 test binaries; the user-mode failure does not override that successful
+full-system execution. MIPS64 remains **unvalidated for execution**. Successful
+compilation does not override its failing emulator results. It is not proof that every native
+device fails: user-mode QEMU and a native Linux kernel can handle instructions
+differently. ARMv6 was not executed in this lab, and exact router package/CPU
+variants still require their own validation.
+
 ## Measurements
 
 The minimal HTTP-bearing portability prototype compiled to 3.13–3.94 MiB across

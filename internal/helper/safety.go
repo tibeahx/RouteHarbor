@@ -32,6 +32,14 @@ func safetyNetworks(p *dataplane.Plan) []model.Network {
 	if p.Desired.Fallback == "closed" {
 		out = append(out, p.Desired.Network)
 	}
+	for i := range out {
+		out[i].LANInterfaces = ingressInterfaces(
+			dataplane.Plan{
+				Desired:        dataplane.Desired{Network: out[i]},
+				IngressDevices: p.IngressDevices,
+			},
+		)
+	}
 	return out
 }
 
@@ -40,7 +48,8 @@ func addSafetyOwner(p *dataplane.Plan, network model.Network) {
 }
 
 func safetyRuleAllowed(rule ipRule, old *dataplane.Plan) bool {
-	if rule.Unsupported || number(rule.Table) != safetyTable || len(rule.FWMark) != 0 ||
+	if rule.Unsupported || hasDNSSelectors(rule) || number(rule.Table) != safetyTable ||
+		len(rule.FWMark) != 0 ||
 		len(rule.FWMask) != 0 {
 		return false
 	}
@@ -77,7 +86,7 @@ func safetyLocalRoutes(p dataplane.Plan) []safetyLocalRoute {
 	result := []safetyLocalRoute{}
 	for _, prefix := range p.Desired.Network.LocalPrefixes {
 		wanted, _ := netip.ParsePrefix(prefix)
-		for _, device := range p.Desired.Network.LANInterfaces {
+		for _, device := range ingressInterfaces(p) {
 			iface, err := net.InterfaceByName(device)
 			if err != nil {
 				continue
@@ -203,7 +212,7 @@ func (b *NetworkBackend) applySafety(
 			if err != nil {
 				return err
 			}
-			for index, device := range p.Desired.Network.LANInterfaces {
+			for index, device := range ingressInterfaces(p) {
 				priority := safetyPriority + index
 				found := false
 				for _, r := range rules {
@@ -276,7 +285,7 @@ func (b *NetworkBackend) cleanupSafety(
 			}
 			keep := false
 			if p.Desired.Fallback == "closed" {
-				for index, dev := range p.Desired.Network.LANInterfaces {
+				for index, dev := range ingressInterfaces(p) {
 					if device == dev && rule.Priority == safetyPriority+index {
 						keep = true
 					}

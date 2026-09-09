@@ -161,8 +161,16 @@ func TestNoImplicitDPI(t *testing.T) {
 func FuzzSourceImport(f *testing.F) {
 	f.Add([]byte(`{}`))
 	f.Add([]byte(`{"server":"proxy.example","server_port":1080}`))
+	f.Add(
+		[]byte(
+			`{"link":"vless://11111111-1111-4111-8111-111111111111@vpn.example:443?security=tls&type=ws&path=%2Fproxy&sni=vpn.example"}`,
+		),
+	)
+	f.Add([]byte(`{"name":"wg0"}`))
+	f.Add([]byte(`{"strategy":"multisplit-v1"}`))
+	f.Add([]byte(strings.Repeat("[", 65) + strings.Repeat("]", 65)))
 	f.Fuzz(func(t *testing.T, b []byte) {
-		for _, kind := range []string{"direct", "sing-box", "xray", "socks5", "packet-engine"} {
+		for _, kind := range []string{"direct", "sing-box", "xray", "socks5", "http-connect", "interface", "packet-engine"} {
 			_ = ValidateSource(source(kind, string(b)))
 		}
 	})

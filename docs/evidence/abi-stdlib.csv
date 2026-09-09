@@ -1,0 +1,5 @@
+target,emulator,cpu,result
+mips64,qemu-mips64-static,5Kc,FAIL
+mips64,qemu-mips64-static,MIPS64R2-generic,FAIL
+386,qemu-i386-static,qemu32,FAIL
+386,qemu-i386-static,max,FAIL

@@ -178,7 +178,12 @@ func inspectNativeProbeTunnel(ctx context.Context, device string) error {
 		return errors.New("probe_interface_unavailable")
 	}
 	runner := platform.ProductionRunner{}
-	raw, e := runner.Run(ctx, "/sbin/ubus", []string{"call", "network.interface", "dump"}, nil)
+	raw, e := runner.Run(
+		ctx,
+		platform.UBusBinary(),
+		[]string{"call", "network.interface", "dump"},
+		nil,
+	)
 	if e != nil {
 		return errors.New("probe_interface_unavailable")
 	}

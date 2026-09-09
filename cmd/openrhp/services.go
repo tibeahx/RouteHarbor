@@ -50,6 +50,7 @@ func wireServices(s *api.Server, state, socket string) error {
 	}
 	s.Coverage = nodes
 	if client != nil {
+		s.Maintenance = helper.MaintenanceClient{Client: client}
 		s.Runtime.Adapters.EnableTransparent = true
 		s.Runtime.Adapters.Packet = client
 		s.Runtime.Adapters.NativeProbes = client

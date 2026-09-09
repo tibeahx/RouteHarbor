@@ -611,6 +611,46 @@ summary {
   padding: 7px 0;
 }
 
+.backup-settings {
+  margin-top: 1.5rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--line);
+}
+
+.backup-list {
+  list-style: none;
+  padding: 0;
+}
+
+.backup-list li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.85rem 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.backup-list small {
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.backup-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+#backup-config {
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.8rem;
+}
+
 .advanced > p {
   margin-top: 18px;
   font-size: 13px;
@@ -1190,4 +1230,20 @@ dialog::backdrop {
 .coverage-link .section-heading {
   gap: 1rem;
   flex-wrap: wrap;
+}
+
+#maintenance-settings section {
+  margin-top: 1rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+#maintenance-settings code,
+#maintenance-request-reference,
+#maintenance-operation-detail {
+  overflow-wrap: anywhere;
+}
+
+#maintenance-settings button {
+  white-space: normal;
 }

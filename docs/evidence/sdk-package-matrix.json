@@ -1,0 +1,279 @@
+{
+  "date": "2026-09-09",
+  "scope": "official SDK packaging and IPK contents; not execution or physical acceptance",
+  "base_commit": "b314ebfe2e9463d752799b95ca44e0400838c718",
+  "clean_release": false,
+  "input_inventory_sha256": "aeafccaeb4a9c4ece8f2df8b14297221f079083ebc68cc1d575033ebfba29703",
+  "targets": [
+    {
+      "target": "x86-64",
+      "elapsed_seconds": 105.7,
+      "packages": [
+        {
+          "ipk": "openrhp-conntrack_0.1.0-r1_x86_64.ipk",
+          "package": "openrhp-conntrack",
+          "version": "0.1.0-r1",
+          "architecture": "x86_64",
+          "binaries": [],
+          "sha256": "67656b8f24286b8c3fa1808b6a0fd9c7f6ee5864816638bec917c3f14eea214d",
+          "bytes": 829
+        },
+        {
+          "ipk": "openrhp-guard_0.1.0-r1_x86_64.ipk",
+          "package": "openrhp-guard",
+          "version": "0.1.0-r1",
+          "architecture": "x86_64",
+          "binaries": [
+            {
+              "path": "usr/libexec/openrhp-helper",
+              "bytes": 5918844,
+              "sha256": "7a65346ef161b100f6782ab2e6b5184b38aacd364b417414b11ef47023213848",
+              "go_version": "go1.27.1",
+              "elf_class": 64,
+              "byte_order": "little",
+              "goarch": "amd64"
+            }
+          ],
+          "sha256": "74380de6c5f96140b69ea29c9ab316c99615f8dac176ae41b1e2549344fe0120",
+          "bytes": 2523820
+        },
+        {
+          "ipk": "openrhp-node_0.1.0-r1_x86_64.ipk",
+          "package": "openrhp-node",
+          "version": "0.1.0-r1",
+          "architecture": "x86_64",
+          "binaries": [
+            {
+              "path": "usr/bin/openrhp-node",
+              "bytes": 7954556,
+              "sha256": "fbedf9f7b29cbef82ef1a5e4cc2840ec60d27836e8057aebfa23ac02159841fd",
+              "go_version": "go1.27.1",
+              "elf_class": 64,
+              "byte_order": "little",
+              "goarch": "amd64"
+            }
+          ],
+          "sha256": "1ca354e3a9ee9907448278a88e4d40d97d7d455cd8c7d8b26ddd628d85c7b726",
+          "bytes": 3293851
+        },
+        {
+          "ipk": "openrhp-sing-box_0.1.0-r1_x86_64.ipk",
+          "package": "openrhp-sing-box",
+          "version": "0.1.0-r1",
+          "architecture": "x86_64",
+          "binaries": [],
+          "sha256": "e8649533e2789a39d5b3d1ab6a3c7fcdd0b6f95b0179920aa3f305474adb8459",
+          "bytes": 837
+        },
+        {
+          "ipk": "openrhp-xray_0.1.0-r1_x86_64.ipk",
+          "package": "openrhp-xray",
+          "version": "0.1.0-r1",
+          "architecture": "x86_64",
+          "binaries": [],
+          "sha256": "c4935f585a2de209465543a502669a963e4972fc68018a35580ec9329bc0fcdf",
+          "bytes": 842
+        },
+        {
+          "ipk": "openrhp_0.1.0-r1_x86_64.ipk",
+          "package": "openrhp",
+          "version": "0.1.0-r1",
+          "architecture": "x86_64",
+          "binaries": [
+            {
+              "path": "usr/bin/openrhp",
+              "bytes": 9441404,
+              "sha256": "1dbd7d87cf4ecdd48ce5f4c30cea5c6e1779da25eba984cde1965c585400b280",
+              "go_version": "go1.27.1",
+              "elf_class": 64,
+              "byte_order": "little",
+              "goarch": "amd64"
+            }
+          ],
+          "sha256": "6da3a300f9f2a85e26795eb6c3a0be5fda29714638ea12a36a67d8453ced3480",
+          "bytes": 3830154
+        }
+      ]
+    },
+    {
+      "target": "mediatek-mt7622",
+      "elapsed_seconds": 104.9,
+      "packages": [
+        {
+          "ipk": "openrhp-conntrack_0.1.0-r1_aarch64_cortex-a53.ipk",
+          "package": "openrhp-conntrack",
+          "version": "0.1.0-r1",
+          "architecture": "aarch64_cortex-a53",
+          "binaries": [],
+          "sha256": "f53e072bf284f3ca8cf0dd1ba6f99dd40d2327798eb16f4c5b287a9465d3a5f9",
+          "bytes": 839
+        },
+        {
+          "ipk": "openrhp-guard_0.1.0-r1_aarch64_cortex-a53.ipk",
+          "package": "openrhp-guard",
+          "version": "0.1.0-r1",
+          "architecture": "aarch64_cortex-a53",
+          "binaries": [
+            {
+              "path": "usr/libexec/openrhp-helper",
+              "bytes": 5439612,
+              "sha256": "6bc90104a590f5f40de46658327c1a51e63c17e971492ea9d2d2a67703a24891",
+              "go_version": "go1.27.1",
+              "elf_class": 64,
+              "byte_order": "little",
+              "goarch": "arm64"
+            }
+          ],
+          "sha256": "c16e0eb7817a2f04cad518d60a76fab418cc0d154f64118c7a68039e367f18a5",
+          "bytes": 2274070
+        },
+        {
+          "ipk": "openrhp-node_0.1.0-r1_aarch64_cortex-a53.ipk",
+          "package": "openrhp-node",
+          "version": "0.1.0-r1",
+          "architecture": "aarch64_cortex-a53",
+          "binaries": [
+            {
+              "path": "usr/bin/openrhp-node",
+              "bytes": 7405692,
+              "sha256": "24a3522c18d2a6f83e98ba2fb9335170a9985a910a11de6abb770aaac43adaa4",
+              "go_version": "go1.27.1",
+              "elf_class": 64,
+              "byte_order": "little",
+              "goarch": "arm64"
+            }
+          ],
+          "sha256": "6ae982fddb55b03462d47bb5fdce874cf3f96668283a95162cf84c2ea3a782e1",
+          "bytes": 2950091
+        },
+        {
+          "ipk": "openrhp-sing-box_0.1.0-r1_aarch64_cortex-a53.ipk",
+          "package": "openrhp-sing-box",
+          "version": "0.1.0-r1",
+          "architecture": "aarch64_cortex-a53",
+          "binaries": [],
+          "sha256": "882ed71e0f833092aa97be997429870175ba791846f66e415453611dafcec2f2",
+          "bytes": 853
+        },
+        {
+          "ipk": "openrhp-xray_0.1.0-r1_aarch64_cortex-a53.ipk",
+          "package": "openrhp-xray",
+          "version": "0.1.0-r1",
+          "architecture": "aarch64_cortex-a53",
+          "binaries": [],
+          "sha256": "6e0d4fa00b40a4643aac6b8d7f8b23bbb71bafa604621e19b38378065ea16fff",
+          "bytes": 850
+        },
+        {
+          "ipk": "openrhp_0.1.0-r1_aarch64_cortex-a53.ipk",
+          "package": "openrhp",
+          "version": "0.1.0-r1",
+          "architecture": "aarch64_cortex-a53",
+          "binaries": [
+            {
+              "path": "usr/bin/openrhp",
+              "bytes": 8716412,
+              "sha256": "93a51e93630ea65b487f3b04ba201be0e730a1f6100104b4ef7aaf81cdcb3acd",
+              "go_version": "go1.27.1",
+              "elf_class": 64,
+              "byte_order": "little",
+              "goarch": "arm64"
+            }
+          ],
+          "sha256": "ac76afe0967c2daf7165825b7ddc8b851469e64359cca9230ff56a0f02a0e8f2",
+          "bytes": 3439907
+        }
+      ]
+    },
+    {
+      "target": "ramips-mt7621",
+      "elapsed_seconds": 103.8,
+      "packages": [
+        {
+          "ipk": "openrhp-conntrack_0.1.0-r1_mipsel_24kc.ipk",
+          "package": "openrhp-conntrack",
+          "version": "0.1.0-r1",
+          "architecture": "mipsel_24kc",
+          "binaries": [],
+          "sha256": "3e66408fb64a65e7e6e34379e9090ec1cbdf34dfc50d24db56ef95c02270b5a2",
+          "bytes": 837
+        },
+        {
+          "ipk": "openrhp-guard_0.1.0-r1_mipsel_24kc.ipk",
+          "package": "openrhp-guard",
+          "version": "0.1.0-r1",
+          "architecture": "mipsel_24kc",
+          "binaries": [
+            {
+              "path": "usr/libexec/openrhp-helper",
+              "bytes": 6684827,
+              "sha256": "5a394e7993adc4c2508c3a34457a0770fb2a27560472e12eeca45cb0d99d030f",
+              "go_version": "go1.27.1",
+              "elf_class": 32,
+              "byte_order": "little",
+              "goarch": "mipsle"
+            }
+          ],
+          "sha256": "52fc62849209d60dc60699c541adbd6968197adb95b5fbfa02f2498f3b915f8b",
+          "bytes": 2415794
+        },
+        {
+          "ipk": "openrhp-node_0.1.0-r1_mipsel_24kc.ipk",
+          "package": "openrhp-node",
+          "version": "0.1.0-r1",
+          "architecture": "mipsel_24kc",
+          "binaries": [
+            {
+              "path": "usr/bin/openrhp-node",
+              "bytes": 8847515,
+              "sha256": "a5de0167bfd6396fc9798025bb0177a191dee037610947311885d4dd025b34b0",
+              "go_version": "go1.27.1",
+              "elf_class": 32,
+              "byte_order": "little",
+              "goarch": "mipsle"
+            }
+          ],
+          "sha256": "eed4320cb994e76cdb5874016804b0c30f5c110cd46dac6d052a1576c4971406",
+          "bytes": 3081101
+        },
+        {
+          "ipk": "openrhp-sing-box_0.1.0-r1_mipsel_24kc.ipk",
+          "package": "openrhp-sing-box",
+          "version": "0.1.0-r1",
+          "architecture": "mipsel_24kc",
+          "binaries": [],
+          "sha256": "ad1ca309be964f877b3ea547e74b3aba030e21bf1f1970c6da3ffc7ea25d0b48",
+          "bytes": 847
+        },
+        {
+          "ipk": "openrhp-xray_0.1.0-r1_mipsel_24kc.ipk",
+          "package": "openrhp-xray",
+          "version": "0.1.0-r1",
+          "architecture": "mipsel_24kc",
+          "binaries": [],
+          "sha256": "fad6c19bffafaa6dfc9ef5e839a9fb509ae1ba817edb97afe7fbaf5c53629bc6",
+          "bytes": 850
+        },
+        {
+          "ipk": "openrhp_0.1.0-r1_mipsel_24kc.ipk",
+          "package": "openrhp",
+          "version": "0.1.0-r1",
+          "architecture": "mipsel_24kc",
+          "binaries": [
+            {
+              "path": "usr/bin/openrhp",
+              "bytes": 10420379,
+              "sha256": "b4e373c2bcaf2b5df9df1c9b427a26704a08bdd6869688e54646d5b73779bd16",
+              "go_version": "go1.27.1",
+              "elf_class": 32,
+              "byte_order": "little",
+              "goarch": "mipsle"
+            }
+          ],
+          "sha256": "ef923177e34fc421c352044f105d57ce603af2f60f12c7db3fb7e5c4d2130b4b",
+          "bytes": 3557884
+        }
+      ]
+    }
+  ]
+}

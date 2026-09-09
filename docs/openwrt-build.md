@@ -77,6 +77,7 @@ lives under `/etc`, while engine runtime files remain under `/var/run`.
 | --- | --- |
 | `/etc/openrhp` | `openrhp`, mode 0700; controller configuration and credential store |
 | `/etc/openrhp-helper` | root, mode 0700; durable transaction journal and generated guard |
+| `/etc/openrhp-maintenance` | root, mode 0700; independently supplied trust key, signed offline package cache and durable maintenance jobs |
 | `/var/run/openrhp` | root; helper socket, mode 0600, assigned to the API user |
 | `/var/run/openrhp-engines` | `openrhp`, mode 0700; temporary engine configuration |
 | `/var/run/openrhp-engine-worker` | root, mode 0700; transient helper-generated engine configuration, unlinked after opening |

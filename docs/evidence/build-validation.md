@@ -1,13 +1,13 @@
 # Build validation evidence
 
-Executed on 2026-09-08 with Go 1.27.1. The input was captured at
-`2026-09-08T20:21:12.901252+00:00` from an **uncommitted working tree** based on
-`ef4e073451d00867e0f6f6529e1f63563ad1126b`. These results do not describe that base commit alone.
-The build-input inventory covers `go.mod`, `api`, `cmd` and `internal`, excluding
-Go test files. Its SHA-256 is:
+Executed on 2026-09-09 with Go 1.27.1 from the **uncommitted working tree**
+based on `b314ebfe2e9463d752799b95ca44e0400838c718`. These results do not describe that base commit alone.
+The frozen production sources passed the complete race suite and `go vet` before
+these build checks. The build-input inventory covers `go.mod`, `api`, `cmd` and
+`internal`, excluding Go test files. Its SHA-256 is:
 
 ```text
-fbb15be9b5fa43495cf177f7ec65d038bf8f895965df5605fd20cb29967240aa
+f71d399adac194eada907f70dc7c73deb0c5accf024e701717b9dba4dc28ed44
 ```
 
 All 44 binaries compiled: four programs for 11 Linux architecture/ABI variants.
@@ -18,9 +18,9 @@ on every architecture or physical-router compatibility.
 
 | Binary | Linux amd64 bytes | Matrix minimum bytes | Matrix maximum bytes |
 | --- | ---: | ---: | ---: |
-| `openrhp` | 9,289,852 | 8,257,660 | 10,289,276 |
-| `openrhp-helper` | 5,423,228 | 4,915,324 | 6,226,075 |
-| `openrhp-node` | 7,938,172 | 7,012,476 | 8,847,515 |
+| `openrhp` | 9,441,404 | 8,388,732 | 10,420,379 |
+| `openrhp-helper` | 5,918,844 | 5,308,540 | 6,684,827 |
+| `openrhp-node` | 7,954,556 | 7,012,476 | 8,847,515 |
 | `openrhp-release` | 3,379,324 | 3,080,316 | 3,866,748 |
 
 Exact target rows are in [build-matrix.csv](build-matrix.csv). Sizes use stripped

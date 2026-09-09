@@ -63,6 +63,8 @@ func (labRunner) Run(
 
 func labBackend() *NetworkBackend {
 	b := NewNetworkBackend()
+	b.Ingress = nil     // Explicit native fixtures configure their own bridge discovery.
+	b.DNSIdentity = nil // This network namespace has no OpenWrt DNS service.
 	b.Runner = labRunner{}
 	b.Detect = func(context.Context) platform.Report {
 		return platform.Report{

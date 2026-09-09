@@ -16,6 +16,11 @@ OPENRHP_GO_VERSION:=go1.27.1
 
 include $(INCLUDE_DIR)/package.mk
 
+# Go already strips symbols/DWARF with -s -w. SDK sstrip truncates the ELF
+# section-name table, breaking Go build metadata inspection and package audits.
+# This recipe bundles only those Go binaries and scripts; skip its second strip.
+RSTRIP:=:
+
 OPENRHP_GOARCH:=$(ARCH)
 ifeq ($(ARCH),aarch64)
   OPENRHP_GOARCH:=arm64
@@ -129,11 +134,12 @@ define Build/Compile
 endef
 
 define Package/openrhp-guard/install
-	$(INSTALL_DIR) $(1)/usr/libexec $(1)/etc/init.d $(1)/etc/openrhp-helper $(1)/usr/share/nftables.d/ruleset-pre
+	$(INSTALL_DIR) $(1)/usr/libexec $(1)/etc/init.d $(1)/etc/openrhp-helper $(1)/etc/openrhp-maintenance $(1)/usr/share/nftables.d/ruleset-pre
 	$(INSTALL_BIN) $(PKG_BUILD_DIR)/bin/openrhp-helper $(1)/usr/libexec/
 	$(INSTALL_BIN) ./files/openrhp-guard.init $(1)/etc/init.d/openrhp-guard
 	$(INSTALL_DATA) ./files/guard.nft $(1)/etc/openrhp-helper/guard.nft
 	chmod 0700 $(1)/etc/openrhp-helper
+	chmod 0700 $(1)/etc/openrhp-maintenance
 	chmod 0600 $(1)/etc/openrhp-helper/guard.nft
 	$(INSTALL_DATA) ./files/90-openrhp-guard.nft $(1)/usr/share/nftables.d/ruleset-pre/
 endef
@@ -174,6 +180,7 @@ endef
 
 define Package/openrhp-guard/conffiles
 /etc/openrhp-helper/
+/etc/openrhp-maintenance/
 endef
 
 define Package/openrhp-node/conffiles

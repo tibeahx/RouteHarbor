@@ -32,7 +32,7 @@ test('confirmed routing stays visible when optional connection cleanup needs a r
   await page
     .locator('details')
     .filter({ has: page.locator('#prepare-network') })
-    .locator('summary')
+    .locator(':scope > summary')
     .click();
   await page.getByRole('button', { name: 'Prepare routing', exact: true }).click();
   await expect(page.locator('#transaction-detail')).toContainText('Routing is prepared');

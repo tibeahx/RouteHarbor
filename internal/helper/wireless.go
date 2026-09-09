@@ -21,6 +21,16 @@ func VerifiedPlatform(ctx context.Context, verifier *wireless.Verifier) platform
 		}
 	}
 	report.Capabilities["break_existing"] = reset
+	dns := platform.Capability{
+		Reason: "Require trusted dnsmasq2.90 with a dedicated non-root account and randomized upstream sockets",
+	}
+	if _, err := inspectDNSIdentity(ctx); err == nil {
+		dns = platform.Capability{
+			Available: true,
+			Reason:    "Dedicated DNS owner verified for an independent TCP/UDP routing guard",
+		}
+	}
+	report.Capabilities["dns_owner_guard"] = dns
 	authorization, err := verifier.Authorized(ctx)
 	if err != nil {
 		return report
