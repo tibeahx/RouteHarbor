@@ -118,7 +118,7 @@ func makePlan(
 			selected[name] = true
 		}
 		if selected["openrhp"] {
-			for _, name := range []string{"openrhp-sing-box", "openrhp-xray", "openrhp-conntrack"} {
+			for _, name := range []string{"openrhp-sing-box", "openrhp-xray", "openrhp-conntrack", "openrhp-continuity"} {
 				if inventory.Packages[name] != "" {
 					selected[name] = true
 				}

@@ -54,7 +54,7 @@ func run() error {
 		}
 		return helper.RunPacketWorker(*slot)
 	}
-	if os.Args[1] == "engine-worker" {
+	if os.Args[1] == "engine-worker" || os.Args[1] == "continuity-worker" {
 		workerFlags := flag.NewFlagSet("engine-worker", flag.ContinueOnError)
 		uid := workerFlags.Uint("uid", 0, "service UID")
 		gid := workerFlags.Uint("gid", 0, "service GID")
@@ -63,6 +63,9 @@ func run() error {
 		}
 		if workerFlags.NArg() != 0 || *uid > uint(^uint32(0)) || *gid > uint(^uint32(0)) {
 			return errors.New("invalid engine identity")
+		}
+		if os.Args[1] == "continuity-worker" {
+			return helper.RunContinuitySupervisor(uint32(*uid), uint32(*gid))
 		}
 		return helper.RunEngineWorker(uint32(*uid), uint32(*gid))
 	}

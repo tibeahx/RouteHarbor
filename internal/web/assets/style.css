@@ -1247,3 +1247,15 @@ dialog::backdrop {
 #maintenance-settings button {
   white-space: normal;
 }
+.continuity-metrics {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 0.5rem 1rem;
+}
+.continuity-metrics dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+#continuity-fingerprint {
+  overflow-wrap: anywhere;
+}

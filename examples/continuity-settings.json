@@ -1,0 +1,8 @@
+{
+  "enabled": false,
+  "relay_address": "",
+  "relay_fingerprint": "",
+  "buffer_bytes": 33554432,
+  "udp_reserve_bytes": 4194304,
+  "disconnected_grace_seconds": 30
+}

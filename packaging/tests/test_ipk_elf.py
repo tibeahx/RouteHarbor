@@ -23,7 +23,7 @@ class SDKArtifactSelectionTests(unittest.TestCase):
             for name in EXPECTED:
                 (self.output / (name + suffix)).touch()
         paths, version, architecture = sdk_packages(self.sdk, self.recipe)
-        self.assertEqual(len(paths), 6)
+        self.assertEqual(len(paths), 7)
         self.assertEqual((version, architecture), ('0.1.0-r1', 'x86_64'))
         self.assertTrue(all(path.name.endswith('_0.1.0-r1_x86_64.ipk') for path in paths))
 

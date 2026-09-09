@@ -49,6 +49,14 @@ func wireServices(s *api.Server, state, socket string) error {
 		}
 	}
 	s.Coverage = nodes
+	s.Runtime.Continuity, e = control.NewContinuityControl(
+		client,
+		filepath.Join(state, "continuity"),
+	)
+	if e != nil {
+		_ = nodes.Close()
+		return e
+	}
 	if client != nil {
 		s.Maintenance = helper.MaintenanceClient{Client: client}
 		s.Runtime.Adapters.EnableTransparent = true

@@ -155,6 +155,21 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	if e = n.Runtime.Adapters.RestoreAllocations(ctx, list, paths); e != nil {
 		return n.restoreFailure("engine_input_restore_failed")
 	}
+	// If a later worker restore fails (for example while its optional package is
+	// being installed), release this attempt's freshly recreated inputs. A retry
+	// must not fail forever because RestoreAllocations requires an empty manager.
+	restoreComplete := false
+	defer func() {
+		if restoreComplete {
+			return
+		}
+		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if n.Runtime.Continuity != nil {
+			_ = n.Runtime.Continuity.Close(cleanup)
+		}
+		_ = n.Runtime.Adapters.Close(cleanup)
+	}()
 	// DNS follows the effective helper-owned network, including after an offline
 	// configuration edit. The current draft must not enable direct DNS for a
 	// restored managed path.
@@ -180,6 +195,43 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	for _, s := range list {
 		_ = n.Runtime.Adapters.Start(ctx, s)
 	}
+	// The old process's endpoint sockets cannot be restored. Recreate only the
+	// exact helper-owned listener allocation; the journal's guard remains in
+	// force until a new network transaction is confirmed.
+	var continuityIntent *dataplane.ContinuityIntent
+	continuityConfig := confirmed
+	selected := ""
+	if state.Committed != nil {
+		continuityIntent = state.Committed.Continuity
+		selected = state.Committed.Selected
+	}
+	if pending && state.Transaction.Candidate.Continuity != nil {
+		continuityIntent = state.Transaction.Candidate.Continuity
+		continuityConfig, _, _ = n.Runtime.Store.Checkpoint(state.Transaction.ID)
+		selected = state.Transaction.Candidate.Selected
+	}
+	if continuityIntent != nil {
+		if n.Runtime.Continuity == nil {
+			return n.restoreFailure("continuity_worker_unavailable")
+		}
+		carrierPaths := []adapter.Path{}
+		for _, source := range list {
+			p, err := n.Runtime.Adapters.ProbePath(ctx, source)
+			if err == nil {
+				carrierPaths = append(carrierPaths, p)
+			}
+		}
+		if _, err := n.Runtime.Continuity.Prepare(
+			ctx,
+			n.Runtime,
+			continuityConfig,
+			carrierPaths,
+			selected,
+			continuityIntent,
+		); err != nil {
+			return n.restoreFailure("continuity_input_restore_failed")
+		}
+	}
 	n.lastError = ""
 	n.Runtime.setPathBlock("")
 	if state.Committed != nil &&
@@ -189,6 +241,7 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	}
 
 	n.initialized = true
+	restoreComplete = true
 	return nil
 }
 
@@ -242,6 +295,10 @@ func (r *Runtime) setPathBlock(code string) {
 }
 
 func matchesDesired(c model.Config, d dataplane.Desired) bool {
+	if continuityEnabled(c) != (d.Continuity != nil) ||
+		d.Continuity != nil && !reflect.DeepEqual(*c.Continuity, d.Continuity.Config) {
+		return false
+	}
 	if !reflect.DeepEqual(c.Network, d.Network) || c.Policy.Fallback != d.Fallback ||
 		c.Policy.BreakExisting != d.BreakExisting {
 		return false

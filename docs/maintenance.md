@@ -55,7 +55,7 @@ through the CLI and the live [OpenAPI contract](../api/openapi.yaml):
 
 All paths are under `/api/v1`. Only an administrator can start a job. Reads and
 planning are available to a read-only credential. Supported component identities
-are `openrhp`, `openrhp-sing-box`, `openrhp-xray` and `openrhp-conntrack`.
+are `openrhp`, `openrhp-sing-box`, `openrhp-xray`, `openrhp-conntrack` and `openrhp-continuity`.
 
 For planning, supply `action` (`install`, `upgrade` or `remove`) and `components`.
 Install and upgrade additionally require a `bundle_id`. The returned plan includes
@@ -133,3 +133,9 @@ Those cases retain the interruption and guard for trusted local repair. Do not
 delete the journals, replace the trust key, force dependencies or remove the guard
 to make an error disappear. Stable-release acceptance requires the actual package
 and power-loss tests recorded in [the acceptance checklist](acceptance.md).
+
+`openrhp-continuity` is an optional authenticated maintenance component. The same
+signed-package inventory, exact installed-payload verification, guarded maintenance,
+and offline rollback requirements apply. Removing the gateway includes this dependent
+worker package. Private pairing identity is retained separately in gateway state;
+package install/upgrade never imports a private key or enables a relay profile.

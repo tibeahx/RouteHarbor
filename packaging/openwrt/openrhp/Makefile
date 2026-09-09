@@ -80,6 +80,15 @@ define Package/openrhp-conntrack
   DEPENDS:=+openrhp +conntrack
 endef
 
+# The helper supervises this worker only for an explicitly enabled relay profile.
+define Package/openrhp-continuity
+  SECTION:=net
+  CATEGORY:=Network
+  SUBMENU:=Routing and Redirection
+  TITLE:=OpenRHP optional private relay session continuity
+  DEPENDS:=+openrhp +kmod-nft-tproxy +kmod-nft-socket
+endef
+
 define Package/openrhp-sing-box
   SECTION:=net
   CATEGORY:=Network
@@ -131,6 +140,7 @@ define Build/Compile
 	cd $(PKG_BUILD_DIR) && CGO_ENABLED=0 GOOS=linux GOARCH=$(OPENRHP_GOARCH) GOARM=$(OPENRHP_GOARM) GOMIPS=softfloat GOMIPS64=softfloat GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=$(PKG_BUILD_DIR)/.gocache "$(OPENRHP_GO)" build -trimpath -buildvcs=false -ldflags='-s -w -buildid= -X main.version=$(PKG_VERSION)' -o bin/openrhp ./cmd/openrhp
 	cd $(PKG_BUILD_DIR) && CGO_ENABLED=0 GOOS=linux GOARCH=$(OPENRHP_GOARCH) GOARM=$(OPENRHP_GOARM) GOMIPS=softfloat GOMIPS64=softfloat GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=$(PKG_BUILD_DIR)/.gocache "$(OPENRHP_GO)" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o bin/openrhp-helper ./cmd/openrhp-helper
 	cd $(PKG_BUILD_DIR) && CGO_ENABLED=0 GOOS=linux GOARCH=$(OPENRHP_GOARCH) GOARM=$(OPENRHP_GOARM) GOMIPS=softfloat GOMIPS64=softfloat GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=$(PKG_BUILD_DIR)/.gocache "$(OPENRHP_GO)" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o bin/openrhp-node ./cmd/openrhp-node
+	cd $(PKG_BUILD_DIR) && CGO_ENABLED=0 GOOS=linux GOARCH=$(OPENRHP_GOARCH) GOARM=$(OPENRHP_GOARM) GOMIPS=softfloat GOMIPS64=softfloat GOTOOLCHAIN=local GOPROXY=off GOSUMDB=off GOCACHE=$(PKG_BUILD_DIR)/.gocache "$(OPENRHP_GO)" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o bin/openrhp-continuity ./cmd/openrhp-continuity
 endef
 
 define Package/openrhp-guard/install
@@ -159,6 +169,11 @@ define Package/openrhp-node/install
 	$(INSTALL_BIN) ./files/openrhp-node-helper.init $(1)/etc/init.d/openrhp-node-helper
 	$(INSTALL_CONF) ./files/openrhp-node.config $(1)/etc/config/openrhp-node
 	$(INSTALL_BIN) ./files/openrhp-node-setup $(1)/usr/libexec/openrhp-node-setup
+endef
+
+define Package/openrhp-continuity/install
+	$(INSTALL_DIR) $(1)/usr/libexec
+	$(INSTALL_BIN) $(PKG_BUILD_DIR)/bin/openrhp-continuity $(1)/usr/libexec/
 endef
 
 define Package/openrhp-conntrack/install
@@ -207,3 +222,5 @@ $(eval $(call BuildPackage,openrhp-sing-box))
 $(eval $(call BuildPackage,openrhp-xray))
 
 $(eval $(call BuildPackage,openrhp-conntrack))
+
+$(eval $(call BuildPackage,openrhp-continuity))

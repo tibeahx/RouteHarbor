@@ -14,8 +14,8 @@ func TestActualSDKPackageFormatAndGuardBoundary(t *testing.T) {
 		t.Skip("requires independently built SDK package directory")
 	}
 	paths, err := filepath.Glob(filepath.Join(dir, "openrhp*.ipk"))
-	if err != nil || len(paths) != 6 {
-		t.Fatal("expected six actual SDK packages", err, len(paths))
+	if err != nil || len(paths) != 7 {
+		t.Fatal("expected seven actual SDK packages", err, len(paths))
 	}
 	for _, name := range paths {
 		t.Run(filepath.Base(name), func(t *testing.T) {

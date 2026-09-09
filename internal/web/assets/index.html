@@ -169,6 +169,82 @@
             <summary>Selection history</summary>
             <ol id="history-list"></ol>
           </details>
+          <details id="continuity-panel" class="advanced">
+            <summary>Session continuity through your relay</summary>
+            <p>
+              Keep the same relay connection to the destination when an access method changes. Pair
+              your own VPS, keep a ready standby path, and prepare routing after saving. Buffers
+              cover short interruptions within their limits. This does not guarantee uninterrupted
+              calls or a particular switch time.
+            </p>
+            <p class="hint">
+              Before changing an active relay, its buffers, or prepared access methods, disable
+              continuity and confirm that routing change. Then edit and prepare the new profile. The
+              acknowledgement interval below excludes failure detection and application delay.
+            </p>
+            <div class="section-heading">
+              <h2>Relay readiness</h2>
+              <span id="continuity-state" class="pill">Disabled</span>
+            </div>
+            <p id="continuity-detail" role="status">Session continuity is disabled.</p>
+            <p id="continuity-qualification" class="hint">
+              Switch latency has not been qualified for this device and path profile.
+            </p>
+            <dl id="continuity-metrics" class="continuity-metrics"></dl>
+            <p>
+              Gateway pairing fingerprint: <code id="continuity-fingerprint">Not provisioned</code>
+            </p>
+            <form id="continuity-form">
+              <label class="check"
+                ><input id="continuity-enabled" type="checkbox" />Enable session continuity</label
+              >
+              <label for="continuity-relay">Your relay IP and port</label>
+              <input
+                id="continuity-relay"
+                autocomplete="off"
+                spellcheck="false"
+                placeholder="Public numeric IP:port"
+              />
+              <label for="continuity-pin">Relay certificate fingerprint (SHA256)</label>
+              <input
+                id="continuity-pin"
+                autocomplete="off"
+                spellcheck="false"
+                minlength="64"
+                maxlength="64"
+                pattern="[a-fA-F0-9]{64}"
+              />
+              <p class="hint">
+                Verify this public fingerprint through trusted VPS access. Private certificates and
+                keys stay in separate identity files.
+              </p>
+              <div class="form-grid">
+                <div>
+                  <label for="continuity-buffer">Total buffer (MiB)</label
+                  ><input id="continuity-buffer" type="number" min="2" max="64" step="1" required />
+                </div>
+                <div>
+                  <label for="continuity-udp-reserve">UDP reserve (MiB)</label
+                  ><input
+                    id="continuity-udp-reserve"
+                    type="number"
+                    min="0.5"
+                    max="63.4375"
+                    step="0.0625"
+                    required
+                  />
+                </div>
+              </div>
+              <label for="continuity-grace">Disconnected grace (seconds)</label>
+              <input id="continuity-grace" type="number" min="1" max="300" required />
+              <p class="hint">
+                Requires blocked fallback and connection tracking reset turned off. TCP slows down
+                when buffers fill; stale or excess UDP datagrams can be dropped. A relay restart or
+                grace expiry may terminate sessions.
+              </p>
+              <button type="submit" class="secondary">Save continuity settings</button>
+            </form>
+          </details>
           <details class="advanced">
             <summary>Gateway setup and diagnostics</summary>
             <p id="platform-message"></p>
@@ -260,6 +336,10 @@
                   <label class="check"
                     ><input type="checkbox" value="openrhp-conntrack" />Connection tracking
                     tools</label
+                  >
+                  <label class="check"
+                    ><input type="checkbox" value="openrhp-continuity" />Private relay
+                    continuity</label
                   >
                 </fieldset>
                 <div id="maintenance-bundle-field">

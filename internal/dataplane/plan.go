@@ -37,12 +37,13 @@ type Path struct {
 	UDP       bool   `json:"udp"`
 }
 type Desired struct {
-	Network       model.Network `json:"network"`
-	Paths         []Path        `json:"paths"`
-	Unavailable   []string      `json:"unavailable,omitempty"`
-	Selected      string        `json:"selected"`
-	Fallback      string        `json:"fallback"`
-	BreakExisting bool          `json:"break_existing,omitempty"`
+	Network       model.Network     `json:"network"`
+	Paths         []Path            `json:"paths"`
+	Unavailable   []string          `json:"unavailable,omitempty"`
+	Selected      string            `json:"selected"`
+	Fallback      string            `json:"fallback"`
+	BreakExisting bool              `json:"break_existing,omitempty"`
+	Continuity    *ContinuityIntent `json:"continuity,omitempty"`
 }
 type Route struct {
 	Family   int    `json:"family"`
@@ -78,6 +79,13 @@ func Build(network model.Network, paths []Path, selected, fallback string) (Plan
 
 func Compile(d Desired) (Plan, error) {
 	p := Plan{Desired: d, Routes: []Route{}, Warnings: []string{}}
+	if d.Continuity != nil {
+		var err error
+		d, err = materializeContinuity(d)
+		if err != nil {
+			return p, err
+		}
+	}
 	if !d.Network.Enabled {
 		return p, errors.New("network_disabled: explicit enabled network intent is required")
 	}
@@ -210,12 +218,14 @@ func Compile(d Desired) (Plan, error) {
 		default:
 			return p, errors.New("invalid_path: unknown dataplane path kind")
 		}
-		if path.Kind != "direct" && d.Network.IPv6 == "proxy" && !path.IPv6 {
+		if path.Kind != "direct" && d.Network.IPv6 == "proxy" && !path.IPv6 &&
+			(d.Continuity == nil || path.SourceID == ContinuitySourceID) {
 			return p, errors.New(
 				"capability_unavailable: each retained protected path must support IPv6",
 			)
 		}
-		if path.Kind == "tproxy" && d.Network.DNS == "selected-path" && path.DNSPort == 0 {
+		if path.Kind == "tproxy" && d.Network.DNS == "selected-path" && path.DNSPort == 0 &&
+			(d.Continuity == nil || path.SourceID == ContinuitySourceID) {
 			return p, errors.New(
 				"capability_unavailable: selected-path DNS requires a dedicated transparent resolver",
 			)
@@ -345,25 +355,38 @@ func render(d Desired, guard bool) string {
 		table,
 		table,
 	)
-	if !guard && d.Network.DNS == "selected-path" {
-		for _, path := range d.Paths {
-			if path.SourceID == d.Selected && path.Kind != "tproxy" {
-				resolver, _ := netip.ParseAddr(d.Network.DNSResolver)
-				family := "ip"
-				nf := "ipv4"
-				if resolver.Is6() {
-					family = "ip6"
-					nf = "ipv6"
-				}
-				fmt.Fprintf(
-					&b,
-					" chain dns { type nat hook prerouting priority -155; policy accept; iifname %s meta nfproto %s meta l4proto { tcp, udp } th dport 53 dnat %s to %s; }\n",
-					quotedSet(d.Network.LANInterfaces),
-					nf,
-					family,
-					resolver.String(),
-				)
+	if !guard {
+		b.WriteString(" chain select_flow { comment \"OpenRHP classifier v1\";\n")
+		b.WriteString(selectionRules(d))
+		b.WriteString(" }\n")
+		// Conntrack exists after priority -200. Classify DNS before NAT (-155),
+		// including queries addressed to the router; established flows retain marks.
+		fmt.Fprintf(
+			&b,
+			" chain dns_classify { type filter hook prerouting priority -156; policy accept; iifname %s meta l4proto { tcp, udp } th dport 53 jump select_flow; }\n",
+			quotedSet(d.Network.LANInterfaces),
+		)
+		if d.Network.DNS == "selected-path" {
+			resolver, _ := netip.ParseAddr(d.Network.DNSResolver)
+			family, nf := "ip", "ipv4"
+			if resolver.Is6() {
+				family, nf = "ip6", "ipv6"
 			}
+			b.WriteString(" chain dns { type nat hook prerouting priority -155; policy accept;\n")
+			for _, path := range d.Paths {
+				if path.Kind != "tproxy" {
+					fmt.Fprintf(
+						&b,
+						"  iifname %s ct mark & 0xffff0000 == %s meta nfproto %s meta l4proto { tcp, udp } th dport 53 dnat %s to %s\n",
+						quotedSet(d.Network.LANInterfaces),
+						markHex(Mark(path.Slot)),
+						nf,
+						family,
+						resolver.String(),
+					)
+				}
+			}
+			b.WriteString(" }\n")
 		}
 	}
 	// A separate early hook prevents direct escape while route operations are in progress.
@@ -377,43 +400,57 @@ func render(d Desired, guard bool) string {
 		priority,
 		quotedSet(d.Network.LANInterfaces),
 	)
-	protected := guard || d.Selected == ""
-	for _, path := range d.Paths {
-		if path.SourceID == d.Selected && path.Kind != "direct" {
-			protected = true
+	if d.Network.DNS == "block" {
+		if !guard {
+			b.WriteString("  meta l4proto { tcp, udp } th dport 53 jump dns_block\n")
+		} else {
+			b.WriteString("  meta l4proto { tcp, udp } th dport 53 drop\n")
 		}
 	}
-	if d.Network.DNS == "block" && protected {
-		b.WriteString("  meta l4proto { tcp, udp } th dport 53 drop\n")
-	}
+	// Dispatch DNS using the connection owner, never the currently selected path.
+	// This is deliberately before router/local-prefix exceptions for transparent DNS.
 	if !guard && d.Network.DNS == "selected-path" {
+		resolver, _ := netip.ParseAddr(d.Network.DNSResolver)
+		other := "ipv6"
+		if resolver.Is6() {
+			other = "ipv4"
+		}
 		for _, path := range d.Paths {
-			if path.SourceID == d.Selected && path.Kind != "tproxy" {
-				resolver, _ := netip.ParseAddr(d.Network.DNSResolver)
-				other := "ipv6"
-				if resolver.Is6() {
-					other = "ipv4"
+			if path.Kind == "tproxy" && path.DNSPort == 0 {
+				continue
+			}
+			m := markHex(Mark(path.Slot))
+			if path.Kind == "tproxy" {
+				fmt.Fprintf(
+					&b,
+					"  ct mark & 0xffff0000 == %s meta l4proto { tcp, udp } th dport 53 meta mark set (meta mark & 0x0000ffff) | %s tproxy to :%d accept\n",
+					m,
+					m,
+					path.DNSPort,
+				)
+			} else {
+				fmt.Fprintf(
+					&b,
+					"  ct mark & 0xffff0000 == %s meta nfproto %s meta l4proto { tcp, udp } th dport 53 drop\n",
+					m,
+					other,
+				)
+				if d.Network.IPv6 == "block" {
+					fmt.Fprintf(
+						&b,
+						"  ct mark & 0xffff0000 == %s meta nfproto ipv6 meta l4proto { tcp, udp } th dport 53 drop\n",
+						m,
+					)
 				}
 				fmt.Fprintf(
 					&b,
-					"  meta nfproto %s meta l4proto { tcp, udp } th dport 53 drop\n",
-					other,
+					"  ct mark & 0xffff0000 == %s meta l4proto { tcp, udp } th dport 53 meta mark set (meta mark & 0x0000ffff) | %s return\n",
+					m,
+					m,
 				)
 			}
 		}
-	}
-	// DNS interception is deliberately before the router/local-prefix exceptions.
-	if !guard && d.Network.DNS == "selected-path" {
-		for _, path := range d.Paths {
-			if path.Kind == "tproxy" && path.SourceID == d.Selected {
-				fmt.Fprintf(
-					&b,
-					"  meta l4proto { tcp, udp } th dport 53 meta mark set (meta mark & 0x0000ffff) | %s tproxy to :%d accept\n",
-					markHex(Mark(path.Slot)),
-					path.DNSPort,
-				)
-			}
-		}
+		b.WriteString("  meta l4proto { tcp, udp } th dport 53 drop\n")
 	}
 	b.WriteString("  # helper injects current router addresses here\n")
 	// Preserve link-local multicast/neighbor discovery and only explicitly mapped LAN prefixes.
@@ -434,18 +471,8 @@ func render(d Desired, guard bool) string {
 	if d.Network.IPv6 == "block" {
 		b.WriteString("  meta nfproto ipv6 drop\n")
 	}
-	// New/unclassified connections get the active mark; established marked flows keep it.
-	if d.Selected != "" {
-		for _, path := range d.Paths {
-			if path.SourceID == d.Selected {
-				fmt.Fprintf(
-					&b,
-					"  ct mark & 0xff000000 != 0x4f000000 ct mark set (ct mark & 0x0000ffff) | %s\n",
-					markHex(Mark(path.Slot)),
-				)
-			}
-		}
-	}
+	// Only this regular chain changes during an ordinary selection switch.
+	b.WriteString("  jump select_flow\n")
 	for _, path := range d.Paths {
 		m := markHex(Mark(path.Slot))
 		fmt.Fprintf(
@@ -480,6 +507,15 @@ func render(d Desired, guard bool) string {
 	}
 	// Unknown marks and unsupported protocols never fall through to the ordinary WAN.
 	b.WriteString("  drop\n }\n")
+	if d.Network.DNS == "block" {
+		b.WriteString(" chain dns_block {\n")
+		for _, path := range d.Paths {
+			if path.Kind == "direct" {
+				fmt.Fprintf(&b, "  ct mark & 0xffff0000 == %s return\n", markHex(Mark(path.Slot)))
+			}
+		}
+		b.WriteString("  meta l4proto { tcp, udp } th dport 53 drop\n }\n")
+	}
 	// Guard the kernel forward path against route deletion or tunnel disappearance.
 	fmt.Fprintf(
 		&b,
@@ -529,6 +565,7 @@ func SafeRollback(candidate Desired, previous *Desired) Desired {
 	}
 	safe := candidate
 	safe.Paths = nil
+	safe.Continuity = nil
 	safe.Selected = ""
 	safe.Fallback = "closed"
 	safe.Network.DNS = "block"

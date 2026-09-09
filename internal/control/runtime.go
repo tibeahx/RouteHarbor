@@ -30,6 +30,7 @@ type Runtime struct {
 	Adapters       *adapter.Manager
 	Prober         Prober
 	Network        *NetworkCoordinator
+	Continuity     *ContinuityControl
 	Journal        *Journal
 	mu             sync.Mutex
 	selector       *selection.Selector
@@ -53,7 +54,7 @@ func New(store *config.Store, adapters *adapter.Manager, journal *Journal) *Runt
 	ctx, cancel := context.WithCancel(context.Background())
 	c := store.Get()
 	s := selection.New(c.Policy)
-	s.SetTargets(c.Targets)
+	s.SetTargets(selectionTargets(c))
 	s.SetHistoryLimit(c.Probes.HistoryLimit)
 	runner := probe.NewRunner(adapters)
 	runner.ConfigureDNS(c.Network.Enabled, c.Network.DNSResolver)
@@ -102,6 +103,9 @@ func (r *Runtime) Close() {
 	r.wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if r.Continuity != nil {
+		_ = r.Continuity.Close(ctx)
+	}
 	_ = r.Adapters.Close(ctx)
 }
 
@@ -133,7 +137,7 @@ func (r *Runtime) Reload() {
 		prober.ConfigureDNS(c.Network.Enabled, c.Network.DNSResolver)
 	}
 	r.selector = selection.New(c.Policy)
-	r.selector.SetTargets(c.Targets)
+	r.selector.SetTargets(selectionTargets(c))
 	r.selector.SetHistoryLimit(c.Probes.HistoryLimit)
 	// Revoking/changing a source must discard its old prepared endpoint and metrics.
 	for _, old := range r.currentConfig.Sources {
@@ -166,7 +170,7 @@ func (r *Runtime) tick(now time.Time) {
 	r.mu.Lock()
 	r.evaluateLocked(c, now)
 	r.mu.Unlock()
-	if len(c.Targets) == 0 {
+	if len(selectionTargets(c)) == 0 {
 		return
 	}
 	launched := 0
@@ -215,7 +219,7 @@ func (r *Runtime) Probe(ctx context.Context, id string, speed bool) (model.Measu
 	if source == nil || !source.Enabled {
 		return model.Measurement{}, errors.New("source_missing_or_disabled")
 	}
-	if len(c.Targets) == 0 {
+	if len(selectionTargets(c)) == 0 {
 		return model.Measurement{}, errors.New("no_probe_targets")
 	}
 	r.mu.Lock()
@@ -244,7 +248,15 @@ func (r *Runtime) Probe(ctx context.Context, id string, speed bool) (model.Measu
 	var m model.Measurement
 	e := r.Adapters.Start(probeCtx, *source)
 	if e == nil {
-		m, e = r.Prober.Run(probeCtx, *source, c.Targets, c.Probes, speed)
+		if continuityEnabled(c) {
+			if r.Continuity == nil {
+				e = errors.New("continuity unavailable")
+			} else {
+				m, e = r.Continuity.Probe(probeCtx, r, c, *source)
+			}
+		} else {
+			m, e = r.Prober.Run(probeCtx, *source, c.Targets, c.Probes, speed)
+		}
 	}
 	if e != nil && len(m.Resources) == 0 {
 		m = model.Measurement{
@@ -253,7 +265,7 @@ func (r *Runtime) Probe(ctx context.Context, id string, speed bool) (model.Measu
 			Path:      source.Type,
 			Resources: []model.ResourceResult{},
 		}
-		for _, t := range c.Targets {
+		for _, t := range selectionTargets(c) {
 			m.Resources = append(
 				m.Resources,
 				model.ResourceResult{
@@ -296,12 +308,18 @@ func (r *Runtime) evaluateLocked(c model.Config, now time.Time) {
 
 func (r *Runtime) Status() map[string]any {
 	c := r.Store.Get()
+	continuityStatus := map[string]any{"status": "Disabled", "qualified": false}
+	if r.Continuity != nil {
+		continuityStatus = r.Continuity.Public()
+	}
+	continuityStatus["enabled"] = continuityEnabled(c)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	r.evaluateLocked(c, time.Now())
 	health := r.selector.Health(time.Now())
 	events := append([]model.Decision{}, r.events...)
 	return map[string]any{
+		"continuity":                continuityStatus,
 		"version":                   "0.1.0-dev",
 		"project":                   "OpenRHP",
 		"revision":                  c.Revision,

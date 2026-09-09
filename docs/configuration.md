@@ -107,3 +107,19 @@ private to the root journal and replays before interfaces exist at boot. Shared
 VLAN trunk lower devices are not inferred. Changing confirmed bridge membership
 requires explicit decommission and a new network transaction, preventing an old
 port name or routing priority from silently acquiring a different owner.
+
+## Optional session continuity
+
+`continuity` is optional and omitted from old configuration. Missing or `null`
+leaves legacy behavior unchanged. Its public fields are `enabled`, `relay_address`,
+`relay_fingerprint`, `buffer_bytes`, `udp_reserve_bytes`, and
+`disconnected_grace_seconds`. The explicit relay address must be a public numeric
+IP and port; the fingerprint is a pinned 64-character SHA256 certificate digest.
+No certificate or private key belongs in the configuration/API object.
+
+Defaults for a new profile: disabled, 32 MiB buffer, 4 MiB UDP reserve, 30 seconds
+of disconnected grace. Enabling requires gateway role, closed fallback and
+`break_existing:false`; conflicting policy edits are rejected too. Dedicated
+GET/PUT `/continuity` preserves source credentials and follows normal authenticated
+CAS/idempotency requirements. Changes require a fresh network transaction.
+See [session-continuity.md](session-continuity.md) for pairing, limits and evidence.

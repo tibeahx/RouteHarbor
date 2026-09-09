@@ -117,7 +117,7 @@ required; an on-device snapshot cannot survive loss of its own storage.
 
 Open **Overview → Gateway setup and diagnostics → Software maintenance** to inspect
 availability and staged signed bundles. The supported components are `openrhp`,
-`openrhp-sing-box`, `openrhp-xray` and `openrhp-conntrack`. Bundle staging requires
+`openrhp-sing-box`, `openrhp-xray`, `openrhp-conntrack` and `openrhp-continuity`. Bundle staging requires
 trusted local administration; the browser accepts no package URLs, filesystem
 paths or verification-key uploads.
 
@@ -150,3 +150,14 @@ sign-in and displays this trusted local command:
 
 Keep the page open until an ID is known if the dispatch response is uncertain.
 A lost connection is never displayed as successful package installation.
+
+
+## Session continuity
+
+GET `/continuity` returns the optional public profile or `null` with the current
+ETag. PUT `/continuity` accepts its complete public settings or `null`, requires
+an admin credential, quoted `If-Match` and `Idempotency-Key`, and returns the usual
+operation record. Unknown identity fields are rejected. GET `/status` reports the
+worker's public readiness, queues, replay/drop counters and pairing fingerprint;
+private certificates and keys never belong to this API. Missing measurements must
+remain unknown in clients. See [session-continuity.md](session-continuity.md).

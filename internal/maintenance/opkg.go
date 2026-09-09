@@ -227,7 +227,7 @@ func (b *OpkgBackend) arguments(plan Plan, paths []string, dry bool) ([]string, 
 
 func removalPriority(name string) int {
 	switch name {
-	case "openrhp-sing-box", "openrhp-xray", "openrhp-conntrack":
+	case "openrhp-sing-box", "openrhp-xray", "openrhp-conntrack", "openrhp-continuity":
 		return 0
 	default:
 		return 1

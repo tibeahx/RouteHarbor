@@ -26,7 +26,12 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "continuity": {
+                      "$ref": "#/components/schemas/ContinuityStatus"
+                    }
+                  }
                 }
               }
             }
@@ -1749,7 +1754,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/Transaction"
                 }
               }
             }
@@ -3635,6 +3640,145 @@
         ],
         "description": "The UI retries only HTTP 503 with error.code maintenance_state_busy and error.retryable true, at most three consecutive automatic status reads. Exhaustion preserves the operation ID and unverified status."
       }
+    },
+    "/continuity": {
+      "get": {
+        "operationId": "continuitySettings",
+        "summary": "Read allowlisted continuity settings or null when absent",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ContinuityConfig"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        }
+      },
+      "put": {
+        "operationId": "replaceContinuitySettings",
+        "summary": "Replace public continuity settings, preserving source credentials; null disables the feature",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "428": {
+            "description": "Quoted If-Match configuration revision is required"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ContinuityConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3920,6 +4064,16 @@
           },
           "network": {
             "$ref": "#/components/schemas/Network"
+          },
+          "continuity": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ContinuityConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         }
       },
@@ -4214,7 +4368,7 @@
           "components": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 4,
+            "maxItems": 5,
             "uniqueItems": true,
             "items": {
               "type": "string",
@@ -4222,7 +4376,8 @@
                 "openrhp",
                 "openrhp-sing-box",
                 "openrhp-xray",
-                "openrhp-conntrack"
+                "openrhp-conntrack",
+                "openrhp-continuity"
               ]
             }
           },
@@ -4295,6 +4450,154 @@
           },
           "guard_retained": {
             "type": "boolean"
+          }
+        }
+      },
+      "ContinuityConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Optional public configuration for a paired private relay. Missing or null preserves legacy behavior. Certificate and private key are stored separately. Enabling requires gateway role, closed fallback, and break_existing=false. Saving settings still requires a separate confirmed routing transaction.",
+        "required": [
+          "enabled",
+          "relay_address",
+          "relay_fingerprint",
+          "buffer_bytes",
+          "udp_reserve_bytes",
+          "disconnected_grace_seconds"
+        ],
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "relay_address": {
+            "type": "string",
+            "description": "Explicit public numeric IP:port, bracketed for IPv6; no DNS hostname. Required when enabled."
+          },
+          "relay_fingerprint": {
+            "type": "string",
+            "description": "Pinned relay certificate SHA256: 64 hex characters; required when enabled."
+          },
+          "buffer_bytes": {
+            "type": "integer",
+            "minimum": 2097152,
+            "maximum": 67108864,
+            "default": 33554432
+          },
+          "udp_reserve_bytes": {
+            "type": "integer",
+            "minimum": 524288,
+            "maximum": 67108863,
+            "default": 4194304,
+            "description": "Reserved UDP budget shared by worker and helper; must leave more than 512 KiB of buffer_bytes for worker queues."
+          },
+          "disconnected_grace_seconds": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 300,
+            "default": 30
+          }
+        }
+      },
+      "ContinuityStatus": {
+        "type": "object",
+        "description": "Public worker observation. Missing counters remain unknown; qualified is false without measured acceptance for the current profile. No destination, packet content, identity private key, or certificate is exposed.",
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "worker_fingerprint": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "degraded_reason": {
+            "type": "string"
+          },
+          "qualified": {
+            "type": "boolean",
+            "default": false
+          },
+          "active_path": {
+            "type": "string"
+          },
+          "standby_path": {
+            "type": "string"
+          },
+          "queue_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "udp_queue_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "control_queue_bytes": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "replayed_frames": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "expired_udp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "dropped_udp": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "switches": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "last_switch_pause_ms": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Measured interval from selecting a replacement path to its first acknowledgement. Excludes failure detection and is not an application end-to-end pause guarantee."
+          },
+          "tcp_flows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "udp_flows": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "paths": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "description": "Routing transaction. An optional selection kind denotes the durable atomic source-map fast path; absence means the complete network apply path.",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "selection"
+            ]
+          },
+          "state": {
+            "type": "string"
+          },
+          "flow_termination": {
+            "enum": [
+              "pending",
+              "completed",
+              "failed"
+            ]
+          },
+          "error_code": {
+            "type": "string"
           }
         }
       }

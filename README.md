@@ -29,6 +29,10 @@ there is no required cloud account or hardware vendor lock-in.
   to avoid oscillation. Direct fallback is an explicit policy.
 - Separates saved configuration, read-only plans and confirmed network changes.
   Existing TCP connections are not promised to survive a change of external IP.
+- Offers optional [session continuity through your own relay](docs/session-continuity.md),
+  with bounded TCP replay and short UDP replay over prepared access methods. Relay
+  restart and resource limits can still interrupt sessions; no fixed switch latency
+  has been qualified for a physical device.
 - Uses a small privileged helper for owned nftables/routes, with local peer
   authentication, a durable journal and a separate rollback process.
 - Pairs an OpenWrt access-point agent using verified device fingerprints and mutual

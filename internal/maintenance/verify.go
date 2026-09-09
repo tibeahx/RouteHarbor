@@ -15,6 +15,7 @@ import (
 func criticalPayload(name string) bool {
 	switch name {
 	case "usr/bin/openrhp",
+		"usr/libexec/openrhp-continuity",
 		"usr/libexec/openrhp-setup",
 		"etc/init.d/openrhp",
 		"usr/bin/sing-box",

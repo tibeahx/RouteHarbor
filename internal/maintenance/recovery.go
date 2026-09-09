@@ -24,7 +24,7 @@ func recoverablePackage(name string) bool {
 	case "openrhp",
 		"openrhp-sing-box",
 		"openrhp-xray",
-		"openrhp-conntrack",
+		"openrhp-conntrack", "openrhp-continuity",
 		"sing-box",
 		"xray-core",
 		"conntrack":

@@ -230,6 +230,9 @@ func Validate(c model.Config) error {
 			"enabled interception requires selection and discovered LAN, WAN, and local prefixes",
 		)
 	}
+	if err := validateContinuity(c); err != nil {
+		return err
+	}
 	data, err := json.Marshal(c)
 	if err != nil || len(data) > MaxConfigBytes {
 		return bad("configuration", "invalid JSON or exceeds byte limit")
@@ -241,6 +244,7 @@ func Validate(c model.Config) error {
 // adapter credential fields therefore remain private without a blacklist update.
 func Redact(c model.Config) model.Config {
 	c = clone(c)
+	c.Continuity = RedactContinuity(c.Continuity)
 	for i := range c.Sources {
 		c.Sources[i].Settings = json.RawMessage(`{}`)
 	}
