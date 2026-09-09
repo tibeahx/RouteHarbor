@@ -1,13 +1,13 @@
 {
   "date": "2026-09-09",
   "scope": "official SDK packaging and IPK contents; not execution or physical acceptance",
-  "base_commit": "b314ebfe2e9463d752799b95ca44e0400838c718",
+  "base_commit": "88d5b71e890b25306a8e2e97bc504749ad95970d",
   "clean_release": false,
-  "input_inventory_sha256": "aeafccaeb4a9c4ece8f2df8b14297221f079083ebc68cc1d575033ebfba29703",
+  "input_inventory_sha256": "ad805e08453b39f2a24a62ca81799be897f1e48e2285309e4da4f07dde447e3e",
   "targets": [
     {
       "target": "x86-64",
-      "elapsed_seconds": 105.7,
+      "elapsed_seconds": 111.3,
       "packages": [
         {
           "ipk": "openrhp-conntrack_0.1.0-r1_x86_64.ipk",
@@ -26,16 +26,16 @@
           "binaries": [
             {
               "path": "usr/libexec/openrhp-helper",
-              "bytes": 5918844,
-              "sha256": "7a65346ef161b100f6782ab2e6b5184b38aacd364b417414b11ef47023213848",
+              "bytes": 5922940,
+              "sha256": "0580be987e2af1e71d490106d060018268c64647d9704f908a03cd7eb79a8e17",
               "go_version": "go1.27.1",
               "elf_class": 64,
               "byte_order": "little",
               "goarch": "amd64"
             }
           ],
-          "sha256": "74380de6c5f96140b69ea29c9ab316c99615f8dac176ae41b1e2549344fe0120",
-          "bytes": 2523820
+          "sha256": "ca8a8c40e4a673406c395f1aaa5e3a9204e3eaa5ecd177ecc60745251c8611ed",
+          "bytes": 2526495
         },
         {
           "ipk": "openrhp-node_0.1.0-r1_x86_64.ipk",
@@ -46,15 +46,15 @@
             {
               "path": "usr/bin/openrhp-node",
               "bytes": 7954556,
-              "sha256": "fbedf9f7b29cbef82ef1a5e4cc2840ec60d27836e8057aebfa23ac02159841fd",
+              "sha256": "b2a6ac39e773e5abf5e7e0a2748d6eb774300ffc49205de2c8afef4e4e374dc8",
               "go_version": "go1.27.1",
               "elf_class": 64,
               "byte_order": "little",
               "goarch": "amd64"
             }
           ],
-          "sha256": "1ca354e3a9ee9907448278a88e4d40d97d7d455cd8c7d8b26ddd628d85c7b726",
-          "bytes": 3293851
+          "sha256": "f79ea3f204d9af09986d5ebc44880806b3a7feb4f1ec29ed2cacf8219109a283",
+          "bytes": 3293446
         },
         {
           "ipk": "openrhp-sing-box_0.1.0-r1_x86_64.ipk",
@@ -82,22 +82,22 @@
           "binaries": [
             {
               "path": "usr/bin/openrhp",
-              "bytes": 9441404,
-              "sha256": "1dbd7d87cf4ecdd48ce5f4c30cea5c6e1779da25eba984cde1965c585400b280",
+              "bytes": 9445500,
+              "sha256": "e70d63dfaa7ab0abdb1b55f78926da79c4cd81cefec7b19bb040fa60cf7fba83",
               "go_version": "go1.27.1",
               "elf_class": 64,
               "byte_order": "little",
               "goarch": "amd64"
             }
           ],
-          "sha256": "6da3a300f9f2a85e26795eb6c3a0be5fda29714638ea12a36a67d8453ced3480",
-          "bytes": 3830154
+          "sha256": "663545c489a554d1a048b82db0e39e472c8380e5f3fda954a8888c8285529d37",
+          "bytes": 3832356
         }
       ]
     },
     {
       "target": "mediatek-mt7622",
-      "elapsed_seconds": 104.9,
+      "elapsed_seconds": 111.9,
       "packages": [
         {
           "ipk": "openrhp-conntrack_0.1.0-r1_aarch64_cortex-a53.ipk",
@@ -117,15 +117,15 @@
             {
               "path": "usr/libexec/openrhp-helper",
               "bytes": 5439612,
-              "sha256": "6bc90104a590f5f40de46658327c1a51e63c17e971492ea9d2d2a67703a24891",
+              "sha256": "22a2e160a83593ca8e0ce0fd1e2f47331c10ea1853611a87cd69f6e69b64c1eb",
               "go_version": "go1.27.1",
               "elf_class": 64,
               "byte_order": "little",
               "goarch": "arm64"
             }
           ],
-          "sha256": "c16e0eb7817a2f04cad518d60a76fab418cc0d154f64118c7a68039e367f18a5",
-          "bytes": 2274070
+          "sha256": "ea51728dad3c3d0bae6c0e507af1b7dd94a1addecb979f39075f937fb30d7fa3",
+          "bytes": 2276891
         },
         {
           "ipk": "openrhp-node_0.1.0-r1_aarch64_cortex-a53.ipk",
@@ -136,15 +136,15 @@
             {
               "path": "usr/bin/openrhp-node",
               "bytes": 7405692,
-              "sha256": "24a3522c18d2a6f83e98ba2fb9335170a9985a910a11de6abb770aaac43adaa4",
+              "sha256": "31ae7c235a6dc72f63f3985c283e738e0376422327f792464259450c23506363",
               "go_version": "go1.27.1",
               "elf_class": 64,
               "byte_order": "little",
               "goarch": "arm64"
             }
           ],
-          "sha256": "6ae982fddb55b03462d47bb5fdce874cf3f96668283a95162cf84c2ea3a782e1",
-          "bytes": 2950091
+          "sha256": "ce4c0c6a8de9e8e656cc714a828b7fbc55c3c3cf398ed80d7a772f07d02c9f66",
+          "bytes": 2950138
         },
         {
           "ipk": "openrhp-sing-box_0.1.0-r1_aarch64_cortex-a53.ipk",
@@ -173,21 +173,21 @@
             {
               "path": "usr/bin/openrhp",
               "bytes": 8716412,
-              "sha256": "93a51e93630ea65b487f3b04ba201be0e730a1f6100104b4ef7aaf81cdcb3acd",
+              "sha256": "f4ef85021fc9beb26ffef9b6dcefbc4a3b1b63e5c3c9a83104d47e0abf0ed4bf",
               "go_version": "go1.27.1",
               "elf_class": 64,
               "byte_order": "little",
               "goarch": "arm64"
             }
           ],
-          "sha256": "ac76afe0967c2daf7165825b7ddc8b851469e64359cca9230ff56a0f02a0e8f2",
-          "bytes": 3439907
+          "sha256": "ec1f91f283e266ddf91a2cb830e322102a1feb286d09d91f05dfc3c40fbac536",
+          "bytes": 3440370
         }
       ]
     },
     {
       "target": "ramips-mt7621",
-      "elapsed_seconds": 103.8,
+      "elapsed_seconds": 109.7,
       "packages": [
         {
           "ipk": "openrhp-conntrack_0.1.0-r1_mipsel_24kc.ipk",
@@ -207,15 +207,15 @@
             {
               "path": "usr/libexec/openrhp-helper",
               "bytes": 6684827,
-              "sha256": "5a394e7993adc4c2508c3a34457a0770fb2a27560472e12eeca45cb0d99d030f",
+              "sha256": "a6371b5f70b642b6dc08844205afcd510f8dbbecb714aa75e2f37bda8ad0e7d8",
               "go_version": "go1.27.1",
               "elf_class": 32,
               "byte_order": "little",
               "goarch": "mipsle"
             }
           ],
-          "sha256": "52fc62849209d60dc60699c541adbd6968197adb95b5fbfa02f2498f3b915f8b",
-          "bytes": 2415794
+          "sha256": "64b8a00f7aa12ad3163d57399693d46fc9dcebf5a82e9063e3a6621f40d68288",
+          "bytes": 2416558
         },
         {
           "ipk": "openrhp-node_0.1.0-r1_mipsel_24kc.ipk",
@@ -226,15 +226,15 @@
             {
               "path": "usr/bin/openrhp-node",
               "bytes": 8847515,
-              "sha256": "a5de0167bfd6396fc9798025bb0177a191dee037610947311885d4dd025b34b0",
+              "sha256": "8eaf3dcaa20979c8037fc4568a503b6375588c8ad51a5ad6d313a03ab58dbd56",
               "go_version": "go1.27.1",
               "elf_class": 32,
               "byte_order": "little",
               "goarch": "mipsle"
             }
           ],
-          "sha256": "eed4320cb994e76cdb5874016804b0c30f5c110cd46dac6d052a1576c4971406",
-          "bytes": 3081101
+          "sha256": "7e72bfbdea0ead09f054aa6031f91577cf96ca4025c1cad6483a76235356cc3e",
+          "bytes": 3081185
         },
         {
           "ipk": "openrhp-sing-box_0.1.0-r1_mipsel_24kc.ipk",
@@ -263,15 +263,15 @@
             {
               "path": "usr/bin/openrhp",
               "bytes": 10420379,
-              "sha256": "b4e373c2bcaf2b5df9df1c9b427a26704a08bdd6869688e54646d5b73779bd16",
+              "sha256": "0a6d0f9256c0798bed60d3d3ebd53af5c5b998753c1183513efe341538444cd7",
               "go_version": "go1.27.1",
               "elf_class": 32,
               "byte_order": "little",
               "goarch": "mipsle"
             }
           ],
-          "sha256": "ef923177e34fc421c352044f105d57ce603af2f60f12c7db3fb7e5c4d2130b4b",
-          "bytes": 3557884
+          "sha256": "a8f18d3e22194769fc83aa3febee9743c976c3ce08ab53c3a5253e13215d9475",
+          "bytes": 3557623
         }
       ]
     }

@@ -9,6 +9,7 @@ import argparse
 import atexit
 import datetime
 import hashlib
+import importlib.util
 import json
 import pathlib
 import shlex
@@ -249,7 +250,9 @@ def check_capture(lab, pid):
     assert state not in ['Z', 'X'], 'WAN capture stopped before the test ended'
 
 
-def start_capture(lab, path, *, namespace='openrhp-wan', interface='any', expression=CAPTURE_FILTER):
+def start_capture(lab, path, *, namespace='openrhp-wan', interface='any', expression=None):
+    if expression is None:
+        expression = CAPTURE_FILTER
     command = shlex.join(['ip', 'netns', 'exec', namespace, 'tcpdump', '--immediate-mode', '-n', '-U', '-i', interface, '-w', path, expression])
     log = path + '.log'
     pid = int(lab.container_command(['sh', '-c', command + ' >' + shlex.quote(log) + ' 2>&1 </dev/null & echo $!']).stdout)
@@ -285,12 +288,56 @@ def select_dependencies(manifest):
     return list(selected.values())
 
 
+def validate_captures(metadata_path):
+    """Same final assertion for a live run and its immutable retained evidence."""
+    module_path = pathlib.Path(__file__).resolve().parent.parent / 'docker/lab-openwrt-vm/capture.py'
+    specification = importlib.util.spec_from_file_location('openrhp_capture', module_path)
+    checks = importlib.util.module_from_spec(specification)
+    specification.loader.exec_module(checks)
+    result = checks.verify_files(metadata_path.parent, json.loads(metadata_path.read_text()))
+    print(json.dumps({'capture_validation': result}), flush=True)
+    print('PASS protected-client WAN packets: 0; separately proven router reset responses: ' +
+          str(result['router_generated_resets']), flush=True)
+    return result
+
+
+def retain_and_validate_captures(lab, run_id, confirmed_at, connections, diagnostics, protected):
+    directory = pathlib.Path(__file__).resolve().parent.parent / 'test-results' / ('openwrt-boot-' + run_id)
+    directory.mkdir(mode=0o700, parents=True, exist_ok=False)
+    sources = {'wan': diagnostics[0][1], 'lan': diagnostics[1][1], 'protected': protected}
+    metadata = {'confirmed_at': confirmed_at, 'connections': connections, 'logs': {}}
+    for key, source in sources.items():
+        for suffix in ('', '.log'):
+            filename = key + '.pcap' + suffix
+            subprocess.run(['docker', 'cp', lab.container + ':' + source + suffix,
+                            str(directory / filename)], check=True, capture_output=True)
+            if suffix:
+                metadata['logs'][key] = filename
+            else:
+                metadata[key] = filename
+    destination = directory / 'metadata.json'
+    destination.write_text(json.dumps(metadata, indent=2) + '\n')
+    print('RETAINED_CAPTURE_METADATA ' + str(destination), flush=True)
+    return validate_captures(destination)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--container", default="openrhp-openwrt-boot-lab")
-    parser.add_argument("--dependencies", type=pathlib.Path, required=True)
-    parser.add_argument("--packages", type=pathlib.Path, required=True)
+    parser.add_argument("--dependencies", type=pathlib.Path)
+    parser.add_argument("--packages", type=pathlib.Path)
+    parser.add_argument('--verify-captures', type=pathlib.Path,
+                        help='Read-only replay of the same final packet assertion on retained metadata')
+    parser.add_argument('--install-only', action='store_true',
+                        help='Stop after ordinary package installation/setup with routing still off')
     args = parser.parse_args()
+    if args.verify_captures:
+        if args.dependencies or args.packages or args.install_only:
+            parser.error('Capture replay takes no package inputs')
+        validate_captures(args.verify_captures.resolve(strict=True))
+        return
+    if not args.dependencies or not args.packages:
+        parser.error('An actual boot test requires verified --dependencies and --packages')
     lab = Lab(args.container)
     deps = args.dependencies.resolve(strict=True)
     sdk = args.packages.resolve(strict=True)
@@ -332,6 +379,12 @@ def main():
     assert lab.api("/api/v1/capabilities")["platform"]["supported"]
     print("PASS ordinary package installation, disabled defaults and root/service setup", flush=True)
     config = lab.api("/api/v1/config")
+    if args.install_only:
+        assert not config['network']['enabled'] and config['policy']['mode'] == 'off'
+        assert config['sources'] == [] and config['targets'] == []
+        lab.guest('sha256sum -c /root/openrhp-lab/network-before.sha\n')
+        print('PASS clean manual-setup baseline: routing remains off, no sources or resources', flush=True)
+        return
     config["sources"] = [{"id": "direct", "name": "Isolated WAN", "type": "direct", "enabled": True, "auto": True, "settings": {}}]
     config["targets"] = [{"id": "unreachable", "url": "https://8.8.8.8/", "required": True, "status_codes": [200], "max_bytes": 1024}]
     config["policy"].update(mode="auto", fallback="closed", break_existing=False)
@@ -357,7 +410,8 @@ def main():
     atexit.register(lab.signal, flood_pid, signal.SIGTERM, check=False)
     time.sleep(0.3)
     iterations = check_flood(lab, flood_pid)
-    print('PERSISTENT_CLIENT_SOCKETS ' + lab.container_command(['cat', '/tmp/openrhp-boot-traffic.json']).stdout, flush=True)
+    socket_inventory = json.loads(lab.container_command(['cat', '/tmp/openrhp-boot-traffic.json']).stdout)
+    print('PERSISTENT_CLIENT_SOCKETS ' + json.dumps(socket_inventory), flush=True)
     def phase(name, state):
         print(state + ' ' + name + ' ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True)
     phase('prepare-apply-confirm', 'BEGIN')
@@ -365,6 +419,7 @@ def main():
     transaction = operation["result"]["id"]
     for action in ["apply", "confirm"]:
         assert lab.api(f"/api/v1/transactions/{transaction}/{action}", "POST", {})["state"] == "succeeded"
+    confirmed_at = time.time()
     phase('prepare-apply-confirm', 'READY')
     time.sleep(1)
     capture = '/tmp/openrhp-boot-guard-' + run_id + '.pcap'
@@ -406,14 +461,14 @@ def main():
     check_flood(lab, flood_pid, iterations)
     lab.guest("sha256sum -c /root/openrhp-lab/network-before.sha\n")
     lab.container_command(['touch', '/tmp/openrhp-boot-traffic.stop'])
-    captured = stop_capture(lab, capture_pid, capture)
+    stop_capture(lab, capture_pid, capture)
     for pid, destination in diagnostics:
         stop_capture(lab, pid, destination)
-    assert not captured.strip(), 'Protected synthetic client traffic escaped during recovery:\n' + captured
+    retain_and_validate_captures(lab, run_id, confirmed_at, socket_inventory['connections'], diagnostics, capture)
     lab.signal(server_pid, signal.SIGTERM, check=False)
     lab.signal(flood_pid, signal.SIGTERM, check=False)
     print("PASS API closed policy, reboot, fw4 reload/flush, abrupt power cycle and management preservation", flush=True)
-    print('PASS continuous WAN capture: no protected IPv4/IPv6 TCP/UDP/DNS escaped during those transitions', flush=True)
+    print('PASS continuous duplex capture: no protected IPv4/IPv6 TCP/UDP/DNS was forwarded to WAN during those transitions', flush=True)
 
 
 if __name__ == "__main__":

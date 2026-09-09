@@ -13,6 +13,8 @@ import (
 
 const maxStateBytes = 2 << 20
 
+var ErrStateBusy = errors.New("maintenance_state_busy")
+
 func stateLock(r *os.Root, name string) (*os.File, error) {
 	before, inspectErr := r.Lstat(name)
 	if inspectErr != nil && !errors.Is(inspectErr, os.ErrNotExist) {
@@ -40,10 +42,13 @@ func stateLock(r *os.Root, name string) (*os.File, error) {
 		if e == nil {
 			return f, nil
 		}
-		if (!errors.Is(e, syscall.EAGAIN) && !errors.Is(e, syscall.EWOULDBLOCK)) ||
-			time.Now().After(deadline) {
+		if !errors.Is(e, syscall.EAGAIN) && !errors.Is(e, syscall.EWOULDBLOCK) {
 			_ = f.Close()
-			return nil, errors.New("maintenance state busy")
+			return nil, errors.New("maintenance_lock_failed")
+		}
+		if time.Now().After(deadline) {
+			_ = f.Close()
+			return nil, ErrStateBusy
 		}
 		time.Sleep(10 * time.Millisecond)
 	}

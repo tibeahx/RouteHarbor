@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"syscall"
 	"time"
@@ -195,7 +196,13 @@ func (b *OpkgBackend) arguments(plan Plan, paths []string, dry bool) ([]string, 
 	}
 	if plan.Request.Action == "remove" {
 		args = append(args, "remove")
-		for _, p := range plan.Packages {
+		packages := append([]Package(nil), plan.Packages...)
+		// opkg processes removals in argument order. Even one invocation must
+		// remove wrappers before the controller/native packages they depend on.
+		sort.SliceStable(packages, func(i, j int) bool {
+			return removalPriority(packages[i].Name) < removalPriority(packages[j].Name)
+		})
+		for _, p := range packages {
 			if !recoverablePackage(p.Name) {
 				return nil, errors.New("maintenance_removal_unsupported")
 			}
@@ -216,6 +223,15 @@ func (b *OpkgBackend) arguments(plan Plan, paths []string, dry bool) ([]string, 
 		}
 	}
 	return args, nil
+}
+
+func removalPriority(name string) int {
+	switch name {
+	case "openrhp-sing-box", "openrhp-xray", "openrhp-conntrack":
+		return 0
+	default:
+		return 1
+	}
 }
 
 func (b *OpkgBackend) Check(ctx context.Context, plan Plan, paths []string) error {

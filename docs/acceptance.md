@@ -4,7 +4,10 @@ This checklist separates explicit user requests, implemented software and the
 remaining acceptance evidence in the original implementation plan. A passed
 unit test, container test or user-mode emulator is not physical-router acceptance.
 The implementation plan is still open until the required end-to-end VM and
-hardware gates are satisfied.
+hardware gates are satisfied. On 2026-09-09 the user paused further improvements
+and lab scenarios, requested publication of the current changes through a PR,
+and deferred physical installation until their next message. Outstanding cases
+below are an acceptance ledger, not an instruction to keep expanding this PR.
 
 ## Explicit user requests
 
@@ -22,8 +25,11 @@ hardware gates are satisfied.
   Local formatter/check commands and CI checks are present and were executed.
 - [x] The observed CI failure was fixed. The published
   [b314ebf](https://github.com/tibeahx/OpenRHP/commit/b314ebfe2e9463d752799b95ca44e0400838c718)
-  checkpoint passed all five CI jobs. Later local acceptance additions require
-  their own subsequent CI run; this result does not certify uncommitted changes.
+  checkpoint passed all five CI jobs. The additional implementation in
+  [PR #1](https://github.com/tibeahx/OpenRHP/pull/1) also passed all five required
+  checks at `d59dcc4`. The user merged that PR as `88d5b71` on 2026-09-09.
+  Later corrections and acceptance additions are on a separate branch and require
+  their own PR and CI run; the user retains responsibility for merging it.
 - [ ] The complete original implementation plan has met every acceptance gate.
 
 ## Executed software evidence
@@ -42,6 +48,11 @@ hardware gates are satisfied.
 - [x] All eighteen current SDK IPKs across x86_64, ARM64 and MIPS32:
   exact package/control identities, intact ELF sections and embedded Go metadata.
   [Package evidence](evidence/sdk-package-matrix.md) is separate from execution.
+- [x] The recorded pre-removal-fix x86_64 SDK checkpoint on clean booted OpenWrt: ordinary installation,
+  API configuration, closed-policy confirmation, reboot, firewall reload/flush
+  and abrupt QEMU restart preserved management. Continuous dual-sided capture
+  verified zero forwarded protected client packets; four separately proven
+  router-generated TCP rejections are recorded in the [boot evidence](evidence/openwrt-boot-network.md).
 - [x] Forty-four cross-compiled binaries, ELF/Go build metadata and one independent
   source/cache reproducibility target: [build evidence](evidence/build-validation.md).
 - [x] User-mode CPU execution of selection, configuration and offline release CLI

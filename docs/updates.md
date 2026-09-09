@@ -71,3 +71,8 @@ for [verified offline package maintenance](maintenance.md). Package bundles are
 staged through trusted local administration; the API cannot upload a trust key,
 choose a download URL or execute a command. The root journal remains authoritative
 when controller replacement or removal closes its API connection.
+If a status read reports the exact temporary `maintenance_state_busy` code with
+HTTP 503 and `retryable: true`, the UI retries that same read up to three times,
+three seconds apart. It never resends a package action automatically. Other errors
+or exhausted retries retain the operation ID and show completion as unverified;
+use the status button or trusted local status command to inspect it again.

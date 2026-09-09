@@ -27,6 +27,7 @@ jobs:
       - run: go vet ./...
       - run: python3 scripts/check-docs.py
       - run: python3 -m unittest discover -s packaging/tests -v
+      - run: python3 -m unittest discover -s docker/lab-openwrt-vm -v
       - run: sh scripts/build-matrix.sh
       - run: sh scripts/check-reproducible.sh
       - run: python3 scripts/sbom.py > dist/sbom.spdx.json

@@ -72,7 +72,11 @@ def api(lab, path, method="GET", body=None, revision=None, key=None, check=True)
 
 def root_status(lab, identifier):
     assert len(identifier) == 32 and all(c in "0123456789abcdef" for c in identifier)
-    return json.loads(lab.guest("/usr/libexec/openrhp-helper maintenance-status --operation " + identifier + "\n").stdout)
+    result = lab.guest("/usr/libexec/openrhp-helper maintenance-status --operation " + identifier + "\n", check=False)
+    if result.returncode and result.stderr.strip() in {"maintenance state busy", "maintenance_state_busy"}:
+        return None
+    assert result.returncode == 0, "Root maintenance status inspection failed: " + result.stderr
+    return json.loads(result.stdout)
 
 
 def jobs(lab):
@@ -84,6 +88,9 @@ def wait_job(lab, identifier):
     deadline = time.monotonic() + 180
     while time.monotonic() < deadline:
         operation = root_status(lab, identifier)
+        if operation is None:
+            time.sleep(.2)
+            continue
         if operation["state"] in ["completed", "failed", "interrupted"]:
             assert operation["state"] == "completed", operation
             return operation
@@ -146,6 +153,7 @@ def main():
     parser.add_argument("--container", default="openrhp-openwrt-boot-lab")
     parser.add_argument("--baseline", type=pathlib.Path, required=True)
     parser.add_argument("--candidate", type=pathlib.Path, required=True)
+    parser.add_argument("--reuse-staged", action="store_true", help="Reuse already authenticated fixture bundles only when every package hash matches these exact SDK inputs")
     parser.add_argument("--execute", action="store_true", help="Run after the VM owner's explicit handoff")
     args = parser.parse_args()
     if not args.execute:
@@ -181,26 +189,42 @@ def main():
             artifacts = make_bundle(directory, version, key, release_tool, base_commit, target)
             bundles.append((target, artifacts))
         # Independent root administration provisions the test trust anchor once.
-        lab.guest("mkdir -p /etc/openrhp-maintenance; chmod 0700 /etc/openrhp-maintenance; test ! -e /etc/openrhp-maintenance/trust.pub\n")
-        lab.put_host_file(public, "/etc/openrhp-maintenance/trust.pub")
-        lab.guest("chmod 0600 /etc/openrhp-maintenance/trust.pub\n")
+        # A preflight-only retry can reuse the existing authenticated cache;
+        # its full package hash set must match the exact caller-selected inputs.
+        existing = api(lab, "/api/v1/maintenance/bundles") if args.reuse_staged else []
+        if not args.reuse_staged:
+            lab.guest("mkdir -p /etc/openrhp-maintenance; chmod 0700 /etc/openrhp-maintenance; test ! -e /etc/openrhp-maintenance/trust.pub\n")
+            lab.put_host_file(public, "/etc/openrhp-maintenance/trust.pub")
+            lab.guest("chmod 0600 /etc/openrhp-maintenance/trust.pub\n")
         staged = []
         for index, (source, artifacts) in enumerate(bundles):
+            if args.reuse_staged:
+                hashes = sorted(artifact["sha256"] for artifact in artifacts)
+                matches = [entry for entry in existing if entry["version"] == source.name and sorted(package["sha256"] for package in entry["packages"]) == hashes]
+                assert len(matches) == 1, "Previously authenticated bundle does not exactly match the selected SDK files"
+                staged.append(matches[0])
+                continue
             target = "/root/openrhp-maintenance-bundle-" + str(index)
             lab.guest("mkdir -p " + target + "; chmod 0700 " + target + "\n")
             for path in source.iterdir():
                 lab.put_host_file(path, target + "/" + path.name)
             summary = json.loads(lab.guest("chmod 0600 " + target + "/*; /usr/libexec/openrhp-helper maintenance-stage --source " + target + "\n").stdout)
             staged.append(summary)
+            lab.guest("rm -f " + target + "/*; rmdir " + target + "\n")
+        report["reused_authenticated_staging"] = args.reuse_staged
+        report["authenticated_bundles"] = [{"id": entry["id"], "version": entry["version"], "commit": entry["commit"], "packages": entry["packages"]} for entry in staged]
+        if args.reuse_staged:
+            report.pop("fixture_manifest_base_commit", None)
         report["checks"].append("independent lab trust anchor and authenticated old/new actual SDK staging")
-        boot.CAPTURE_FILTER = "(dst host 8.8.8.8 or dst host 2001:4860:4860::8888) and (port 28080 or port 28081 or port 53)"
+        print("PASS authenticated baseline and candidate SDK fixtures are available", flush=True)
+        capture_filter = "(dst host 8.8.8.8 or dst host 2001:4860:4860::8888) and (port 28080 or port 28081 or port 53)"
         lab.container_command(["rm", "-f", "/tmp/openrhp-maintenance-flood.stop"])
         flood = boot.start_background(lab, "maintenance-traffic", "openrhp-client", FLOOD)
         atexit.register(lab.signal, flood, signal.SIGTERM, check=False)
         time.sleep(.3)
         first_progress = progress(lab)
         capture_path = "/tmp/openrhp-boot-maintenance-closed.pcap"
-        capture = boot.start_capture(lab, capture_path)
+        capture = boot.start_capture(lab, capture_path, expression=capture_filter)
         plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "upgrade", "bundle_id": staged[1]["id"], "components": ["openrhp"], "expected_installed_digest": ""})
         revision = api(lab, "/api/v1/config")["revision"]
         key_id = uuid.uuid4().hex
@@ -209,6 +233,7 @@ def main():
         lab.wait_api()
         replay = api(lab, "/api/v1/maintenance/operations", "POST", plan["request"], revision, key_id)
         operation = wait_job(lab, replay["id"])
+        lab.wait_api()
         assert api(lab, "/api/v1/maintenance/operations/" + operation["id"])["state"] == "completed"
         assert routing_state(lab).get("maintenance_hold")
         assert lab.guest("sha256sum /usr/libexec/openrhp-helper\n").stdout.split()[0] == helper_before
@@ -231,6 +256,8 @@ def main():
         management(lab)
         assert progress(lab) > first_progress
         observed = boot.stop_capture(lab, capture, capture_path)
+        command(["docker", "cp", lab.container + ":" + capture_path, str(results / "closed.pcap")])
+        (results / "closed.txt").write_text(observed)
         assert not observed.strip(), "Protected traffic escaped during package maintenance:\n" + observed
         report["checks"].append("controller removal preserves closed routing and LAN management; trusted CLI reports completion after API removal; zero WAN packets throughout")
         # Restore only the already authenticated controller fixture for the second
@@ -241,7 +268,7 @@ def main():
         lab.wait_api()
         confirm_closed(lab)
         direct_path = "/tmp/openrhp-boot-maintenance-direct.pcap"
-        direct_capture = boot.start_capture(lab, direct_path)
+        direct_capture = boot.start_capture(lab, direct_path, expression=capture_filter)
         plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "remove", "components": ["openrhp"], "removal_policy": "restore-direct", "expected_installed_digest": ""})
         before = jobs(lab)
         revision = api(lab, "/api/v1/config")["revision"]
@@ -254,6 +281,8 @@ def main():
         wait_job(lab, created.pop())
         time.sleep(.5)
         observed = boot.stop_capture(lab, direct_capture, direct_path)
+        command(["docker", "cp", lab.container + ":" + direct_path, str(results / "direct.pcap")])
+        (results / "direct.txt").write_text(observed)
         for address in ["8.8.8.8", "2001:4860:4860::8888"]:
             for port, tcp in [(28080, True), (28081, False), (53, True), (53, False)]:
                 assert any(f"> {address}.{port}:" in line and ("Flags [" in line) == tcp for line in observed.splitlines()), ("Explicit direct policy did not restore expected traffic", address, port, tcp)

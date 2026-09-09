@@ -3601,7 +3601,25 @@
             "description": "Rate or queue limit"
           },
           "503": {
-            "description": "Capability unavailable"
+            "description": "Only maintenance_state_busy is retryable: the private journal is temporarily locked. Retry this GET after three seconds; do not replay package execution. Other inspection errors remain nonretryable.",
+            "headers": {
+              "Retry-After": {
+                "description": "Bounded delay before another read of the same operation.",
+                "schema": {
+                  "type": "string",
+                  "enum": [
+                    "3"
+                  ]
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
           }
         },
         "parameters": [
@@ -3614,7 +3632,8 @@
               "pattern": "^[0-9a-f]{32}$"
             }
           }
-        ]
+        ],
+        "description": "The UI retries only HTTP 503 with error.code maintenance_state_busy and error.retryable true, at most three consecutive automatic status reads. Exhaustion preserves the operation ID and unverified status."
       }
     }
   },
