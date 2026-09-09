@@ -20,5 +20,5 @@ docker run --rm --network none --privileged \
  chown root:root /usr/libexec/openrhp-helper.test
  chmod 0755 /usr/libexec/openrhp-helper
  chmod 0755 /usr/libexec/openrhp-helper.test
- /usr/libexec/openrhp-helper.test -test.v -test.run "^(TestLinux(RealNFTAndRoutes|ConntrackResetPreservesCurrentAndForeignFlows|ForeignDefaultPriorityRefused|IndependentWatchdogAfterHelperSIGKILL|GatewayWatchdogAfterManagerSIGKILL|LifecyclePersistedGuardAndRemoval|RollbackRetainsGuardOwnership|BootGuardCrashRecovery|PacketSupervisorAfterManagerSIGKILL|FirstUseNativeProbeRegistration)|TestNativePacketLifecycle)$"
+ /usr/libexec/openrhp-helper.test -test.v -test.run "^(TestLinux(RealNFTAndRoutes|ConntrackResetPreservesCurrentAndForeignFlows|ForeignDefaultPriorityRefused|IndependentWatchdogAfterHelperSIGKILL|GatewayWatchdogAfterManagerSIGKILL|LifecyclePersistedGuardAndRemoval|RollbackRetainsGuardOwnership|BootGuardCrashRecovery|EarlyBootGuardBeforeNetworkDevices|BridgeIngressGuard|DNSGuardSurvivesNFTFlushAndPreservesOtherUID|DNSUnsafeSourceProfiles|PacketSupervisorAfterManagerSIGKILL|FirstUseNativeProbeRegistration)|TestNativePacketLifecycle)$"
  '

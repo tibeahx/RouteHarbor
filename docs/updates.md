@@ -65,3 +65,9 @@ and a working management path. Update only OpenRHP and explicitly selected depen
 OpenWrt upgrades, bootloader operations and node firmware flashing are separate work.
 A failed update must preserve the user's traffic policy; do not remove closed guards
 as an automatic repair. Use [removal/recovery](uninstall.md) for decommissioning.
+
+Feature-capable controller/helper pairs also expose a shared UI and API workflow
+for [verified offline package maintenance](maintenance.md). Package bundles are
+staged through trusted local administration; the API cannot upload a trust key,
+choose a download URL or execute a command. The root journal remains authoritative
+when controller replacement or removal closes its API connection.

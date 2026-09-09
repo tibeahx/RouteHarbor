@@ -249,6 +249,12 @@ func (n *NetworkCoordinator) Current(ctx context.Context) (map[string]any, error
 		"guarded":                      s.Guarded,
 		"confirmed_for_current_config": n.confirmedRevision == n.Runtime.Store.Get().Revision,
 		"last_error":                   n.lastError,
+		"maintenance_job":              s.MaintenanceJob,
+		"maintenance_hold":             s.MaintenanceHold,
+	}
+	if s.MaintenanceHold {
+		out["confirmed_for_current_config"] = false
+		out["last_error"] = "maintenance_requires_confirmed_routing"
 	}
 	if s.Committed != nil {
 		out["selected"] = s.Committed.Selected
@@ -290,6 +296,10 @@ func (n *NetworkCoordinator) Sync(ctx context.Context) {
 	s, e := n.Client.Status(ctx)
 	if e != nil {
 		n.lastError = "helper_unavailable"
+		return
+	}
+	if s.MaintenanceJob != "" || s.MaintenanceHold {
+		n.lastError = "maintenance_requires_confirmed_routing"
 		return
 	}
 	if s.Committed == nil || (s.Committed.Selected == selected && !s.Guarded) {

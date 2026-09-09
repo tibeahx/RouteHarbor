@@ -46,10 +46,16 @@ type (
 )
 
 type State struct {
-	Guarded     bool               `json:"guarded"`
-	Version     int                `json:"version"`
-	Committed   *dataplane.Desired `json:"committed,omitempty"`
-	Transaction *Transaction       `json:"transaction,omitempty"`
+	IngressBound       bool               `json:"ingress_bound,omitempty"`
+	Ingress            []string           `json:"ingress_devices,omitempty"`
+	DNSGuard           *DNSGuardIdentity  `json:"dns_guard,omitempty"`
+	MaintenanceJob     string             `json:"maintenance_job,omitempty"`
+	MaintenanceLastJob string             `json:"maintenance_last_job,omitempty"`
+	MaintenanceHold    bool               `json:"maintenance_hold,omitempty"`
+	Guarded            bool               `json:"guarded"`
+	Version            int                `json:"version"`
+	Committed          *dataplane.Desired `json:"committed,omitempty"`
+	Transaction        *Transaction       `json:"transaction,omitempty"`
 }
 type Manager struct {
 	dir      string
@@ -118,8 +124,20 @@ func (m *Manager) read() (State, error) {
 	if e = DecodeStrict(data, &s); e != nil {
 		return s, errors.New("journal_invalid: durable state failed validation")
 	}
+	if !validIngress(s.Ingress) {
+		return s, errors.New("journal_invalid: invalid ingress ownership")
+	}
+	if s.DNSGuard != nil && !s.DNSGuard.valid() {
+		return s, errors.New("journal_invalid: invalid DNS guard identity")
+	}
 	if s.Version != JournalVersion {
 		return s, errors.New("journal_version: unknown journal version")
+	}
+	if s.MaintenanceJob != "" && (!validTransactionID(s.MaintenanceJob) || !s.MaintenanceHold) {
+		return s, errors.New("journal_invalid: invalid maintenance gate")
+	}
+	if s.MaintenanceLastJob != "" && !validTransactionID(s.MaintenanceLastJob) {
+		return s, errors.New("journal_invalid: invalid completed maintenance identity")
 	}
 	if s.Committed != nil {
 		if _, e = dataplane.Compile(*s.Committed); e != nil {
@@ -214,12 +232,23 @@ func active(t *Transaction) bool {
 }
 
 func (m *Manager) Prepare(ctx context.Context, d dataplane.Desired) (Transaction, error) {
+	return m.prepare(ctx, d, false)
+}
+
+func (m *Manager) prepare(
+	ctx context.Context,
+	d dataplane.Desired,
+	automatic bool,
+) (Transaction, error) {
 	var out Transaction
 	plan, err := dataplane.Compile(d)
 	if err != nil {
 		return out, err
 	}
 	err = m.locked(func(s *State) error {
+		if s.MaintenanceJob != "" || automatic && s.MaintenanceHold {
+			return ErrMaintenanceActive
+		}
 		if s.Transaction != nil && s.Transaction.State == "confirmed" &&
 			s.Transaction.FlowTermination == "pending" {
 			if err := m.finishFlowReset(ctx, s); err != nil {
@@ -262,6 +291,13 @@ func (m *Manager) Prepare(ctx context.Context, d dataplane.Desired) (Transaction
 				return err
 			}
 		}
+		if err := m.prepareIngress(ctx, s, d); err != nil {
+			return err
+		}
+		if err := m.prepareDNSIdentity(ctx, s); err != nil {
+			return err
+		}
+		attachDNSGuard(&plan, s)
 		if err := m.backend.Check(ctx, plan); err != nil {
 			return err
 		}
@@ -276,6 +312,10 @@ func (m *Manager) Prepare(ctx context.Context, d dataplane.Desired) (Transaction
 			Candidate: d,
 			Rollback:  dataplane.SafeRollback(d, s.Committed),
 			Previous:  s.Committed,
+		}
+		if s.MaintenanceHold {
+			out.Rollback.Selected = ""
+			out.Rollback.Fallback = "closed"
 		}
 		s.Transaction = &out
 		return m.save(s)
@@ -293,6 +333,9 @@ func (m *Manager) Apply(
 		return out, errors.New("invalid_timeout: confirmation window must be 30 to 180 seconds")
 	}
 	err := m.locked(func(s *State) error {
+		if s.MaintenanceJob != "" {
+			return ErrMaintenanceActive
+		}
 		t := s.Transaction
 		if t == nil || t.ID != id {
 			return errors.New("not_found: transaction does not exist")
@@ -308,6 +351,13 @@ func (m *Manager) Apply(
 		if err != nil {
 			return err
 		}
+		if err = m.prepareIngress(ctx, s, t.Candidate); err != nil {
+			return err
+		}
+		if err = m.prepareDNSIdentity(ctx, s); err != nil {
+			return err
+		}
+		attachDNSGuard(&plan, s)
 		if err = m.backend.Check(ctx, plan); err != nil {
 			return err
 		}
@@ -335,6 +385,7 @@ func (m *Manager) Apply(
 			if s.Guarded {
 				addSafetyOwner(&p, p.Desired.Network)
 			}
+			attachDNSGuard(&p, s)
 			old = &p
 		}
 		applyCtx, cancel := context.WithTimeout(ctx, 20*time.Second)
@@ -363,6 +414,9 @@ func (m *Manager) Apply(
 func (m *Manager) Confirm(id string) (Transaction, error) {
 	var out Transaction
 	err := m.locked(func(s *State) error {
+		if s.MaintenanceJob != "" {
+			return ErrMaintenanceActive
+		}
 		t := s.Transaction
 		if t == nil || t.ID != id {
 			return errors.New("not_found: transaction does not exist")
@@ -382,6 +436,7 @@ func (m *Manager) Confirm(id string) (Transaction, error) {
 		t.State = "confirmed"
 		d := t.Candidate
 		s.Committed = &d
+		s.MaintenanceHold = false
 		if previousResetSlot(t) != 0 {
 			t.FlowTermination = "pending"
 		}
@@ -454,6 +509,8 @@ func (m *Manager) rollbackLocked(ctx context.Context, s *State) error {
 			}
 		}
 	}
+	attachDNSGuard(&safe, s)
+	attachDNSGuard(&candidate, s)
 	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
 	defer cancel()
 	if err = m.backend.Apply(ctx, safe, &candidate); err != nil {

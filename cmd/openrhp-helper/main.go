@@ -11,6 +11,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"syscall"
 	"time"
 
@@ -34,6 +35,9 @@ func run() error {
 		return errors.New(
 			"privileged helper requires Linux and root; network mutation is unavailable on this host",
 		)
+	}
+	if strings.HasPrefix(os.Args[1], "maintenance-") {
+		return runMaintenanceCommand(os.Args[1], os.Args[2:])
 	}
 	if os.Args[1] == "verify-wireless" {
 		return wireless.NewVerifier("/etc/openrhp-helper", "gateway", "/etc/openrhp/nodes").
@@ -64,6 +68,11 @@ func run() error {
 	}
 	fs := flag.NewFlagSet("openrhp-helper "+os.Args[1], flag.ContinueOnError)
 	dir := fs.String("state-dir", "/etc/openrhp-helper", "private durable journal directory")
+	maintenanceDir := fs.String(
+		"maintenance-dir",
+		"/etc/openrhp-maintenance",
+		"root-owned package maintenance journal",
+	)
 	identityDir := fs.String(
 		"identity-dir",
 		"/etc/openrhp/nodes",
@@ -124,9 +133,17 @@ func run() error {
 		if e = gateway.Resume(); e != nil {
 			return e
 		}
+		packageManager, e := maintenanceManager(*maintenanceDir, *dir, exe, manager, gateway)
+		if e != nil {
+			return e
+		}
+		defer func() { _ = packageManager.Close() }()
+		if e = packageManager.Resume(context.Background()); e != nil {
+			return e
+		}
 		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer cancel()
-		return (&helper.Server{Manager: manager, Gateway: gateway, AllowedUID: uint32(*uid), SocketPath: *socket, Packet: packet}).Serve(
+		return (&helper.Server{Maintenance: packageManager, Manager: manager, Gateway: gateway, AllowedUID: uint32(*uid), SocketPath: *socket, Packet: packet}).Serve(
 			ctx,
 		)
 	case "quarantine":

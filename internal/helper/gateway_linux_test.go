@@ -42,6 +42,13 @@ func (b gatewayFileBackend) Restore(_ context.Context, s coverage.Snapshot) erro
 }
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == "maintenance-worker" {
+		if err := maintenanceWorkerFixture(os.Args[2:]); err != nil {
+			_, _ = fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		os.Exit(0)
+	}
 	if len(os.Args) > 1 && os.Args[1] == "gateway-watchdog" {
 		if err := gatewayWatchdogFixture(os.Args[2:]); err != nil {
 			_, _ = fmt.Fprintln(os.Stderr, err)

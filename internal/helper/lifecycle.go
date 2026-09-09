@@ -79,7 +79,17 @@ func (b *NetworkBackend) quarantinePlan(
 	if err != nil {
 		return guard, err
 	}
-	guard, err = withLocalAddresses(guard)
+	guard.DNSGuardUID = p.DNSGuardUID
+	guard.IngressDevices = p.IngressDevices
+	guard, err = dataplane.WithIngressDevices(guard)
+	if err != nil {
+		return guard, err
+	}
+	addresses, err := localAddresses()
+	if err != nil {
+		return guard, err
+	}
+	guard, err = dataplane.WithQuarantineRouterAddresses(guard, addresses)
 	if err != nil {
 		return guard, err
 	}
@@ -103,6 +113,9 @@ func (b *NetworkBackend) quarantinePlan(
 func (b *NetworkBackend) Quarantine(ctx context.Context, p dataplane.Plan) error {
 	guard, err := b.quarantinePlan(ctx, p)
 	if err != nil {
+		return err
+	}
+	if err = b.applyDNSGuard(ctx, guard, &p); err != nil {
 		return err
 	}
 	if err = b.applySafety(ctx, guard, &p); err != nil {
@@ -137,6 +150,9 @@ func (b *NetworkBackend) Remove(ctx context.Context, p dataplane.Plan) error {
 		if err := b.removeRoute(ctx, route); err != nil {
 			return err
 		}
+	}
+	if err := b.removeDNSGuard(ctx, p); err != nil {
+		return err
 	}
 	// Empty owned tables have no packet-handling effect and remain recognizable.
 	for _, table := range []string{dataplane.Table, dataplane.ProbeTable} {
@@ -203,6 +219,7 @@ func (m *Manager) quarantineLocked(ctx context.Context, s *State) error {
 	if err != nil {
 		return err
 	}
+	attachDNSGuard(&p, s)
 	if s.Guarded {
 		addSafetyOwner(&p, p.Desired.Network)
 	}
@@ -240,6 +257,9 @@ func (m *Manager) quarantineLocked(ctx context.Context, s *State) error {
 
 func (m *Manager) CanRemove() error {
 	return m.locked(func(s *State) error {
+		if s.MaintenanceJob != "" {
+			return ErrMaintenanceActive
+		}
 		if s.Committed != nil || active(s.Transaction) {
 			return errors.New(
 				"protected_configuration_exists: decommission explicitly before removing the guard package",
@@ -257,34 +277,45 @@ func (m *Manager) Decommission(ctx context.Context, policy string) error {
 		return errors.New("decommission_policy_required: choose preserve-closed or restore-direct")
 	}
 	return m.locked(func(s *State) error {
-		if active(s.Transaction) {
-			return ErrBusy
+		if s.MaintenanceJob != "" {
+			return ErrMaintenanceActive
 		}
-		if s.Committed == nil {
-			return nil
-		}
-		if err := m.quarantineLocked(ctx, s); err != nil {
-			return err
-		}
-		p, err := dataplane.Compile(*s.Committed)
-		if err != nil {
-			return err
-		}
-		if s.Guarded {
-			addSafetyOwner(&p, p.Desired.Network)
-		}
-		b, ok := m.backend.(interface {
-			Remove(context.Context, dataplane.Plan) error
-		})
-		if !ok {
-			return errors.New("decommission_unavailable")
-		}
-		if err = b.Remove(ctx, p); err != nil {
-			return err
-		}
-		s.Committed = nil
-		s.Transaction = nil
-		s.Guarded = false
-		return m.save(s)
+		return m.decommissionLocked(ctx, s)
 	})
+}
+
+func (m *Manager) decommissionLocked(ctx context.Context, s *State) error {
+	if active(s.Transaction) {
+		return ErrBusy
+	}
+	if s.Committed == nil {
+		return nil
+	}
+	if err := m.quarantineLocked(ctx, s); err != nil {
+		return err
+	}
+	p, err := dataplane.Compile(*s.Committed)
+	if err != nil {
+		return err
+	}
+	attachDNSGuard(&p, s)
+	if s.Guarded {
+		addSafetyOwner(&p, p.Desired.Network)
+	}
+	b, ok := m.backend.(interface {
+		Remove(context.Context, dataplane.Plan) error
+	})
+	if !ok {
+		return errors.New("decommission_unavailable")
+	}
+	if err = b.Remove(ctx, p); err != nil {
+		return err
+	}
+	s.Committed = nil
+	s.DNSGuard = nil
+	s.Ingress = nil
+	s.IngressBound = false
+	s.Transaction = nil
+	s.Guarded = false
+	return m.save(s)
 }

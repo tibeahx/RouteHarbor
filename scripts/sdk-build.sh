@@ -36,4 +36,7 @@ make -C "$sdk_dir" package/openrhp/clean NO_DEPS=1 V=s
 # NO_DEPS is the SDK's supported build-graph switch; package DEPENDS metadata stays
 # intact, and the target package manager must install/check runtime dependencies.
 make -C "$sdk_dir" package/openrhp/compile NO_DEPS=1 V=s CONFIG_PACKAGE_openrhp-conntrack=m OPENRHP_SOURCE="$source_dir" OPENRHP_GO="$go_binary"
+# Inspect the actual six current IPKs. In particular, SDK stripping must not
+# corrupt already stripped Go ELF sections or their authoritative build metadata.
+GO="$go_binary" python3 "$source_dir/packaging/tests/check_ipk_elf.py" --sdk "$sdk_dir" --recipe "$recipe/Makefile"
 printf '%s\n' 'SDK packages are in the SDK bin/packages and bin/targets trees. These are development artifacts, not a signed release.'

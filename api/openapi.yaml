@@ -2896,6 +2896,726 @@
           }
         ]
       }
+    },
+    "/config/backups": {
+      "get": {
+        "operationId": "listConfigBackups",
+        "summary": "List bounded private on-device configuration backup metadata",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "backups",
+                    "max_backups",
+                    "max_total_bytes"
+                  ],
+                  "properties": {
+                    "backups": {
+                      "type": "array",
+                      "maxItems": 8,
+                      "items": {
+                        "$ref": "#/components/schemas/BackupInfo"
+                      }
+                    },
+                    "max_backups": {
+                      "type": "integer",
+                      "const": 8
+                    },
+                    "max_total_bytes": {
+                      "type": "integer",
+                      "const": 2097152
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "404": {
+            "description": "Backup not found"
+          }
+        }
+      },
+      "post": {
+        "operationId": "createConfigBackup",
+        "summary": "Create a private snapshot of the current configuration revision",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "404": {
+            "description": "Backup not found"
+          },
+          "428": {
+            "description": "Current quoted If-Match revision required"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "description": "Administrator-only. Send {} with the current revision and idempotency key. Stores secrets only inside the existing private on-device store; no network, file path, portable export, or routing change. At most eight snapshots and 2 MiB total; capacity errors occur before creation. The backup ID equals the operation ID so a creation interrupted after persistence remains inspectable. Portable exports use the separate age-encrypted local CLI."
+      }
+    },
+    "/config/backups/{id}": {
+      "get": {
+        "operationId": "getConfigBackup",
+        "summary": "Preview one backup with all source settings redacted",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": [
+                    "backup",
+                    "configuration",
+                    "secrets_redacted",
+                    "network_changes_applied"
+                  ],
+                  "properties": {
+                    "backup": {
+                      "$ref": "#/components/schemas/BackupInfo"
+                    },
+                    "configuration": {
+                      "$ref": "#/components/schemas/Config"
+                    },
+                    "secrets_redacted": {
+                      "type": "boolean",
+                      "const": true
+                    },
+                    "network_changes_applied": {
+                      "type": "boolean",
+                      "const": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "404": {
+            "description": "Backup not found"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "description": "Backup ID returned by this device. A created backup uses its durable operation ID."
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteConfigBackup",
+        "summary": "Delete one private snapshot without changing the configuration revision",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "404": {
+            "description": "Backup not found"
+          },
+          "428": {
+            "description": "Current quoted If-Match revision required"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "description": "Backup ID returned by this device. A created backup uses its durable operation ID."
+          }
+        ],
+        "description": "Administrator-only; current If-Match and idempotency key required. No request body. Existing operation retries remain readable after the snapshot is removed."
+      }
+    },
+    "/config/backups/{id}/restore": {
+      "post": {
+        "operationId": "restoreConfigBackup",
+        "summary": "Restore validated settings at a new configuration revision",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "404": {
+            "description": "Backup not found"
+          },
+          "428": {
+            "description": "Current quoted If-Match revision required"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            },
+            "description": "Backup ID returned by this device. A created backup uses its durable operation ID."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "description": "Administrator-only. Send {}. Revalidates the private snapshot and uses the ordinary pending-transaction/active-path configuration guard and revision CAS. Restores sources, targets, policy and network configuration including private source settings, but does not restore credentials, enrollment, packages, helper journals or applied network rules. This device must still pass explicit network prepare/apply/confirm; no interface compatibility or moved-device support is implied by saving the restored draft. Response contains configuration_saved and network_changes_applied=false plus backup_id and backup_revision. An interrupted restore must be reconciled against current revision before any new-key request."
+      }
+    },
+    "/maintenance/capabilities": {
+      "get": {
+        "operationId": "maintenanceCapabilities",
+        "summary": "Verified offline package capabilities and current installed inventory",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        }
+      }
+    },
+    "/maintenance/bundles": {
+      "get": {
+        "operationId": "maintenanceBundles",
+        "summary": "Metadata for signed package bundles staged through trusted local administration",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        }
+      }
+    },
+    "/maintenance/plan": {
+      "post": {
+        "operationId": "maintenancePlan",
+        "summary": "Validate a typed offline package action without changing packages or routing",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceRequest"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/maintenance/operations": {
+      "post": {
+        "operationId": "startMaintenance",
+        "summary": "Start one durable verified offline package job",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceOperation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "202": {
+            "description": "Durable package job accepted; poll the Location header",
+            "headers": {
+              "Location": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceOperation"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaintenanceRequest"
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          }
+        ],
+        "description": "Administrator only. Requires current If-Match, Idempotency-Key and expected_installed_digest. Response is the root-owned maintenance operation; poll Location or /maintenance/operations/{id}. The generic /operations journal records dispatch acceptance only. A repeated key inspects the same root operation and never reruns an uncertain package invocation. Controller removal can close the API; retain trusted local root access to the maintenance status CLI."
+      }
+    },
+    "/maintenance/operations/{id}": {
+      "get": {
+        "operationId": "maintenanceOperation",
+        "summary": "Read authoritative package progress and interruption recovery state",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaintenanceOperation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{32}$"
+            }
+          }
+        ]
+      }
     }
   },
   "components": {
@@ -3405,6 +4125,159 @@
           }
         },
         "description": "Node plan with optional paired gateway plan. Managed Wi-Fi requires gateway_plan; omit node ssid/passphrase/channel so the coordinator derives them privately from the approved AP. Ethernet uses the existing node-only plan."
+      },
+      "BackupInfo": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "created_at",
+          "revision",
+          "schema_version",
+          "source_count",
+          "target_count",
+          "size_bytes"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "revision": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "schema_version": {
+            "type": "integer",
+            "const": 1
+          },
+          "source_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "target_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "size_bytes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1048576
+          }
+        },
+        "description": "Metadata for a private on-device configuration snapshot; contains no credentials or filesystem paths."
+      },
+      "MaintenanceRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action",
+          "components"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "install",
+              "upgrade",
+              "remove"
+            ]
+          },
+          "bundle_id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$",
+            "description": "Root-staged verified bundle identity; required for install/upgrade and forbidden for removal."
+          },
+          "components": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "enum": [
+                "openrhp",
+                "openrhp-sing-box",
+                "openrhp-xray",
+                "openrhp-conntrack"
+              ]
+            }
+          },
+          "expected_installed_digest": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "Required for mutation. Plan may omit it to inspect the installed inventory digest."
+          },
+          "removal_policy": {
+            "type": "string",
+            "enum": [
+              "preserve-closed",
+              "restore-direct"
+            ],
+            "description": "Required only for removal. Preserve-closed retains the independent guard; restore-direct explicitly authorizes direct traffic."
+          }
+        }
+      },
+      "MaintenanceOperation": {
+        "type": "object",
+        "required": [
+          "id",
+          "state",
+          "phase",
+          "action",
+          "components",
+          "created_at",
+          "updated_at",
+          "retryable",
+          "guard_retained"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{32}$"
+          },
+          "state": {
+            "type": "string"
+          },
+          "phase": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "install",
+              "upgrade",
+              "remove"
+            ]
+          },
+          "components": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "retryable": {
+            "type": "boolean"
+          },
+          "guard_retained": {
+            "type": "boolean"
+          }
+        }
       }
     }
   }

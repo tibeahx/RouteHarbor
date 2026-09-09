@@ -8,6 +8,7 @@ import (
 
 	"github.com/tibeahx/OpenRHP/internal/adapter"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/helper"
 	"github.com/tibeahx/OpenRHP/internal/model"
 )
 
@@ -27,6 +28,9 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	state, e := n.Client.Status(ctx)
 	if e != nil {
 		return n.restoreFailure("helper_unavailable")
+	}
+	if state.MaintenanceJob != "" {
+		return n.restoreFailure("maintenance_active")
 	}
 	current := n.Runtime.Store.Get()
 	confirmed := current
@@ -50,7 +54,14 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 			}
 		}
 		if !found || !matchesDesired(confirmed, *state.Committed) {
-			return n.restoreFailure("confirmed_configuration_missing")
+			recovered, ok, err := n.maintenanceRollbackCheckpoint(state)
+			if err != nil {
+				return n.restoreFailure("maintenance_checkpoint_recovery_failed")
+			}
+			if !ok {
+				return n.restoreFailure("confirmed_configuration_missing")
+			}
+			confirmed = recovered
 		}
 	}
 	sources := map[string]model.Source{}
@@ -179,6 +190,42 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 
 	n.initialized = true
 	return nil
+}
+
+// A maintenance recovery transaction can intentionally roll an existing direct
+// fallback back to closed. Accept that one journal-proven policy change without
+// weakening ordinary checkpoint matching or modifying the current draft.
+func (n *NetworkCoordinator) maintenanceRollbackCheckpoint(
+	state helper.State,
+) (model.Config, bool, error) {
+	t := state.Transaction
+	if !state.MaintenanceHold || !state.Guarded || state.MaintenanceJob != "" ||
+		state.Committed == nil || t == nil || t.State != "rolled-back" ||
+		state.Committed.Selected != "" || state.Committed.Fallback != "closed" ||
+		!reflect.DeepEqual(t.Rollback, *state.Committed) {
+		return model.Config{}, false, nil
+	}
+	closed := t.Candidate
+	closed.Selected = ""
+	closed.Fallback = "closed"
+	if !reflect.DeepEqual(closed, *state.Committed) {
+		return model.Config{}, false, nil
+	}
+	saved, found, err := n.Runtime.Store.Checkpoint(t.ID)
+	if err != nil || !found {
+		return model.Config{}, false, err
+	}
+	if !matchesDesired(saved, t.Candidate) {
+		return model.Config{}, false, nil
+	}
+	saved.Policy.Fallback = "closed"
+	if !matchesDesired(saved, *state.Committed) {
+		return model.Config{}, false, nil
+	}
+	if err := n.Runtime.Store.SaveConfirmed(saved); err != nil {
+		return model.Config{}, false, err
+	}
+	return saved, true, nil
 }
 
 func (n *NetworkCoordinator) restoreFailure(code string) error {

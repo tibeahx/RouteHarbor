@@ -83,3 +83,27 @@ Explicit admin-only `/config/export` returns complete secrets. Use the CLI's pri
 `--out` file or an encrypted age backup, then delete plaintext temporary exports.
 Diagnostics contain an allowlisted set of counts, versions and policy state; no
 source endpoints, names, tokens, Wi-Fi keys or packet contents.
+
+Protected DNS also requires a verified dedicated, non-root dnsmasq 2.90 service.
+The helper inspects its trusted executable, procd instance, account, recursive
+configuration includes and live socket ownership. Any `query-port` setting
+(including `0`), explicit server source binding/port, external configuration script,
+or unverifiable identity is rejected. Those dnsmasq configurations can create DNS
+sockets while still root, before dropping privileges.
+
+The helper journals the verified DNS identity and installs independent IPv4/IPv6
+rules for that user's TCP/UDP destination port 53. These rules survive an nftables
+flush. They also block router-originated upstream queries from that dnsmasq user
+while managed routing remains installed; cached/local answers and ordinary router
+management keep the kernel's existing local routing rule. Selected-path DNS uses
+its separately prepared interception path. Only explicit decommission removes the
+DNS guard. A changed DNS identity prevents reapply and retains prior protection.
+Changing the router's DNS service outside OpenRHP requires another preflight.
+
+The helper also records the selected LAN bridges' verified ingress members. It
+protects both the bridge and those ports, so netifd cannot expose a still-running
+physical LAN port while dismantling the bridge during shutdown. This metadata is
+private to the root journal and replays before interfaces exist at boot. Shared
+VLAN trunk lower devices are not inferred. Changing confirmed bridge membership
+requires explicit decommission and a new network transaction, preventing an old
+port name or routing priority from silently acquiring a different owner.

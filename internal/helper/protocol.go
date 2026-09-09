@@ -15,30 +15,34 @@ import (
 
 	"github.com/tibeahx/OpenRHP/internal/coverage"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/maintenance"
 	"github.com/tibeahx/OpenRHP/internal/platform"
 )
 
 type Request struct {
-	Gateway        *coverage.Operation `json:"gateway,omitempty"`
-	Engine         *EngineRequest      `json:"engine,omitempty"`
-	ProbePath      *NativeProbePath    `json:"probe_path,omitempty"`
-	Operation      string              `json:"operation"`
-	Desired        *dataplane.Desired  `json:"desired,omitempty"`
-	TransactionID  string              `json:"transaction_id,omitempty"`
-	TimeoutSeconds int                 `json:"timeout_seconds,omitempty"`
-	SourceID       string              `json:"source_id,omitempty"`
-	Address        string              `json:"address,omitempty"`
-	Slot           uint16              `json:"slot,omitempty"`
+	Maintenance    *maintenance.WireRequest `json:"maintenance,omitempty"`
+	Gateway        *coverage.Operation      `json:"gateway,omitempty"`
+	Engine         *EngineRequest           `json:"engine,omitempty"`
+	ProbePath      *NativeProbePath         `json:"probe_path,omitempty"`
+	Operation      string                   `json:"operation"`
+	Desired        *dataplane.Desired       `json:"desired,omitempty"`
+	TransactionID  string                   `json:"transaction_id,omitempty"`
+	TimeoutSeconds int                      `json:"timeout_seconds,omitempty"`
+	SourceID       string                   `json:"source_id,omitempty"`
+	Address        string                   `json:"address,omitempty"`
+	Slot           uint16                   `json:"slot,omitempty"`
 }
 type Response struct {
-	Gateway     map[string]any   `json:"gateway,omitempty"`
-	OK          bool             `json:"ok"`
-	Error       string           `json:"error,omitempty"`
-	State       *State           `json:"state,omitempty"`
-	Transaction *Transaction     `json:"transaction,omitempty"`
-	Platform    *platform.Report `json:"platform,omitempty"`
+	Maintenance *maintenance.WireResponse `json:"maintenance,omitempty"`
+	Gateway     map[string]any            `json:"gateway,omitempty"`
+	OK          bool                      `json:"ok"`
+	Error       string                    `json:"error,omitempty"`
+	State       *State                    `json:"state,omitempty"`
+	Transaction *Transaction              `json:"transaction,omitempty"`
+	Platform    *platform.Report          `json:"platform,omitempty"`
 }
 type Server struct {
+	Maintenance        maintenance.Service
 	Gateway            coverage.Operator
 	probeMu            sync.Mutex
 	nativeProbes       map[string]nativeProbeRegistration
@@ -154,11 +158,17 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 	}
 	resp := Response{OK: true}
 	switch req.Operation {
+	case "maintenance":
+		resp.Maintenance, err = serveMaintenance(ctx, s.Maintenance, *req.Maintenance)
 	case "gateway":
 		if s.Gateway == nil {
 			err = errors.New("gateway_helper_unavailable")
 		} else {
-			resp.Gateway, err = s.Gateway.Do(ctx, *req.Gateway)
+			err = s.Manager.WithRuntime(func() error {
+				var gatewayErr error
+				resp.Gateway, gatewayErr = s.Gateway.Do(ctx, *req.Gateway)
+				return gatewayErr
+			})
 		}
 	case "platform":
 		detect := platform.Detect
@@ -180,7 +190,9 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 				dataplane.Path{SourceID: req.SourceID, Kind: "packet-engine", Slot: req.Slot},
 			)
 			if err == nil {
-				err = s.Packet.Start(ctx, req.SourceID, int(req.Slot))
+				err = s.Manager.WithRuntime(
+					func() error { return s.Packet.Start(ctx, req.SourceID, int(req.Slot)) },
+				)
 			}
 			s.probeMu.Unlock()
 		}
@@ -193,6 +205,9 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 	case "status":
 		state, e := s.Manager.Status()
 		err = e
+		state.IngressBound = false
+		state.Ingress = nil
+		state.DNSGuard = nil // Private ownership metadata never leaves the privileged journal.
 		resp.State = &state
 	case "prepare":
 		s.probeMu.Lock()
@@ -240,6 +255,9 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 }
 
 func validateRequest(r Request) error {
+	if r.Operation != "maintenance" && r.Maintenance != nil {
+		return errors.New("invalid_request")
+	}
 	if r.Operation != "gateway" && r.Gateway != nil {
 		return errors.New("invalid_request")
 	}
@@ -254,6 +272,17 @@ func validateRequest(r Request) error {
 		return errors.New("invalid_request")
 	}
 	switch r.Operation {
+	case "maintenance":
+		if r.Maintenance == nil || r.Gateway != nil || r.Engine != nil || r.ProbePath != nil ||
+			r.Desired != nil ||
+			r.TransactionID != "" ||
+			r.TimeoutSeconds != 0 ||
+			r.SourceID != "" ||
+			r.Address != "" ||
+			r.Slot != 0 {
+			return errors.New("invalid_request")
+		}
+		return maintenance.ValidateWire(*r.Maintenance)
 	case "gateway":
 		if r.Gateway == nil || r.Engine != nil || r.ProbePath != nil || r.Desired != nil ||
 			r.TransactionID != "" ||
@@ -486,12 +515,15 @@ func (m *Manager) Switch(ctx context.Context, sourceID string) (Transaction, err
 	if active(s.Transaction) {
 		return Transaction{}, ErrBusy
 	}
+	if s.MaintenanceJob != "" || s.MaintenanceHold {
+		return Transaction{}, ErrMaintenanceActive
+	}
 	d := *s.Committed
 	d.Selected = sourceID
 	if d.Selected == s.Committed.Selected && s.Transaction != nil && !s.Guarded {
 		return *s.Transaction, nil
 	}
-	t, err := m.Prepare(ctx, d)
+	t, err := m.prepare(ctx, d, true)
 	if err != nil {
 		return t, err
 	}

@@ -12,25 +12,30 @@ import (
 	"strings"
 
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/model"
 	"github.com/tibeahx/OpenRHP/internal/platform"
 )
 
 // NetworkBackend invokes only fixed nft/ip operations built from validated intent.
 // Detect is injectable so namespace integration tests need not impersonate OpenWrt.
 type NetworkBackend struct {
-	Runner    platform.Runner
-	Detect    func(context.Context) platform.Report
-	NFTBinary string
-	IPBinary  string
-	Packet    *PacketManager
+	Runner      platform.Runner
+	Detect      func(context.Context) platform.Report
+	NFTBinary   string
+	IPBinary    string
+	Packet      *PacketManager
+	Ingress     func(context.Context, model.Network) ([]string, error)
+	DNSIdentity func(context.Context) (DNSGuardIdentity, error)
 }
 
 func NewNetworkBackend() *NetworkBackend {
 	return &NetworkBackend{
-		Runner:    platform.ProductionRunner{},
-		Detect:    platform.Detect,
-		NFTBinary: "/usr/sbin/nft",
-		IPBinary:  "/sbin/ip",
+		Runner:      platform.ProductionRunner{},
+		Detect:      platform.Detect,
+		NFTBinary:   "/usr/sbin/nft",
+		IPBinary:    "/sbin/ip",
+		DNSIdentity: inspectDNSIdentity,
+		Ingress:     discoverIngress,
 	}
 }
 
@@ -243,6 +248,8 @@ func (b *NetworkBackend) Apply(
 	if err != nil {
 		return err
 	}
+	fresh.DNSGuardUID = p.DNSGuardUID
+	fresh.IngressDevices = p.IngressDevices
 	p = fresh
 	if err = b.checkTables(ctx); err != nil {
 		return err
@@ -262,6 +269,9 @@ func (b *NetworkBackend) Apply(
 		[]byte(p.GuardNFT+p.NFT),
 	); err != nil {
 		return errors.New("nft_check_failed")
+	}
+	if err = b.applyDNSGuard(ctx, p, previous); err != nil {
+		return err
 	}
 	if err = b.applySafety(ctx, p, previous); err != nil {
 		return err
@@ -359,6 +369,11 @@ type ipRule struct {
 	IIF         string          `json:"iif"`
 	IIFName     string          `json:"iifname"`
 	Unsupported bool            `json:"-"`
+	UIDStart    *uint32         `json:"uid_start"`
+	UIDEnd      *uint32         `json:"uid_end"`
+	IPProto     string          `json:"ipproto"`
+	DPort       uint16          `json:"dport"`
+	Action      string          `json:"action"`
 }
 
 // Unrecognized selectors or actions must not be mistaken for a standard or
@@ -375,7 +390,24 @@ func (r *ipRule) UnmarshalJSON(data []byte) error {
 	}
 	for key, value := range raw {
 		switch key {
-		case "priority", "fwmark", "fwmask", "table", "iif", "iifname", "protocol":
+		case "priority",
+			"fwmark",
+			"fwmask",
+			"table",
+			"iif",
+			"iifname",
+			"protocol",
+			"uid_start",
+			"uid_end",
+			"ipproto",
+			"dport",
+			"action":
+		case "iif_detached":
+			// iproute2 emits this presentation marker while an early-boot rule
+			// waits for its named interface. The selector is still the exact iif.
+			if string(value) != "null" || decoded.IIF == "" && decoded.IIFName == "" {
+				decoded.Unsupported = true
+			}
 		case "src", "dst":
 			if string(value) != `"all"` {
 				decoded.Unsupported = true
@@ -394,7 +426,9 @@ func (r *ipRule) UnmarshalJSON(data []byte) error {
 }
 
 func defaultRule(rule ipRule) bool {
-	if rule.Unsupported || len(rule.FWMark) != 0 || len(rule.FWMask) != 0 || rule.IIF != "" ||
+	if rule.Unsupported || hasDNSSelectors(rule) || len(rule.FWMark) != 0 ||
+		len(rule.FWMask) != 0 ||
+		rule.IIF != "" ||
 		rule.IIFName != "" {
 		return false
 	}
@@ -443,7 +477,7 @@ func (b *NetworkBackend) rules(ctx context.Context, family int) ([]ipRule, error
 }
 
 func ruleMatches(rule ipRule, r dataplane.Route) bool {
-	return !rule.Unsupported && rule.IIF == "" && rule.IIFName == "" &&
+	return !rule.Unsupported && !hasDNSSelectors(rule) && rule.IIF == "" && rule.IIFName == "" &&
 		rule.Priority == r.Priority &&
 		number(rule.FWMark) == uint64(r.Mark) &&
 		number(rule.FWMask) == uint64(dataplane.MarkMask) &&
@@ -486,7 +520,7 @@ func (b *NetworkBackend) checkRoutes(
 			if defaultRule(rule) {
 				continue
 			}
-			ours := safetyRuleAllowed(rule, previous)
+			ours := safetyRuleAllowed(rule, previous) || dnsRuleAllowed(rule, previous)
 			for _, r := range allowed {
 				if r.Family == family && ruleMatches(rule, r) {
 					ours = true
@@ -620,9 +654,21 @@ func (b *NetworkBackend) removeRoute(ctx context.Context, r dataplane.Route) err
 }
 
 func withLocalAddresses(p dataplane.Plan) (dataplane.Plan, error) {
+	addresses, err := localAddresses()
+	if err != nil {
+		return p, err
+	}
+	p, err = dataplane.WithIngressDevices(p)
+	if err != nil {
+		return p, err
+	}
+	return dataplane.WithRouterAddresses(p, addresses)
+}
+
+func localAddresses() ([]netip.Addr, error) {
 	all, e := net.InterfaceAddrs()
 	if e != nil {
-		return p, errors.New("router_addresses_unavailable")
+		return nil, errors.New("router_addresses_unavailable")
 	}
 	addresses := []netip.Addr{}
 	for _, address := range all {
@@ -631,7 +677,7 @@ func withLocalAddresses(p dataplane.Plan) (dataplane.Plan, error) {
 			addresses = append(addresses, pref.Addr())
 		}
 	}
-	return dataplane.WithRouterAddresses(p, addresses)
+	return addresses, nil
 }
 
 // nft 1.0.6 exposes table comments in text output but omits them from JSON.

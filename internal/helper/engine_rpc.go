@@ -80,7 +80,13 @@ func (s *Server) handleEngine(
 		s.probeMu.Unlock()
 	}()
 	bounded, cancel := context.WithTimeout(ctx, 20*time.Second)
-	cmd, life, e := StartEngineWorker(bounded, request, uid, gid)
+	var cmd *exec.Cmd
+	var life io.Closer
+	e = s.Manager.WithRuntime(func() error {
+		var startErr error
+		cmd, life, startErr = StartEngineWorker(bounded, request, uid, gid)
+		return startErr
+	})
 	cancel()
 	if e != nil {
 		writeResponse(conn, Response{Error: safeError(e)})

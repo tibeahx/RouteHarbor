@@ -1,6 +1,7 @@
 package control
 
 import (
+	"slices"
 	"sort"
 	"time"
 
@@ -69,9 +70,9 @@ func (r *Runtime) degradationSpeedDueLocked(id string, c model.Config, now time.
 		}
 	}
 	if latest.PacketLoss != nil {
-		for i := len(previous) - 1; i >= 0; i-- {
-			if previous[i].PacketLoss != nil {
-				return *latest.PacketLoss-*previous[i].PacketLoss >= 0.1
+		for _, measurement := range slices.Backward(previous) {
+			if measurement.PacketLoss != nil {
+				return *latest.PacketLoss-*measurement.PacketLoss >= 0.1
 			}
 		}
 	}

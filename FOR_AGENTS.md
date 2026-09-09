@@ -96,6 +96,11 @@ schemas. Read the current revision before every edit. Set a fresh idempotency ke
 for each logical mutation, and retain it along with the body/revision after an
 uncertain HTTP result. Read `/operations/{id}` instead of duplicating an action.
 A 409 means reconcile with current state, not overwrite another writer's work.
+An operation with `result.result_unavailable: true` has retained its completion
+and retry identity while omitting an oversized provider result. Follow the
+canonical IDs in `result.references` and inspect current state; never turn that
+marker into a new-key replay. A full journal rejects new mutations before their
+side effects and retains existing retry records for their promised lifetime.
 
 1. Add sources with `POST /sources` and complete safe settings. Basic direct JSON is
    in [examples/direct-source.json](examples/direct-source.json). Imported native
@@ -115,6 +120,14 @@ A 409 means reconcile with current state, not overwrite another writer's work.
 The API CLI supports `--data request.json`, `--revision N` and
 `--idempotency-key KEY`. Full secret exports require `--out PRIVATE_NEW_FILE`;
 ordinary diagnostic exports are redacted. No browser-only step is required.
+
+Before a configuration change, `POST /config/backups` with `{}` creates a private
+local snapshot. Retain its returned ID; `GET /config/backups/{id}` provides a masked
+preview. Restoration uses `POST /config/backups/{id}/restore` with `{}`, the revision
+that was reviewed and an idempotency key. It replaces the draft configuration,
+including its privately stored credentials, but does not apply network rules.
+Validate and run the transaction below before confirming restored routing. Local
+snapshots do not replace a separately stored encrypted recovery backup.
 
 ## 5. Apply as a recoverable transaction
 
@@ -188,6 +201,27 @@ unpairing is never a request to rotate credentials.
 
 ## 7. Update, remove, retry and report
 
+- For supported controller and engine-package maintenance, follow
+  [verified offline maintenance](docs/maintenance.md). Through trusted local root
+  access, stage signed installed and replacement bundles with
+  `openrhp-helper maintenance-stage --source /root/private-bundle-dir`. The trust
+  key must already have been independently supplied; the API cannot install one.
+  Read `/maintenance/capabilities` and `/maintenance/bundles`, then submit the
+  selected action, bundle ID and component identities to `POST /maintenance/plan`.
+  Review its exact package list and warnings. Start with
+  `POST /maintenance/operations`, copying `installed_digest` into
+  `expected_installed_digest`, the reviewed configuration revision into `If-Match`,
+  and retaining one idempotency key for that exact body. Do not substitute a new
+  bundle, revision or key after an uncertain response.
+- Package progress is authoritative at `/maintenance/operations/{id}`. The generic
+  operation journal records dispatch acceptance, not a completed installation.
+  If the controller is absent, use the retained helper's
+  `maintenance-status --operation JOB_ID` through trusted local root access.
+  An `interrupted` result requires the documented offline recovery; it is not
+  permission to rerun opkg or delete its journal. Successful maintenance retains
+  a routing hold until a fresh explicit network transaction is tested and confirmed.
+  Guard replacement and node updates are outside this maintenance API's current
+  supported components.
 - Updates: keep signed old/new packages and private recovery data offline, validate
   schema migration, verify manifest/trust/version/architecture and retain management.
   Do not automatically update OpenWrt, flash nodes or change unrelated packages.

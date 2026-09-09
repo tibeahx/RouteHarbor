@@ -77,7 +77,7 @@ func TestFreshCoveragePreparationSynchronizesSeparatelyChangedHomeKey(t *testing
 		t.Fatal("old idempotency key silently started a credential change")
 	}
 	request := coverageOperation{
-		Operation:   Operation{Key: "explicit-home-key-sync-123456", Plan: &f.plan},
+		Key: "explicit-home-key-sync-123456", Plan: &f.plan,
 		GatewayPlan: &f.gatewayPlan,
 	}
 	raw, err := json.Marshal(request)

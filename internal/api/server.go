@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net"
 	"net/http"
 	"net/url"
@@ -23,6 +24,7 @@ import (
 	"github.com/tibeahx/OpenRHP/internal/auth"
 	"github.com/tibeahx/OpenRHP/internal/config"
 	"github.com/tibeahx/OpenRHP/internal/control"
+	"github.com/tibeahx/OpenRHP/internal/maintenance"
 	"github.com/tibeahx/OpenRHP/internal/model"
 	"github.com/tibeahx/OpenRHP/internal/platform"
 )
@@ -50,6 +52,7 @@ type Server struct {
 	UI           http.Handler
 	Network      NetworkService
 	Coverage     CoverageService
+	Maintenance  maintenance.Service
 	Platform     func(context.Context) (platform.Report, error)
 	mu           sync.Mutex
 	limitMu      sync.Mutex
@@ -100,6 +103,15 @@ func (s *Server) routes() map[string]http.HandlerFunc {
 		register("POST /api/v1/nodes/{id}/"+a, s.mutate)
 	}
 	register("GET /api/v1/nodes/{id}/status", s.read)
+	for _, route := range []string{"GET /api/v1/maintenance/capabilities", "GET /api/v1/maintenance/bundles", "GET /api/v1/maintenance/operations/{id}", "POST /api/v1/maintenance/plan"} {
+		register(route, s.inspectMaintenance)
+	}
+	register("POST /api/v1/maintenance/operations", s.mutate)
+	register("GET /api/v1/config/backups", s.readBackups)
+	register("GET /api/v1/config/backups/{id}", s.readBackups)
+	register("POST /api/v1/config/backups", s.mutate)
+	register("POST /api/v1/config/backups/{id}/restore", s.mutate)
+	register("DELETE /api/v1/config/backups/{id}", s.mutate)
 	return routes
 }
 
@@ -522,6 +534,9 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if existing {
+		if s.existingMaintenance(w, r, body, op) {
+			return
+		}
 		status := 200
 		if op.State == "running" {
 			status = 202
@@ -542,6 +557,10 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, v)
 	}
 	path := r.URL.Path
+	if path == maintenanceOperationsPath {
+		s.startMaintenance(w, r, body, op)
+		return
+	}
 	id := r.PathValue("id")
 	if path == "/api/v1/probes" || strings.HasSuffix(path, "/probe") {
 		var req struct {
@@ -699,7 +718,20 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 		fail(409, "revision_conflict", "Configuration changed; refresh before applying your edits")
 		return
 	}
+	var backupResult map[string]any
 	switch {
+	case path == "/api/v1/config/backups" || strings.HasPrefix(path, "/api/v1/config/backups/"):
+		candidate, result, err := s.prepareBackupMutation(r, body, op, rev)
+		if err != nil {
+			status, code, message := backupProblem(err)
+			fail(status, code, message)
+			return
+		}
+		if candidate == nil {
+			finish(rev, result)
+			return
+		}
+		c, backupResult = *candidate, result
 	case path == "/api/v1/config":
 		if e = adapter.StrictDecode(body, &c); e != nil {
 			fail(400, "invalid_config", "Expected a complete configuration object")
@@ -804,10 +836,9 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.Runtime.Reload()
-	finish(
-		updated.Revision,
-		map[string]any{"configuration_saved": true, "network_changes_applied": false},
-	)
+	result := map[string]any{"configuration_saved": true, "network_changes_applied": false}
+	maps.Copy(result, backupResult)
+	finish(updated.Revision, result)
 }
 
 func (s *Server) events(w http.ResponseWriter, r *http.Request) {
