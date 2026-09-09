@@ -61,6 +61,8 @@
       const error = Error(v.error?.message || S.requestFailed);
       error.status = r.status;
       error.location = r.headers.get('Location');
+      error.code = v.error?.code;
+      error.retryable = v.error?.retryable === true;
       throw error;
     }
     if (!allowFailed && v?.state === 'failed') throw Error(v.error_code || S.requestFailed);
@@ -726,7 +728,10 @@
     maintenanceControls();
   }
 
-  async function readMaintenanceStatus(operationID = $('maintenance-operation-id').value.trim()) {
+  async function readMaintenanceStatus(
+    operationID = $('maintenance-operation-id').value.trim(),
+    busyRetries = 0,
+  ) {
     const m = maintenance;
     if (m.reading) return;
     clearTimeout(m.timer);
@@ -751,13 +756,27 @@
       if (maintenanceActive.includes(job.state))
         m.timer = setTimeout(() => readMaintenanceStatus(operationID), 3000);
     } catch (error) {
-      if (m === maintenance)
+      if (m === maintenance && token && m.statusID === operationID) {
+        if (
+          error.status === 503 &&
+          error.code === 'maintenance_state_busy' &&
+          error.retryable === true &&
+          busyRetries < 3
+        ) {
+          $('maintenance-feedback').textContent =
+            'The package service is busy. Retrying this status read (' +
+            (busyRetries + 1) +
+            ' of 3).';
+          m.timer = setTimeout(() => readMaintenanceStatus(operationID, busyRetries + 1), 3000);
+          return;
+        }
         $('maintenance-feedback').textContent =
           'Maintenance status could not be verified: ' +
           error.message +
           ' Retain operation ' +
           operationID +
           ' and use the trusted local status command if the API is unavailable.';
+      }
     } finally {
       if (m === maintenance) {
         m.reading = false;

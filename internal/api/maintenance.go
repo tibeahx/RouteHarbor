@@ -47,6 +47,14 @@ func (s *Server) inspectMaintenance(w http.ResponseWriter, r *http.Request) {
 		value, err = s.Maintenance.Status(r.Context(), r.PathValue("id"))
 	}
 	if err != nil {
+		// The private RPC preserves machine-safe error codes, not Go error identity.
+		if r.Method == http.MethodGet && r.PathValue("id") != "" &&
+			err.Error() == maintenance.ErrStateBusy.Error() {
+			w.Header().Set("Retry-After", "3")
+			problem(w, http.StatusServiceUnavailable, "maintenance_state_busy",
+				"Package maintenance is busy; retry this status read shortly", true)
+			return
+		}
 		problem(
 			w,
 			422,

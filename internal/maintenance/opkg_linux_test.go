@@ -163,6 +163,30 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	if _, err := os.Stat("/tmp/maintenance-postinst-candidate"); err != nil {
 		t.Fatal("actual postinst missing", err)
 	}
+	// Real SDK wrappers depend on the controller. Keep one installed through
+	// interrupted upgrades and explicit recovery, then remove both together.
+	wrapper, err := f.stage(
+		t,
+		"0.1.0",
+		opkgFixture(t, "openrhp-conntrack", "0.1.0-r1", "openrhp", ""),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wrapperPlan, err := manager.Plan(
+		ctx,
+		Request{Action: "install", BundleID: wrapper.ID, Components: []string{"openrhp-conntrack"}},
+	)
+	if err != nil {
+		t.Fatal("dependent wrapper plan", err)
+	}
+	wrapperID := strings.Repeat("6", 32)
+	if _, err = manager.Start(ctx, wrapperID, wrapperPlan.Request); err != nil {
+		t.Fatal(err)
+	}
+	if err = manager.Run(ctx, wrapperID); err != nil {
+		t.Fatal(err)
+	}
 	// The system feed exists, but the production environment must not load it.
 	if err := os.WriteFile(
 		"/etc/opkg/openrhp-poison.conf",
@@ -281,8 +305,45 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	if err != nil || status.State != "completed" {
 		t.Fatal(status, err)
 	}
+	removal, err := manager.Plan(
+		ctx,
+		Request{
+			Action:        "remove",
+			Components:    []string{"openrhp"},
+			RemovalPolicy: "preserve-closed",
+		},
+	)
+	if err != nil {
+		t.Fatal("controller and dependent wrapper removal preflight", err)
+	}
+	inventory, err = backend.Inventory(ctx)
+	if err != nil || inventory.Packages["openrhp"] != "0.1.1-r1" ||
+		inventory.Packages["openrhp-conntrack"] != "0.1.0-r1" {
+		t.Fatal(
+			"removal preview changed installed packages or recovery lost the wrapper",
+			inventory,
+			err,
+		)
+	}
+	id = strings.Repeat("5", 32)
+	if _, err = manager.Start(ctx, id, removal.Request); err != nil {
+		t.Fatal(err)
+	}
+	if err = manager.Run(ctx, id); err != nil {
+		t.Fatal("remove controller and wrapper", err)
+	}
+	status, err = manager.Status(ctx, id)
+	if err != nil || status.State != "completed" {
+		t.Fatal(status, err)
+	}
+	inventory, err = backend.Inventory(ctx)
+	if err != nil || inventory.Packages["openrhp"] != "" ||
+		inventory.Packages["openrhp-conntrack"] != "" ||
+		inventory.Packages["openrhp-guard"] == "" {
+		t.Fatal("removal did not retain only the guard", inventory, err)
+	}
 	t.Log(
-		"real opkg signed install/upgrade; noaction scripts; system-feed isolation; SIGKILL interruption; explicit offline rollback and same-version payload repair PASS",
+		"real opkg signed install/upgrade; noaction scripts; system-feed isolation; SIGKILL interruption; explicit offline rollback and same-version payload repair with a dependent wrapper; controller/wrapper removal retaining guard PASS",
 	)
 }
 

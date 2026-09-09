@@ -16,6 +16,7 @@ type maintenanceFixture struct {
 	starts      int
 	loseReply   bool
 	deferWorker bool
+	statusErr   error
 }
 
 func (*maintenanceFixture) Capabilities(context.Context) (map[string]any, error) {
@@ -113,11 +114,72 @@ func TestMaintenanceAPIRetryRearmsOnlyTheSamePreparedJob(t *testing.T) {
 }
 
 func (f *maintenanceFixture) Status(_ context.Context, id string) (maintenance.Operation, error) {
+	if f.statusErr != nil {
+		return maintenance.Operation{}, f.statusErr
+	}
 	job, ok := f.jobs[id]
 	if !ok {
 		return maintenance.Operation{}, errors.New("PRIVATE-ROOT-STATE-PATH")
 	}
 	return job, nil
+}
+
+func TestMaintenanceStatusRetriesOnlyExactBusyCode(t *testing.T) {
+	s := backupAPI(t, t.TempDir())
+	_, admin, err := s.Tokens.Issue("admin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	f := &maintenanceFixture{}
+	s.Maintenance = f
+	for _, tc := range []struct {
+		name      string
+		err       error
+		status    int
+		retryable bool
+	}{
+		{"local busy", maintenance.ErrStateBusy, 503, true},
+		{"private RPC busy", errors.New(maintenance.ErrStateBusy.Error()), 503, true},
+		{"interrupted inventory", errors.New("maintenance_package_database_interrupted"), 422, false},
+		{"unavailable helper", errors.New("helper_failed"), 422, false},
+		{"lock failure", errors.New("maintenance_lock_failed"), 422, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f.statusErr = tc.err
+			response := backupRequest(
+				s.Handler(),
+				"GET",
+				"maintenance/operations/"+strings.Repeat("a", 32),
+				admin,
+				"",
+				"",
+				"",
+			)
+			var body struct {
+				Error struct {
+					Code      string `json:"code"`
+					Retryable bool   `json:"retryable"`
+				} `json:"error"`
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != tc.status || body.Error.Retryable != tc.retryable {
+				t.Fatal(response.Code, response.Body.String())
+			}
+			if tc.retryable &&
+				(body.Error.Code != "maintenance_state_busy" || response.Header().Get("Retry-After") != "3") {
+				t.Fatal(response.Header(), response.Body.String())
+			}
+			if !tc.retryable &&
+				(body.Error.Code != "maintenance_rejected" || response.Header().Get("Retry-After") != "") {
+				t.Fatal(response.Header(), response.Body.String())
+			}
+		})
+	}
+	if f.starts != 0 {
+		t.Fatal("status inspection started package execution")
+	}
 }
 
 func TestMaintenanceAPIReconcilesLostAcknowledgementAndRestartWithoutReplay(t *testing.T) {

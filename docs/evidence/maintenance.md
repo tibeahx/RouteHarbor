@@ -13,9 +13,10 @@ is separate from the ephemeral signing keys used by these tests.
 | Actual OpenWrt opkg | The production staging/manager/backend installed and upgraded signed **generated test IPKs** using the actual OpenWrt 24.10.7 package manager. This verifies opkg behavior, not the final SDK package service lifecycle. |
 | Offline resolution | An actual `--noaction` plan did not execute its candidate maintainer script. Verbose opkg inspection confirmed that production `OPKG_CONF_DIR` plus a private empty lists directory excludes system feeds. `--conf` by itself does not provide that isolation. |
 | Package-process interruption | SIGKILL of the real opkg process group during a test postinst left an interrupted job with its gate held. Explicit local rollback restored the authenticated previous version. Explicit same-version retry restored a truncated executable even though opkg already reported that version. This is process interruption, not physical power loss. |
+| Dependent package removal | A real opkg regression keeps a controller-dependent wrapper installed during interrupted upgrade rollback and same-version repair. The shared preview/execution/recovery path removes the wrapper before its dependency, then verifies controller/wrapper absence and guard retention. No force options are used. |
 | Detached worker | A real detached worker survived parent/controller SIGKILL. Duplicate arms of one durable job executed exactly once and recorded completion. Its backend used private marker files; it did not claim to test opkg, radio or network changes. |
-| SDK input compatibility | A read-only optional test accepted all six x86_64 SDK 0.1.0 baseline IPKs and all six 0.1.1 upgrade-fixture IPKs from the final `source-hsdpl8_b` snapshot through the archive parser and reserved-path checks. This verifies parser compatibility, not installation or production release trust. |
-| Full boot maintenance | `scripts/lab-maintenance-boot.py` is prepared and syntax checked. It must run against final SDK fixtures after the VM owner's handoff; results are not yet claimed here. |
+| SDK input compatibility | A read-only optional test accepted all six x86_64 SDK 0.1.0 baseline IPKs and all six 0.1.1 upgrade-fixture IPKs from `source-hsdpl8_b` through the archive parser and reserved-path checks. That snapshot predates the subsequently discovered removal-order fix; rebuilt package acceptance remains pending. |
+| Full boot maintenance — partial | Actual SDK controller upgrade to 0.1.1 through the public API completed, same-key replay resolved its authoritative root operation, the guard executable stayed unchanged, and a fresh routing confirmation cleared the maintenance hold. The continuous monitored WAN capture across upgrade and confirmation contained zero packets, with zero kernel capture drops. Removal preflight then exposed the dependent-wrapper ordering bug before any removal. Both removal policies still require a clean rerun using rebuilt SDK packages containing the fix. |
 
 Reproduce the bounded native userland and worker checks:
 
@@ -50,3 +51,8 @@ capture for each explicit removal policy. It requires a previously provisioned,
 feature-compatible baseline; it never substitutes an older incompatible helper
 for rollback proof. Its `--execute` flag is used only after the isolated VM owner
 releases the test window. No physical device action is part of either script.
+Incoming lab copies are deleted after successful authenticated staging to avoid
+consuming the small guest filesystem twice. A preflight-only rerun may use
+`--reuse-staged`; it accepts an existing authenticated bundle only when its complete
+package hash set matches the exact supplied SDK files. Temporary journal lock
+contention causes a bounded status-read retry and never replays package execution.

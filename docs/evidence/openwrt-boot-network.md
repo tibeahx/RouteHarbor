@@ -2,8 +2,9 @@
 
 This checkpoint was measured on 9 September 2026 in an isolated full-system
 OpenWrt VM. It is guest-kernel and boot evidence, not physical router, switch or
-radio acceptance. Final SDK-package provisioning is recorded separately; this
-checkpoint used a locally compiled helper installed in the disposable guest.
+radio acceptance. The initial correction checkpoint used a locally compiled
+helper installed in the disposable guest. The final SDK-package run and its
+separate control-packet accounting are recorded below.
 
 ## Environment
 
@@ -70,3 +71,94 @@ startup entry was removed. The VM was handed back to the parent acceptance run
 with a confirmed closed policy, private DNS ownership and the physical `eth0`
 ingress guard. The pristine checkpoint remains available for clean final-package
 provisioning. Temporary running monitors disappear at the next VM restart.
+
+## Final SDK package run
+
+The disposable guest was restored from its stopped-disk pristine checkpoint and
+provisioned with the final `source-hsdpl8_b` x86/64 SDK artifacts, version
+`0.1.0-r1`: controller, guard, node and optional conntrack packages. Package bytes
+were copied from the selected host artifacts and checked again in the guest;
+the older read-only package mount was not used. This includes the final private
+`IngressBound` correction. Installation, trusted setup, confirmed closed routing,
+actual guest reboot, firewall reload/flush, QEMU powercut, helper recovery and
+LAN management checks passed. Original network, firewall and DHCP hashes matched.
+
+The first strict outgoing-capture assertion correctly reported four unexpected
+packets. They were not discarded by TCP flags. A second clean full run reproduced
+them while recording simultaneous bidirectional WAN and LAN Ethernet captures,
+starting before the four persistent client connections were opened. Socket
+addresses/ports and confirmation/recovery timestamps were recorded independently.
+
+**Final result: 0 forwarded protected client packets; 4 router-generated
+rejects.** The total outgoing WAN capture is not empty. Each reject is a bare
+zero-payload TCP reset responding to a retransmission from the synthetic WAN
+server on an already recorded pre-policy connection after the first reboot:
+
+| Family | Client port | Server port | Incoming ACK = reset sequence | Response delay |
+| --- | ---: | ---: | ---: | ---: |
+| IPv4 | 35152 | 53 | 3625051855 | 1.329 ms |
+| IPv4 | 55192 | 18080 | 917762119 | 1.343 ms |
+| IPv6 | 39200 | 53 | 805623445 | 0.745 ms |
+| IPv6 | 59142 | 18080 | 1431468064 | 0.759 ms |
+
+The resets left the guest WAN MAC with TTL/hop-limit 64. The same initial client
+connections were observed on LAN at 64 and forwarded to WAN at 63. Every reset
+matches the reverse tuple and exact ACK of an immediately preceding WAN
+PSH+ACK. Its payload/sequence/ACK match an earlier captured server retransmission.
+There is no matching LAN-origin reset, and the specific triggering copy did not
+reach the LAN. Earlier copies of old server data did reach the LAN before reboot;
+that is recorded separately from the protected outbound-traffic assertion.
+The IPv6 source is the client's observed SLAAC address, not an assumed gateway
+address. WAN captured 3,210 packets and LAN 58,796; all three captures reported
+zero dropped packets. After confirmation, the only outgoing frames were these
+four control replies: no new SYN, UDP or client payload escaped.
+
+`docker/lab-openwrt-vm/capture.py` requires all these proofs for each individual
+reset and reports the control-reply count separately. It does not exclude RSTs
+from capture. A missing inbound match, wrong sequence, observed LAN reset,
+forwarded TTL, SYN/data/UDP, unknown connection, duplicate reset, missing initial
+calibration, truncated capture or packet loss fails the assertion. The final
+assertion shared by the live harness and read-only evidence replay passed on the
+saved full-run captures; 17 capture tests and four checkpoint tests passed using
+Python's standard `unittest` without Docker.
+
+The retained local evidence is under `test-results/openwrt-boot-network/`:
+
+- `final-sdk-duplex.log`: real install/boot phases and pre-policy socket inventory.
+- `final-sdk-capture-metadata.json`: exact inputs for the shared final assertion.
+- `final-sdk-{wan,lan}-duplex.pcap`, `final-sdk-reset-reproduced.pcap` and their
+  `.tcpdump.log` count records; the initial unexpected reset capture is retained
+  as `final-sdk-reset-before.pcap`.
+
+Replay without accessing a VM:
+
+```sh
+python3 scripts/lab-openwrt-boot.py --verify-captures \
+  test-results/openwrt-boot-network/final-sdk-capture-metadata.json
+python3 -m unittest discover -s docker/lab-openwrt-vm -p 'test_*.py'
+```
+
+The actual WAN duplex pcap SHA-256 is
+`4d69cd8036371810cb2635caa27eb265b202048baae990d24920ff76ec248696`;
+the LAN duplex pcap SHA-256 is
+`fbab782224da9d7b877c992e1679caffeac2ced26f4e87a6552c55eec3a71c4c`.
+No production change was made in response to these proven router control replies.
+After verification, the installed final SDK baseline was handed to the separate
+maintenance acceptance run with confirmed closed routing, no maintenance hold or
+job, no temporary lab CA, and no remaining synthetic WAN listener.
+
+## Router-recursive DNS limitation
+
+The dedicated dnsmasq UID TCP/UDP53 guard remains installed for every managed
+routing plan, including an explicitly selected Direct source. It blocks uncached
+upstream DNS requests issued by the router's dnsmasq process; there is currently
+no separate selected-path route for that router-originated recursion. Router
+applications using that resolver, such as package tools or NTP hostname lookup,
+can therefore fail to resolve uncached names. Cached/local DNS answers and local
+management remain available. Client DNS intercepted by selected-path rules and
+per-source probe DNS are separate paths and do not remove this limitation.
+
+This is an explicit functional limitation of this development PR. The current
+change retains the verified closed guard rather than adding an unverified direct
+exception. The VM checks above do not claim that ordinary router-recursive DNS
+continues to work while managed routing is installed.

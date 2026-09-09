@@ -6,9 +6,9 @@ not a signed release or physical-device compatibility claim.
 
 | SDK target | Package architecture | Packages | Total compressed bytes | Result |
 | --- | --- | ---: | ---: | --- |
-| x86/64 | x86_64 | 6 | 9,650,333 | Pass |
-| mediatek/mt7622 | aarch64_cortex-a53 | 6 | 8,666,610 | Pass |
-| ramips/mt7621 | mipsel_24kc | 6 | 9,057,313 | Pass |
+| x86/64 | x86_64 | 6 | 9,654,805 | Pass |
+| mediatek/mt7622 | aarch64_cortex-a53 | 6 | 8,669,941 | Pass |
+| ramips/mt7621 | mipsel_24kc | 6 | 9,057,900 | Pass |
 
 Each build used the independently verified official SDK archive, pinned Go
 1.27.1 and a read-only source snapshot in a container without network access.
@@ -18,11 +18,15 @@ All nine executable payloads passed ELF section/segment bounds, static-loader,
 permission and Go build-metadata checks. The nine dependency-only packages contain
 no executable payload. MIPS32 metadata specifies soft-float.
 
-The first clean x86_64 installation passed client reachability, management,
-reboot, firewall reload/flush and abrupt-restart assertions. Its continuous WAN
-capture nevertheless contained four TCP Reset packets, so that full-boot run is
-not accepted as a pass. A separate bidirectional capture is investigating their
-origin; the package-content results above do not depend on that classification.
+An earlier frozen x86_64 snapshot (`source-hsdpl8_b`, before the removal-order
+and status-read corrections) passed clean installation, client reachability,
+management, reboot, firewall reload/flush and abrupt-restart assertions. The first outgoing-only capture
+contained four TCP Reset packets and was not sufficient to prove their origin.
+A repeated full run captured both directions at WAN and LAN. The shared final
+assertion verified **zero forwarded protected client packets** and separately
+proved **four router-generated rejections** of old server retransmissions. All
+captures reported zero dropped packets; this is not a claim of zero total WAN
+traffic. [Exact boot evidence](openwrt-boot-network.md) records that distinction.
 
 The [exact identities, sizes and hashes](sdk-package-matrix.json) include both
 compressed IPKs and their executable payloads. Source files were hashed before
@@ -32,13 +36,16 @@ matched. The snapshot includes `go.mod`, `LICENSE`, `api`, `cmd`, `internal`,
 SHA-256 is computed from the sorted compact JSON mapping of paths to file hashes:
 
 ```text
-aeafccaeb4a9c4ece8f2df8b14297221f079083ebc68cc1d575033ebfba29703
+ad805e08453b39f2a24a62ca81799be897f1e48e2285309e4da4f07dde447e3e
 ```
 
-The source base is `b314ebfe2e9463d752799b95ca44e0400838c718` with the current
+The source base is `88d5b71e890b25306a8e2e97bc504749ad95970d` with the current
 uncommitted implementation additions; these artifacts are not attributed to that
-base commit alone. An isolated copy changes only recipe `PKG_VERSION` to `0.1.1`
-for the x86_64 maintenance upgrade fixture. That test version is not a release.
+base commit alone. The previous snapshot also supplied an isolated `0.1.1`
+maintenance upgrade fixture. The newly built packages above contain the removal
+and status-read fixes; they have not had a new full-boot run. Additional VM runs
+and physical installation were deferred by the user on 2026-09-09. Neither
+development version is a signed release.
 
 The verified SDK archive SHA-256 values are:
 

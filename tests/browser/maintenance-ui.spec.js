@@ -319,3 +319,129 @@ test('maintenance capabilities recover the active root operation without dispatc
   await expect(page.locator('#maintenance-review')).toBeDisabled();
   expect(starts).toBe(0);
 });
+
+test('busy maintenance status retries only reads and accepts authoritative completion', async ({
+  page,
+}) => {
+  let reads = 0,
+    starts = 0;
+  await page.clock.install();
+  await fixture(page, {
+    start: (route) => {
+      starts++;
+      return route.fulfill({ json: job('running') });
+    },
+    status: (route) => {
+      reads++;
+      return reads === 1
+        ? route.fulfill({
+            status: 503,
+            json: {
+              error: {
+                code: 'maintenance_state_busy',
+                message: 'Package service is busy.',
+                retryable: true,
+              },
+            },
+          })
+        : route.fulfill({ json: job('completed') });
+    },
+  });
+  await openMaintenance(page);
+  await page.getByLabel('Maintenance operation ID', { exact: true }).fill(operationID);
+  await page.getByRole('button', { name: 'Read maintenance status', exact: true }).click();
+  await expect(page.locator('#maintenance-feedback')).toContainText(
+    'Retrying this status read (1 of 3)',
+  );
+  await expect(page.locator('#maintenance-operation-detail')).not.toContainText(
+    'Software maintenance completed',
+  );
+  await page.clock.runFor(3100);
+  await expect(page.locator('#maintenance-operation-detail')).toContainText(
+    'Software maintenance completed',
+  );
+  expect(reads).toBe(2);
+  expect(starts).toBe(0);
+});
+
+test('busy maintenance status stops after three automatic retries', async ({ page }) => {
+  let reads = 0;
+  await page.clock.install();
+  await fixture(page, {
+    start: () => {
+      throw Error('A status read must not dispatch work');
+    },
+    status: (route) => {
+      reads++;
+      return route.fulfill({
+        status: 503,
+        json: {
+          error: {
+            code: 'maintenance_state_busy',
+            message: 'Package service is busy.',
+            retryable: true,
+          },
+        },
+      });
+    },
+  });
+  await openMaintenance(page);
+  await page.getByLabel('Maintenance operation ID', { exact: true }).fill(operationID);
+  await page.getByRole('button', { name: 'Read maintenance status', exact: true }).click();
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await expect(page.locator('#maintenance-feedback')).toContainText(
+      `Retrying this status read (${attempt} of 3)`,
+    );
+    await page.clock.runFor(3100);
+  }
+  await expect(page.locator('#maintenance-feedback')).toContainText(
+    'Maintenance status could not be verified',
+  );
+  // Jump past the retry window without issuing 30 seconds of unrelated
+  // dashboard polls against the shared real API in a fraction of a second.
+  await page.clock.fastForward(30000);
+  expect(reads).toBe(4);
+  await expect(page.locator('#maintenance-operation-detail')).not.toContainText(
+    'Software maintenance completed',
+  );
+  await expect(page.locator('#maintenance-operation-id')).toHaveValue(operationID);
+});
+
+for (const errorCase of [
+  { name: 'other error code', status: 503, code: 'maintenance_rejected', retryable: true },
+  {
+    name: 'nonretryable busy error',
+    status: 503,
+    code: 'maintenance_state_busy',
+    retryable: false,
+  },
+  { name: 'different HTTP status', status: 422, code: 'maintenance_state_busy', retryable: true },
+]) {
+  test(`maintenance status does not automatically retry ${errorCase.name}`, async ({ page }) => {
+    let reads = 0;
+    await page.clock.install();
+    await fixture(page, {
+      start: () => {
+        throw Error('A status read must not dispatch work');
+      },
+      status: (route) => {
+        reads++;
+        return route.fulfill({
+          status: errorCase.status,
+          json: { error: { ...errorCase, message: 'Status could not be read.' } },
+        });
+      },
+    });
+    await openMaintenance(page);
+    await page.getByLabel('Maintenance operation ID', { exact: true }).fill(operationID);
+    await page.getByRole('button', { name: 'Read maintenance status', exact: true }).click();
+    await expect(page.locator('#maintenance-feedback')).toContainText(
+      'Maintenance status could not be verified',
+    );
+    await page.clock.fastForward(30000);
+    expect(reads).toBe(1);
+    await expect(page.locator('#maintenance-operation-detail')).not.toContainText(
+      'Software maintenance completed',
+    );
+  });
+}
