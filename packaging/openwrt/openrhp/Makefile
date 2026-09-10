@@ -58,7 +58,7 @@ define Package/openrhp
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
   TITLE:=OpenReverseHomeProxy gateway controller and web UI
-  DEPENDS:=+openrhp-guard +ca-bundle
+  DEPENDS:=+openrhp-guard +ca-bundle +conntrack
   USERID:=openrhp:openrhp
 endef
 
@@ -71,12 +71,12 @@ define Package/openrhp-node
   USERID:=openrhp-node:openrhp-node
 endef
 
-# Optional feature package: core gateway installation does not require it.
+# Compatibility feature alias. Selective DNS recovery requires conntrack in core.
 define Package/openrhp-conntrack
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Routing and Redirection
-  TITLE:=OpenRHP optional scoped connection tracking reset
+  TITLE:=OpenRHP scoped connection tracking reset compatibility package
   DEPENDS:=+openrhp +conntrack
 endef
 

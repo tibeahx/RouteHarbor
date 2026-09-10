@@ -21,6 +21,7 @@ import (
 )
 
 type Request struct {
+	Dispatcher     *DispatcherRequest       `json:"dispatcher,omitempty"`
 	Continuity     *ContinuityRequest       `json:"continuity,omitempty"`
 	Maintenance    *maintenance.WireRequest `json:"maintenance,omitempty"`
 	Gateway        *coverage.Operation      `json:"gateway,omitempty"`
@@ -35,6 +36,7 @@ type Request struct {
 	Slot           uint16                   `json:"slot,omitempty"`
 }
 type Response struct {
+	Dispatcher  *DispatcherStatus         `json:"dispatcher,omitempty"`
 	Continuity  *ContinuityStatus         `json:"continuity,omitempty"`
 	Maintenance *maintenance.WireResponse `json:"maintenance,omitempty"`
 	Gateway     map[string]any            `json:"gateway,omitempty"`
@@ -45,6 +47,9 @@ type Response struct {
 	Platform    *platform.Report          `json:"platform,omitempty"`
 }
 type Server struct {
+	dispatchers        map[int]*dispatcherRegistration
+	dispatcherMu       sync.Mutex
+	dispatcherUpload   *dispatcherUpload
 	continuity         *continuityRegistration
 	continuityRelay    *model.ContinuityConfig
 	Maintenance        maintenance.Service
@@ -157,6 +162,10 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		s.handleContinuity(ctx, conn, reader, *req.Continuity, release)
 		return
 	}
+	if req.Operation == "dispatcher" {
+		s.handleDispatcher(ctx, conn, reader, *req.Dispatcher, release)
+		return
+	}
 	if req.Operation == "dial_probe" {
 		s.handleProbe(ctx, conn, req)
 		return
@@ -220,7 +229,10 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		resp.State = &state
 	case "prepare":
 		s.probeMu.Lock()
-		err = s.validateContinuityPathLocked(*req.Desired)
+		err = s.validateDispatcherPlanLocked(*req.Desired)
+		if err == nil {
+			err = s.validateContinuityPathLocked(*req.Desired)
+		}
 		for _, p := range req.Desired.Paths {
 			if err != nil {
 				break
@@ -243,7 +255,10 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		state, e := s.Manager.Status()
 		err = e
 		if err == nil && state.Transaction != nil && state.Transaction.ID == req.TransactionID {
-			err = s.validateContinuityPathLocked(state.Transaction.Candidate)
+			err = s.validateDispatcherPlanLocked(state.Transaction.Candidate)
+			if err == nil {
+				err = s.validateContinuityPathLocked(state.Transaction.Candidate)
+			}
 		}
 		if err == nil {
 			t, e := s.Manager.Apply(
@@ -277,6 +292,20 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 }
 
 func validateRequest(r Request) error {
+	if r.Operation == "dispatcher" {
+		if r.Dispatcher == nil {
+			return errors.New("invalid_request")
+		}
+		v := r
+		v.Dispatcher, v.Operation = nil, "status"
+		if validateRequest(v) != nil {
+			return errors.New("invalid_request")
+		}
+		return validateDispatcherRequest(*r.Dispatcher)
+	}
+	if r.Dispatcher != nil {
+		return errors.New("invalid_request")
+	}
 	if r.Operation == "continuity" {
 		if r.Continuity == nil || r.Maintenance != nil || r.Gateway != nil || r.Engine != nil ||
 			r.ProbePath != nil ||

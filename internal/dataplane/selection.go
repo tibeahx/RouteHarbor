@@ -11,7 +11,7 @@ import (
 // still require the full guarded network transaction.
 func SelectionNFT(previous, candidate Desired) (string, error) {
 	if previous.BreakExisting || candidate.BreakExisting || previous.Continuity != nil ||
-		candidate.Continuity != nil {
+		candidate.Continuity != nil || previous.Selective != nil || candidate.Selective != nil {
 		return "", errors.New("selection_requires_full_apply")
 	}
 	if _, err := Compile(previous); err != nil {

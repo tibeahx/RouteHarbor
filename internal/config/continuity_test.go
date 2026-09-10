@@ -79,6 +79,7 @@ func TestContinuityRejectsUnsafePairingAndConflictingPolicy(t *testing.T) {
 	p.RelayAddress, p.RelayFingerprint = "", ""
 	c.Policy.BreakExisting = true
 	c.Policy.Fallback = "direct"
+	c.Routing = nil // This assertion covers legacy policy compatibility.
 	if err := Validate(c); err != nil {
 		t.Fatal("disabled feature changed legacy policy", err)
 	}

@@ -18,6 +18,7 @@ import (
 	"github.com/tibeahx/OpenRHP/internal/adapter"
 	"github.com/tibeahx/OpenRHP/internal/continuity"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/dispatch"
 	"github.com/tibeahx/OpenRHP/internal/model"
 	"github.com/tibeahx/OpenRHP/internal/platform"
 )
@@ -25,6 +26,7 @@ import (
 // ContinuityWorkerRequest is private. Keys are transported only in inherited
 // descriptors and the authenticated local helper channel, never argv/status.
 type ContinuityWorkerRequest struct {
+	Bridge       *dispatch.Bridge       `json:"bridge,omitempty"`
 	Config       model.ContinuityConfig `json:"config"`
 	Path         adapter.Path           `json:"path"`
 	Network      model.Network          `json:"network"`
@@ -40,6 +42,7 @@ type ContinuityWorkerRequest struct {
 type ContinuityListener struct {
 	Network string `json:"network"`
 	DNS     bool   `json:"dns"`
+	Bridge  bool   `json:"bridge,omitempty"`
 	FD      int    `json:"fd"`
 }
 
@@ -112,6 +115,21 @@ func ValidateContinuityWorker(r ContinuityWorkerRequest) error {
 		len(r.Sources) == 0 ||
 		len(r.Sources) > 249 {
 		return errors.New("invalid_continuity_network")
+	}
+	if r.Bridge != nil {
+		b := r.Bridge
+		u, ue := hex.DecodeString(b.Username)
+		password, pe := hex.DecodeString(b.Password)
+		if b.Port < 1024 || b.Port > 65535 || b.Port == p.TransparentPort || b.Port == p.DNSPort ||
+			ue != nil || pe != nil || len(u) != 16 || len(password) != 32 {
+			return errors.New("invalid_continuity_bridge")
+		}
+		for _, source := range r.Sources {
+			if b.Port == source.TransparentPort || b.Port == source.ProxyPort ||
+				b.Port == source.DNSPort {
+				return errors.New("invalid_continuity_bridge")
+			}
+		}
 	}
 	seen := map[string]bool{}
 	d := dataplane.Desired{
@@ -455,6 +473,16 @@ func (s *Server) startContinuity(
 	}
 	if err == nil {
 		err = s.validateContinuitySourcesLocked(request.Sources)
+	}
+	if err == nil && request.Bridge != nil {
+		for _, dispatcher := range s.dispatchers {
+			a := dispatcher.spec.Allocation
+			for _, port := range []int{a.Path.TransparentPort, a.Path.ProxyPort, a.Path.DNSPort, a.DNSFrontPort, a.DirectPort, a.APIPort} {
+				if port == request.Bridge.Port {
+					err = errors.New("invalid_continuity_bridge")
+				}
+			}
+		}
 	}
 	if err == nil && s.continuityRelay != nil &&
 		!reflect.DeepEqual(*s.continuityRelay, request.Config) {

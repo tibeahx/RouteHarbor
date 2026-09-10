@@ -27,6 +27,7 @@ SHA256 = '3caea69f186b2bce80938d265e5e2a3dfd0f8713aed101df35d60b88d7270d1f'
 GUEST = '10.44.0.1'
 QEMU_CPU = 'qemu64'
 CONTAINER = 'openrhp-openwrt-boot-lab'
+WAN_PREFIX = '198.18.0'
 
 
 def run(args, data=None, check=True, timeout=30):
@@ -80,7 +81,7 @@ def network():
     present = run(['ip', 'netns', 'list']).stdout.decode()
     for name, bridge, address, address6, gateway, gateway6 in (
         ('openrhp-client', 'vm-lan', '10.44.0.20/24', 'fd44:1::20/64', GUEST, 'fd44:1::1'),
-        ('openrhp-wan', 'vm-wan', '198.18.0.1/24', 'fd44:2::1/64', '', ''),
+        ('openrhp-wan', 'vm-wan', f'{WAN_PREFIX}.1/24', 'fd44:2::1/64', '', ''),
     ):
         if name not in present:
             ip('netns', 'add', name)
@@ -98,7 +99,7 @@ def network():
             ip('-n', name, '-6', 'route', 'replace', 'default', 'via', gateway6)
     ip('-n', 'openrhp-wan', 'address', 'replace', '8.8.8.8/32', 'dev', 'lo')
     ip('-n', 'openrhp-wan', '-6', 'address', 'replace', '2001:4860:4860::8888/128', 'dev', 'lo')
-    ip('-n', 'openrhp-wan', 'route', 'replace', '10.44.0.0/24', 'via', '198.18.0.2')
+    ip('-n', 'openrhp-wan', 'route', 'replace', '10.44.0.0/24', 'via', f'{WAN_PREFIX}.2')
     ip('-n', 'openrhp-wan', '-6', 'route', 'replace', 'fd44:1::/64', 'via', 'fd44:2::2')
 
 
@@ -237,9 +238,9 @@ uci set network.lan.netmask='255.255.255.0'
 uci -q delete network.lan.ip6assign || true
 uci set network.lan.ip6addr='fd44:1::1/64'
 uci set network.wan.proto='static'
-uci set network.wan.ipaddr='198.18.0.2'
+uci set network.wan.ipaddr='{WAN_PREFIX}.2'
 uci set network.wan.netmask='255.255.255.0'
-uci set network.wan.gateway='198.18.0.1'
+uci set network.wan.gateway='{WAN_PREFIX}.1'
 uci set network.wan.ip6addr='fd44:2::2/64'
 uci set network.wan.ip6gw='fd44:2::1'
 uci -q delete network.wan6 || true
@@ -263,7 +264,7 @@ dropbearkey -y -f /etc/dropbear/dropbear_ed25519_host_key
 
 def info():
     return {'container': CONTAINER, 'guest': GUEST, 'guest_lan_ipv6': 'fd44:1::1',
-            'guest_wan': '198.18.0.2', 'guest_wan_ipv6': 'fd44:2::2',
+            'guest_wan': f'{WAN_PREFIX}.2', 'guest_wan_ipv6': 'fd44:2::2',
             'client_namespace': 'openrhp-client', 'client': '10.44.0.20', 'client_ipv6': 'fd44:1::20',
             'wan_namespace': 'openrhp-wan', 'wan_target': '8.8.8.8', 'wan_target_ipv6': '2001:4860:4860::8888',
             'qemu_pid': running_pid(), 'image_sha256': SHA256,

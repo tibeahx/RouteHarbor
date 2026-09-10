@@ -356,6 +356,7 @@ func TestAgentOnlyWorkflowAndOperationPolling(t *testing.T) {
 	h := setup(t)
 	h.s.Runtime.Prober = successfulProber{}
 	c := config.Defaults()
+	c.Routing = nil // Preserve this legacy all-traffic workflow fixture.
 	c.Sources = []model.Source{
 		{
 			ID:       "direct",

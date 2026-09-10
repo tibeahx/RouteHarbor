@@ -150,7 +150,9 @@ when matching private configuration checkpoints are available. Inspect transacti
 status and any path-initialization error before continuing an interrupted operation
 or preparing new configuration. Missing checkpoints or occupied inputs block probes
 without claiming that routing was restored. Never turn protected traffic into
-direct access as an automatic repair.
+direct access as an ad hoc repair. Selective profiles carry an explicit, journaled
+emergency-direct policy for classifier or managed DNS failure; let the independent
+watchdog enforce that policy and inspect its state rather than changing WAN rules.
 
 ## 6. Optional coverage node
 
@@ -248,3 +250,25 @@ config/API requests, logs and arguments. Preserve `fallback:closed` and
 prepare/apply/confirm. A ready standby, buffers and replay do not certify a maximum
 pause: report measured TCP/UDP behavior, queue pressure, relay restarts and grace
 expiry for the exact authorized devices, separately from unit/Linux/VM evidence.
+
+## Selective blocked-destination routing
+
+Read `/routing` and `/routing/status` before changing scope. New configurations
+select ordinary WAN direct and bypass only blocked destinations; old missing/null
+profiles retain all-traffic routing until an explicit migration is applied and
+confirmed. Use the dedicated `PUT /routing` to preserve source credentials. Keep
+`policy.fallback:closed` for the bypass pool. Direct may transport to a private
+relay, but cannot become a direct exit for blocked destinations.
+
+Antifilter is a third-party publication of registry domains and explicit subnets,
+not verified official attribution. Do not substitute resolved-domain IP lists or
+aggregated `/24` feeds. Automatic detection requires the user's explicit HTTPS
+control targets and produces temporary exact-domain `Detected restriction` rules.
+Inspect list freshness and generations; file publication alone is not engine ACK.
+Administrative `/routing/refresh` and `/routing/check` use CAS/idempotent operations.
+
+In a separately authorized lab, verify two domains sharing an IP choose different
+exits, ordinary direct survives a failed bypass method, and classifier/DNS failure
+restores ordinary WAN/DNS. Reconnect or refresh stale FakeIP DNS caches as needed.
+Do not mistake a failed list download for a classifier failure. Preserve maintenance
+holds. See [selective routing](docs/selective-routing.md) for DNS limits and evidence.

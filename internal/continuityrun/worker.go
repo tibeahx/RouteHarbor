@@ -145,6 +145,9 @@ func RunWorker(ctx context.Context) error {
 	if r.Path.DNSPort == 0 {
 		maxListeners /= 2
 	}
+	if r.Bridge != nil {
+		maxListeners++
+	}
 	if len(r.Listeners) != maxListeners {
 		return errors.New("invalid continuity listeners")
 	}
@@ -152,6 +155,10 @@ func RunWorker(ctx context.Context) error {
 	for i, spec := range r.Listeners {
 		if spec.FD != 7+i {
 			return errors.New("invalid continuity descriptor")
+		}
+		if spec.Bridge && (r.Bridge == nil || i != 0 || spec.Network != "tcp4" || spec.DNS) ||
+			!spec.Bridge && r.Bridge != nil && i == 0 {
+			return errors.New("invalid continuity bridge descriptor")
 		}
 		f := os.NewFile(uintptr(spec.FD), "continuity-listener")
 		if f == nil {
@@ -164,7 +171,16 @@ func RunWorker(ctx context.Context) error {
 				return errors.New("invalid continuity listener")
 			}
 			listeners = append(listeners, l)
-			wg.Go(func() { serveTCP(ctx, g, l, r, spec.DNS, tcpSlots) })
+			if spec.Bridge {
+				address, err := netip.ParseAddrPort(l.Addr().String())
+				if err != nil || !address.Addr().IsLoopback() ||
+					int(address.Port()) != r.Bridge.Port {
+					return errors.New("invalid continuity bridge listener")
+				}
+				wg.Go(func() { serveBridge(ctx, g, l, *r.Bridge, tcpSlots) })
+			} else {
+				wg.Go(func() { serveTCP(ctx, g, l, r, spec.DNS, tcpSlots) })
+			}
 		} else if strings.HasPrefix(spec.Network, "udp") {
 			p, err := net.FilePacketConn(f)
 			_ = f.Close()

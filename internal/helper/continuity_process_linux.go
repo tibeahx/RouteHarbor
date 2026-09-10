@@ -269,6 +269,16 @@ func openContinuityListeners(
 			}
 		}
 	}()
+	// Keep both ingress forms prepared; the committed routing transaction picks
+	// which receives traffic. A dormant bridge leaves legacy forwarding unchanged.
+	if r.Bridge != nil {
+		file, err := openContinuityBridgeListener(ctx, r.Bridge.Port)
+		if err != nil {
+			return nil, nil, errors.New("continuity_bridge_unavailable")
+		}
+		files = append(files, file)
+		specs = append(specs, ContinuityListener{Network: "tcp4", Bridge: true, FD: 7})
+	}
 	ports := []int{r.Path.TransparentPort}
 	if r.Path.DNSPort != 0 {
 		ports = append(ports, r.Path.DNSPort)
@@ -317,6 +327,23 @@ func openContinuityListeners(
 	}
 	ok = true
 	return files, specs, nil
+}
+
+func openContinuityBridgeListener(ctx context.Context, port int) (*os.File, error) {
+	l, err := (&net.ListenConfig{}).Listen(
+		ctx,
+		"tcp4",
+		net.JoinHostPort("127.0.0.1", strconv.Itoa(port)),
+	)
+	if err != nil {
+		return nil, errors.New("continuity_bridge_unavailable")
+	}
+	file, err := l.(*net.TCPListener).File()
+	_ = l.Close()
+	if err != nil {
+		return nil, errors.New("continuity_bridge_unavailable")
+	}
+	return file, nil
 }
 
 func (c *Client) DialContinuity(ctx context.Context, sourceID string) (net.Conn, error) {

@@ -1,0 +1,13 @@
+{
+  "mode": "selective",
+  "failure_policy": "direct",
+  "registry": {
+    "enabled": true,
+    "provider": "antifilter"
+  },
+  "detection": {
+    "enabled": false,
+    "control_target_ids": []
+  },
+  "exceptions": []
+}

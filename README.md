@@ -26,7 +26,9 @@ there is no required cloud account or hardware vendor lock-in.
 - Checks required HTTPS resources, response time and bounded download throughput.
   Unknown packet-loss measurements stay unknown. It does not perform TLS MITM.
 - Uses freshness, recovery checks, sustained improvement, dwell time and cooldown
-  to avoid oscillation. Direct fallback is an explicit policy.
+  to avoid oscillation. New configurations route ordinary destinations directly and send blocked
+  destinations through the selected bypass. Classifier failure has an explicit
+  emergency-direct policy; old profiles retain legacy behavior until migration.
 - Separates saved configuration, read-only plans and confirmed network changes.
   Existing TCP connections are not promised to survive a change of external IP.
 - Offers optional [session continuity through your own relay](docs/session-continuity.md),
@@ -103,3 +105,6 @@ routers. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full verification comman
 Licensed under [Apache-2.0](LICENSE). See [third-party notices](THIRD_PARTY.md)
 for separately installed engines. OpenRHP does not automatically update OpenWrt,
 flash devices or promise to bypass every present or future restriction.
+
+Selective routing, managed FakeIP DNS, registry provenance, detector limits and
+emergency recovery are documented in [selective-routing.md](docs/selective-routing.md).

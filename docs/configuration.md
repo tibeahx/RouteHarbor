@@ -6,7 +6,10 @@ Schema 1 lives in `internal/model` and `api/openapi.yaml`. The private JSON file
 must match the current revision. Unknown versions, duplicate JSON keys, unknown
 fields, invalid enum values and oversized documents are rejected.
 
-The initial role is `gateway`. Sources and targets are empty. Selection is off;
+The initial role is `gateway`. Sources and targets are empty. New installations
+include `routing.mode:selective`, explicit emergency `failure_policy:direct`,
+Antifilter registry enabled and detection disabled. Old missing/null routing
+profiles retain legacy semantics. Selection is off;
 fallback is `closed`. The `node` role never runs a competing gateway selector.
 Source configuration is portable; select physical interfaces again on each device.
 Do not restore another device's interface mapping without a new preflight.
@@ -96,8 +99,9 @@ rules for that user's TCP/UDP destination port 53. These rules survive an nftabl
 flush. They also block router-originated upstream queries from that dnsmasq user
 while managed routing remains installed; cached/local answers and ordinary router
 management keep the kernel's existing local routing rule. Selected-path DNS uses
-its separately prepared interception path. Only explicit decommission removes the
-DNS guard. A changed DNS identity prevents reapply and retains prior protection.
+its separately prepared interception path. Legacy protected routing removes the DNS guard only on explicit decommission.
+A selective profile also authorizes its watchdog to remove that owned guard when
+restoring ordinary DNS during classifier failure. A changed DNS identity prevents reapply and retains prior protection.
 Changing the router's DNS service outside OpenRHP requires another preflight.
 
 The helper also records the selected LAN bridges' verified ingress members. It
@@ -123,3 +127,21 @@ of disconnected grace. Enabling requires gateway role, closed fallback and
 GET/PUT `/continuity` preserves source credentials and follows normal authenticated
 CAS/idempotency requirements. Changes require a fresh network transaction.
 See [session-continuity.md](session-continuity.md) for pairing, limits and evidence.
+
+## Selective routing
+
+`routing` is an optional complete profile. `mode` is `selective` or `legacy-all`;
+`failure_policy:direct` explicitly authorizes ordinary WAN recovery after classifier
+or managed DNS failure. `registry` has `enabled` and provider `antifilter`.
+`detection` has `enabled` and up to 64 `control_target_ids`, referencing configured
+HTTPS resources on port 443; enablement requires at least one explicit control. `exceptions` holds
+at most 4096 rules, each with `action:direct|bypass` and exactly one canonical public
+`domain` or `cidr` (a numeric IP or prefix). `include_subdomains` is explicit and only applies to domains.
+Unicode names must use ASCII A-labels. Policy bypass fallback stays closed and
+`break_existing` must remain false to preserve ordinary direct connections.
+
+Dedicated GET/PUT `/routing` preserves source settings, uses normal auth, CAS and
+idempotency, and requires a separate network transaction for activation. List
+snapshots, DNS observations and learned rules do not enlarge the saved profile.
+See [selective-routing.md](selective-routing.md) for precedence, DNS limits,
+registry provenance, detection confirmation and emergency recovery.

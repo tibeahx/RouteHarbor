@@ -349,7 +349,7 @@ type engineInput struct {
 	port          int
 }
 
-func engineInputsReady(pid int, p adapter.Path) bool {
+func engineInputsReady(pid int, p adapter.Path, extra ...engineInput) bool {
 	owners := map[string]bool{}
 	files, err := os.ReadDir(fmt.Sprintf("/proc/%d/fd", pid))
 	if err != nil {
@@ -386,6 +386,7 @@ func engineInputsReady(pid int, p adapter.Path) bool {
 		}
 	}
 	seen := map[engineInput]bool{}
+	wanted = append(wanted, extra...)
 	for _, family := range []string{"4", "6"} {
 		for _, proto := range []string{"tcp", "udp"} {
 			suffix := ""

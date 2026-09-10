@@ -57,6 +57,17 @@ func wireServices(s *api.Server, state, socket string) error {
 		_ = nodes.Close()
 		return e
 	}
+	s.Runtime.Routing, e = control.NewRoutingControl(
+		s.Runtime,
+		client,
+		filepath.Join(state, "routing"),
+	)
+	if e != nil {
+		_ = nodes.Close()
+		_ = s.Runtime.Continuity.Close(context.Background())
+		return e
+	}
+	s.Routing = s.Runtime.Routing
 	if client != nil {
 		s.Maintenance = helper.MaintenanceClient{Client: client}
 		s.Runtime.Adapters.EnableTransparent = true

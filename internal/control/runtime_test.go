@@ -20,6 +20,7 @@ func runtimeFixture(t *testing.T) *Runtime {
 		t.Fatal(e)
 	}
 	c := store.Get()
+	c.Routing = nil // This shared direct-source fixture represents legacy all-traffic routing.
 	c.Sources = []model.Source{
 		{
 			ID:       "direct",

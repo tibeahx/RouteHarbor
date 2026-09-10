@@ -24,3 +24,14 @@
 Use the panel's **Download diagnostics**, or `GET /api/v1/diagnostics`, for a redacted
 report. Capture only minimal counters/metadata unless packet capture is expressly part
 of an isolated authorized test. Never upload live secrets or user packet contents.
+
+## Selective routing
+
+If only a blocked destination fails, inspect the bypass method and relay status.
+Ordinary direct destinations should remain reachable. An `emergency-direct` status
+means the dispatcher or managed DNS failed: ordinary WAN/DNS is restored, and
+connections may need reconnecting or a DNS-cache refresh. A stale registry retains
+its last good rules; refresh failure alone should never cause emergency direct.
+Unknown engine generation is not proof that a published snapshot was applied.
+Own DoH clients and strict DNSSEC validators cannot use every managed FakeIP feature.
+See [selective-routing.md](selective-routing.md) before migrating an old profile.

@@ -2,7 +2,9 @@ package control
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"net"
@@ -15,6 +17,7 @@ import (
 	"github.com/tibeahx/OpenRHP/internal/continuity"
 	"github.com/tibeahx/OpenRHP/internal/continuityrun"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/dispatch"
 	"github.com/tibeahx/OpenRHP/internal/helper"
 	"github.com/tibeahx/OpenRHP/internal/model"
 	"github.com/tibeahx/OpenRHP/internal/node"
@@ -85,6 +88,39 @@ func (cc *ContinuityControl) Public() map[string]any {
 		out["qualified"] = false
 	}
 	return out
+}
+
+// Bridge returns a private copy for the local dispatcher configuration. It must
+// never be included in Public, diagnostics, logs or network transaction journals.
+func (cc *ContinuityControl) Bridge() *dispatch.Bridge {
+	cc.mu.Lock()
+	defer cc.mu.Unlock()
+	if cc.request == nil || cc.request.Bridge == nil {
+		return nil
+	}
+	b := *cc.request.Bridge
+	return &b
+}
+
+// reserveContinuityBridge keeps the chosen port bound until helper takeover.
+// Existing engine/dispatcher allocations are already reserved or listening, so
+// the kernel excludes them. The helper independently checks and binds the port.
+func reserveContinuityBridge() (*dispatch.Bridge, net.Listener, error) {
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		return nil, nil, errors.New("continuity bridge allocation unavailable")
+	}
+	credentials := make([]byte, 48)
+	if _, err := rand.Read(credentials); err != nil {
+		_ = l.Close()
+		return nil, nil, errors.New("continuity bridge identity unavailable")
+	}
+	b := &dispatch.Bridge{
+		Port:     l.Addr().(*net.TCPAddr).Port,
+		Username: hex.EncodeToString(credentials[:16]),
+		Password: hex.EncodeToString(credentials[16:]),
+	}
+	return b, l, nil
 }
 
 func (cc *ContinuityControl) Refresh(ctx context.Context) {
@@ -282,16 +318,32 @@ func (cc *ContinuityControl) Prepare(
 		Config:      *c.Continuity,
 		Path:        path,
 		Network:     c.Network,
-		Sources:     paths,
+		Sources:     append([]adapter.Path(nil), paths...),
 		Preferred:   selected,
 		Standby:     standby,
 		Certificate: certificate,
 		PrivateKey:  string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: key})),
 	}
+	var bridgeReservation net.Listener
+	// A dormant private input is also prepared for legacy mode, allowing the
+	// routing transaction to migrate either way without replacing relay sessions.
+	if cc.request != nil && cc.request.Bridge != nil {
+		b := *cc.request.Bridge
+		request.Bridge = &b
+	} else {
+		request.Bridge, bridgeReservation, e = reserveContinuityBridge()
+		if e != nil {
+			return nil, e
+		}
+		defer func() { _ = bridgeReservation.Close() }()
+	}
 	for i := range request.Sources {
 		request.Sources[i].ProxyURL = nil
 	}
 	r.Adapters.ReleaseContinuityInputs()
+	if bridgeReservation != nil {
+		_ = bridgeReservation.Close()
+	}
 	process, e := cc.Client.StartContinuity(ctx, request)
 	if e != nil {
 		return nil, e

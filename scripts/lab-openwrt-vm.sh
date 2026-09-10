@@ -13,7 +13,8 @@ lab_control=/lab/vmctl.py
 case "${OPENRHP_VM_PROFILE:-x86-64}" in
  x86-64) ;;
  x86-generic) lab_name=openrhp-openwrt-i386-lab; lab_control=/lab/vmctl-i386.py ;;
- *) echo 'Only the pinned x86-64 and x86-generic VM profiles are supported.' >&2; exit 2 ;;
+ selective) lab_name=openrhp-selective-boot-lab; lab_control=/lab/vmctl-selective.py ;;
+ *) echo 'Only the pinned x86-64, x86-generic and selective VM profiles are supported.' >&2; exit 2 ;;
 esac
 lab_image=${OPENRHP_VM_IMAGE:-openrhp-openwrt-vm:24.10.7}
 if docker container inspect "$lab_name" >/dev/null 2>&1; then
@@ -21,7 +22,7 @@ if docker container inspect "$lab_name" >/dev/null 2>&1; then
  [ "$(docker inspect --format '{{.HostConfig.NetworkMode}}' "$lab_name")" = none ] || { echo 'The lab must use Docker network none.' >&2; exit 1; }
  [ "$(docker inspect --format '{{range .Mounts}}{{if eq .Destination "/state"}}{{.Source}}{{end}}{{end}}' "$lab_name")" = "$2" ] || { echo 'Stop the existing lab before selecting another private state directory.' >&2; exit 1; }
 else
- docker run --detach --rm --name "$lab_name" --label org.openrhp.lab=full-boot --network none --privileged \
+ docker run --detach --rm --name "$lab_name" --label org.openrhp.lab=full-boot --label "openrhp.task=${OPENRHP_VM_PROFILE:-x86-64}-routing" --network none --privileged \
   --mount "type=bind,source=$1,target=/inputs,readonly" \
   --mount "type=bind,source=$2,target=/state" \
   --mount "type=bind,source=$3,target=/packages,readonly" \

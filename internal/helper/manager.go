@@ -33,30 +33,33 @@ type Backend interface {
 type (
 	Watchdog    interface{ Arm(string) error }
 	Transaction struct {
-		ID              string             `json:"id"`
-		Kind            string             `json:"kind,omitempty"`
-		State           string             `json:"state"`
-		CreatedAt       time.Time          `json:"created_at"`
-		Deadline        time.Time          `json:"deadline,omitempty"`
-		Candidate       dataplane.Desired  `json:"candidate"`
-		Rollback        dataplane.Desired  `json:"rollback"`
-		Previous        *dataplane.Desired `json:"previous,omitempty"`
-		ErrorCode       string             `json:"error_code,omitempty"`
-		FlowTermination string             `json:"flow_termination,omitempty"`
+		ID                         string             `json:"id"`
+		Kind                       string             `json:"kind,omitempty"`
+		State                      string             `json:"state"`
+		CreatedAt                  time.Time          `json:"created_at"`
+		Deadline                   time.Time          `json:"deadline,omitempty"`
+		Candidate                  dataplane.Desired  `json:"candidate"`
+		Rollback                   dataplane.Desired  `json:"rollback"`
+		Previous                   *dataplane.Desired `json:"previous,omitempty"`
+		PreviousSelectiveEmergency bool               `json:"previous_selective_emergency,omitempty"`
+		ErrorCode                  string             `json:"error_code,omitempty"`
+		FlowTermination            string             `json:"flow_termination,omitempty"`
 	}
 )
 
 type State struct {
-	IngressBound       bool               `json:"ingress_bound,omitempty"`
-	Ingress            []string           `json:"ingress_devices,omitempty"`
-	DNSGuard           *DNSGuardIdentity  `json:"dns_guard,omitempty"`
-	MaintenanceJob     string             `json:"maintenance_job,omitempty"`
-	MaintenanceLastJob string             `json:"maintenance_last_job,omitempty"`
-	MaintenanceHold    bool               `json:"maintenance_hold,omitempty"`
-	Guarded            bool               `json:"guarded"`
-	Version            int                `json:"version"`
-	Committed          *dataplane.Desired `json:"committed,omitempty"`
-	Transaction        *Transaction       `json:"transaction,omitempty"`
+	IngressBound              bool               `json:"ingress_bound,omitempty"`
+	Ingress                   []string           `json:"ingress_devices,omitempty"`
+	DNSGuard                  *DNSGuardIdentity  `json:"dns_guard,omitempty"`
+	MaintenanceJob            string             `json:"maintenance_job,omitempty"`
+	MaintenanceLastJob        string             `json:"maintenance_last_job,omitempty"`
+	MaintenanceHold           bool               `json:"maintenance_hold,omitempty"`
+	SelectiveEmergencyPending bool               `json:"selective_emergency_pending,omitempty"`
+	SelectiveEmergency        bool               `json:"selective_emergency,omitempty"`
+	Guarded                   bool               `json:"guarded"`
+	Version                   int                `json:"version"`
+	Committed                 *dataplane.Desired `json:"committed,omitempty"`
+	Transaction               *Transaction       `json:"transaction,omitempty"`
 }
 type Manager struct {
 	dir      string
@@ -279,7 +282,24 @@ func (m *Manager) prepare(
 					"active_lan_change: explicitly decommission routing before changing LAN devices or their guard priority order",
 				)
 			}
+			if previous, next := s.Committed.Selective, d.Selective; previous != nil &&
+				next != nil &&
+				previous.Path.Slot != next.Path.Slot &&
+				previous.FakePool == next.FakePool {
+				return errors.New(
+					"allocation_conflict: staged dispatchers require disjoint virtual address pools",
+				)
+			}
 			oldPaths, nextPaths := s.Committed.Paths, d.Paths
+			if s.Committed.Selective != nil {
+				oldPaths = append(
+					append([]dataplane.Path(nil), oldPaths...),
+					s.Committed.Selective.Path,
+				)
+			}
+			if d.Selective != nil {
+				nextPaths = append(append([]dataplane.Path(nil), nextPaths...), d.Selective.Path)
+			}
 			if s.Committed.Continuity != nil {
 				oldPaths = append(
 					append([]dataplane.Path(nil), oldPaths...),
@@ -297,7 +317,9 @@ func (m *Manager) prepare(
 							"allocation_conflict: active slots cannot be reassigned to a different source or listener",
 						)
 					}
-					if old.SourceID == next.SourceID && old.Slot != next.Slot {
+					if old.SourceID == next.SourceID &&
+						old.SourceID != dataplane.SelectiveSourceID &&
+						old.Slot != next.Slot {
 						return errors.New(
 							"allocation_conflict: retained sources must preserve their connection marks",
 						)
@@ -331,16 +353,35 @@ func (m *Manager) prepare(
 			return err
 		}
 		out = Transaction{
-			ID:        hex.EncodeToString(id),
-			State:     "prepared",
-			CreatedAt: m.now().UTC(),
-			Candidate: d,
-			Rollback:  dataplane.SafeRollback(d, s.Committed),
-			Previous:  s.Committed,
+			ID:                         hex.EncodeToString(id),
+			State:                      "prepared",
+			CreatedAt:                  m.now().UTC(),
+			Candidate:                  d,
+			Rollback:                   dataplane.SafeRollback(d, s.Committed),
+			Previous:                   s.Committed,
+			PreviousSelectiveEmergency: s.SelectiveEmergency || s.SelectiveEmergencyPending,
 		}
 		if s.MaintenanceHold {
-			out.Rollback.Selected = ""
-			out.Rollback.Fallback = "closed"
+			if d.Selective != nil {
+				out.Rollback = dataplane.SafeRollback(
+					dataplane.Desired{Network: d.Network, Fallback: "closed"},
+					nil,
+				)
+			} else {
+				out.Rollback.Selected = ""
+				out.Rollback.Fallback = "closed"
+			}
+		}
+		if s.Committed != nil && s.Committed.Selective != nil && !s.MaintenanceHold {
+			watchdog, ok := m.watchdog.(interface{ ArmPrepared(string) error })
+			if !ok {
+				return errors.New(
+					"watchdog_unavailable: prepared selective policy requires independent monitoring",
+				)
+			}
+			if err := watchdog.ArmPrepared(out.ID); err != nil {
+				return err
+			}
 		}
 		s.Transaction = &out
 		return m.save(s)
@@ -427,6 +468,8 @@ func (m *Manager) Apply(
 		}
 		t.State = "applied"
 		s.Guarded = false
+		s.SelectiveEmergency = false
+		s.SelectiveEmergencyPending = false
 		if err = m.save(s); err != nil {
 			return err
 		}
@@ -544,9 +587,14 @@ func (m *Manager) rollbackLocked(ctx context.Context, s *State) error {
 		return errors.New("rollback_pending: independent watchdog will retry")
 	}
 	t.State = "rolled-back"
-	s.Guarded = t.Rollback.Selected == ""
+	s.Guarded = t.Rollback.Selected == "" && t.Rollback.Selective == nil
 	d := t.Rollback
 	s.Committed = &d
+	s.SelectiveEmergency = false
+	s.SelectiveEmergencyPending = false
+	if t.PreviousSelectiveEmergency && d.Selective != nil && !s.MaintenanceHold {
+		return m.selectiveEmergencyLocked(ctx, s, d)
+	}
 	return m.save(s)
 }
 
@@ -573,21 +621,35 @@ func (m *Manager) Recover(ctx context.Context) (bool, error) {
 	return done, err
 }
 
-// Resume arms a fresh watchdog for an interrupted, still-pending transaction.
+// Resume restores independent monitoring for pending transactions and committed
+// selective policy, including synthetic guards after completed emergency direct.
 func (m *Manager) Resume(ctx context.Context) error {
 	done, err := m.Recover(ctx)
 	if err != nil {
 		return err
 	}
-	if done {
-		return nil
-	}
 	s, err := m.Status()
 	if err != nil {
 		return err
 	}
+	if done &&
+		(s.MaintenanceHold || s.MaintenanceJob != "" || s.Committed == nil || s.Committed.Selective == nil) {
+		return nil
+	}
+	if s.Transaction == nil {
+		return errors.New("watchdog_unavailable: selective transaction identity missing")
+	}
 	if m.watchdog == nil {
 		return errors.New("watchdog_unavailable")
+	}
+	if s.Transaction.State == "prepared" {
+		prepared, ok := m.watchdog.(interface{ ArmPrepared(string) error })
+		if !ok {
+			return errors.New(
+				"watchdog_unavailable: prepared selective monitoring requires independent watchdog",
+			)
+		}
+		return prepared.ArmPrepared(s.Transaction.ID)
 	}
 	return m.watchdog.Arm(s.Transaction.ID)
 }
