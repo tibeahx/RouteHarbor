@@ -27,7 +27,7 @@ func (m *Manager) previousPayloads(ctx context.Context, plan Plan) ([]PackagePay
 				desired[p.Name] = version
 			}
 			if p.Name == "openrhp" {
-				for _, wrapper := range []string{"openrhp-sing-box", "openrhp-xray", "openrhp-conntrack"} {
+				for _, wrapper := range []string{"openrhp-sing-box", "openrhp-xray", "openrhp-conntrack", "openrhp-continuity"} {
 					if version := inventory.Packages[wrapper]; version != "" {
 						desired[wrapper] = version
 					}

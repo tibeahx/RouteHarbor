@@ -75,5 +75,18 @@ start_service
         self.assertIn("Refusing to replace an existing foreign SDK package directory", script)
         self.assertNotIn("ar r", script)
 
+    def test_continuity_package_is_optional_and_helper_supervised(self):
+        recipe = (FILES.parent / "Makefile").read_text()
+        self.assertIn("Package/openrhp-continuity/install", recipe)
+        self.assertIn("bin/openrhp-continuity $(1)/usr/libexec/", recipe)
+        self.assertNotIn("openrhp-continuity.init", recipe)
+        core = recipe.split("define Package/openrhp\n", 1)[1].split("endef", 1)[0]
+        self.assertNotIn("+openrhp-continuity", core)
+        service = (ROOT / "packaging/systemd/openrhp-relay.service").read_text()
+        self.assertIn("User=openrhp-relay", service)
+        self.assertIn("StateDirectoryMode=0700", service)
+        self.assertIn("NoNewPrivileges=true", service)
+        self.assertNotIn("--private-key", service)
+
 if __name__ == "__main__":
     unittest.main()

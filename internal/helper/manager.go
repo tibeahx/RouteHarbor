@@ -34,6 +34,7 @@ type (
 	Watchdog    interface{ Arm(string) error }
 	Transaction struct {
 		ID              string             `json:"id"`
+		Kind            string             `json:"kind,omitempty"`
 		State           string             `json:"state"`
 		CreatedAt       time.Time          `json:"created_at"`
 		Deadline        time.Time          `json:"deadline,omitempty"`
@@ -159,6 +160,20 @@ func (m *Manager) read() (State, error) {
 				return s, errors.New("journal_invalid: previous policy is invalid")
 			}
 		}
+		if t.Kind != "" && t.Kind != "selection" {
+			return s, errors.New("journal_invalid: unknown transaction kind")
+		}
+		if t.Kind == "selection" {
+			if t.Previous == nil {
+				return s, errors.New("journal_invalid: selection lacks previous state")
+			}
+			if _, e = dataplane.SelectionNFT(*t.Previous, t.Candidate); e != nil {
+				return s, errors.New("journal_invalid: invalid selection transaction")
+			}
+			if t.FlowTermination != "" {
+				return s, errors.New("journal_invalid: selection cannot reset flows")
+			}
+		}
 		if t.FlowTermination != "" {
 			if t.State != "confirmed" || previousResetSlot(t) == 0 ||
 				(t.FlowTermination != "pending" && t.FlowTermination != "completed" && t.FlowTermination != "failed") {
@@ -264,10 +279,20 @@ func (m *Manager) prepare(
 					"active_lan_change: explicitly decommission routing before changing LAN devices or their guard priority order",
 				)
 			}
-			for _, old := range s.Committed.Paths {
-				for _, next := range d.Paths {
+			oldPaths, nextPaths := s.Committed.Paths, d.Paths
+			if s.Committed.Continuity != nil {
+				oldPaths = append(
+					append([]dataplane.Path(nil), oldPaths...),
+					s.Committed.Continuity.Path,
+				)
+			}
+			if d.Continuity != nil {
+				nextPaths = append(append([]dataplane.Path(nil), nextPaths...), d.Continuity.Path)
+			}
+			for _, old := range oldPaths {
+				for _, next := range nextPaths {
 					if old.Slot == next.Slot &&
-						(old.SourceID != next.SourceID || old.Kind != next.Kind || old.Interface != next.Interface || old.Port != next.Port) {
+						(old.SourceID != next.SourceID || old.Kind != next.Kind || old.Interface != next.Interface || old.Port != next.Port || old.DNSPort != next.DNSPort) {
 						return errors.New(
 							"allocation_conflict: active slots cannot be reassigned to a different source or listener",
 						)

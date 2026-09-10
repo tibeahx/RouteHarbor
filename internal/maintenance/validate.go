@@ -6,13 +6,17 @@ func ValidateRequest(request Request, start bool) error {
 	if request.Action != "install" && request.Action != "upgrade" && request.Action != "remove" {
 		return errors.New("maintenance_action_invalid")
 	}
-	if len(request.Components) == 0 || len(request.Components) > 4 {
+	if len(request.Components) == 0 || len(request.Components) > 5 {
 		return errors.New("maintenance_components_invalid")
 	}
 	seen := map[string]bool{}
 	for _, component := range request.Components {
 		switch component {
-		case "openrhp", "openrhp-sing-box", "openrhp-xray", "openrhp-conntrack":
+		case "openrhp",
+			"openrhp-sing-box",
+			"openrhp-xray",
+			"openrhp-conntrack",
+			"openrhp-continuity":
 		case "openrhp-guard":
 			return errors.New("maintenance_guard_replacement_unsupported")
 		default:

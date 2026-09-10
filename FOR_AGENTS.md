@@ -235,3 +235,16 @@ unpairing is never a request to rotate credentials.
   enabled source names, checks performed, private backup location and removal method.
   List unperformed device/client/IPv6/radio/boot checks explicitly. Do not report
   installation complete based only on a package-manager or API exit code.
+
+
+## Optional private relay continuity
+
+Follow [session continuity](docs/session-continuity.md) when the owner explicitly
+chooses to use their own VPS relay. The optional package installs a worker; it
+does not enable the profile or interception. Exchange only public fingerprints
+through existing trusted administration. Private identity files stay separate from
+config/API requests, logs and arguments. Preserve `fallback:closed` and
+`break_existing:false` while continuity is enabled. Apply changed routing through
+prepare/apply/confirm. A ready standby, buffers and replay do not certify a maximum
+pause: report measured TCP/UDP behavior, queue pressure, relay restarts and grace
+expiry for the exact authorized devices, separately from unit/Linux/VM evidence.

@@ -6,6 +6,8 @@ build:
 	$(GO) build -trimpath -o bin/openrhp-helper ./cmd/openrhp-helper
 	$(GO) build -trimpath -o bin/openrhp-node ./cmd/openrhp-node
 	$(GO) build -trimpath -o bin/openrhp-release ./cmd/openrhp-release
+	$(GO) build -trimpath -o bin/openrhp-continuity ./cmd/openrhp-continuity
+	$(GO) build -trimpath -o bin/openrhp-relay ./cmd/openrhp-relay
 test:
 	$(GO) test -race ./...
 check:

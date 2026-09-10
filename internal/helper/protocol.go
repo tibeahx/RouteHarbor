@@ -16,10 +16,12 @@ import (
 	"github.com/tibeahx/OpenRHP/internal/coverage"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
 	"github.com/tibeahx/OpenRHP/internal/maintenance"
+	"github.com/tibeahx/OpenRHP/internal/model"
 	"github.com/tibeahx/OpenRHP/internal/platform"
 )
 
 type Request struct {
+	Continuity     *ContinuityRequest       `json:"continuity,omitempty"`
 	Maintenance    *maintenance.WireRequest `json:"maintenance,omitempty"`
 	Gateway        *coverage.Operation      `json:"gateway,omitempty"`
 	Engine         *EngineRequest           `json:"engine,omitempty"`
@@ -33,6 +35,7 @@ type Request struct {
 	Slot           uint16                   `json:"slot,omitempty"`
 }
 type Response struct {
+	Continuity  *ContinuityStatus         `json:"continuity,omitempty"`
 	Maintenance *maintenance.WireResponse `json:"maintenance,omitempty"`
 	Gateway     map[string]any            `json:"gateway,omitempty"`
 	OK          bool                      `json:"ok"`
@@ -42,6 +45,8 @@ type Response struct {
 	Platform    *platform.Report          `json:"platform,omitempty"`
 }
 type Server struct {
+	continuity         *continuityRegistration
+	continuityRelay    *model.ContinuityConfig
 	Maintenance        maintenance.Service
 	Gateway            coverage.Operator
 	probeMu            sync.Mutex
@@ -148,6 +153,10 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		writeResponse(conn, Response{Error: "invalid_request"})
 		return
 	}
+	if req.Operation == "continuity" {
+		s.handleContinuity(ctx, conn, reader, *req.Continuity, release)
+		return
+	}
 	if req.Operation == "dial_probe" {
 		s.handleProbe(ctx, conn, req)
 		return
@@ -211,7 +220,11 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		resp.State = &state
 	case "prepare":
 		s.probeMu.Lock()
+		err = s.validateContinuityPathLocked(*req.Desired)
 		for _, p := range req.Desired.Paths {
+			if err != nil {
+				break
+			}
 			if err = s.validateProbeAllocationLocked(p); err != nil {
 				break
 			}
@@ -226,13 +239,22 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		}
 		s.probeMu.Unlock()
 	case "apply":
-		t, e := s.Manager.Apply(
-			ctx,
-			req.TransactionID,
-			time.Duration(req.TimeoutSeconds)*time.Second,
-		)
+		s.probeMu.Lock()
+		state, e := s.Manager.Status()
 		err = e
-		resp.Transaction = &t
+		if err == nil && state.Transaction != nil && state.Transaction.ID == req.TransactionID {
+			err = s.validateContinuityPathLocked(state.Transaction.Candidate)
+		}
+		if err == nil {
+			t, e := s.Manager.Apply(
+				ctx,
+				req.TransactionID,
+				time.Duration(req.TimeoutSeconds)*time.Second,
+			)
+			err = e
+			resp.Transaction = &t
+		}
+		s.probeMu.Unlock()
 	case "confirm":
 		t, e := s.Manager.Confirm(req.TransactionID)
 		err = e
@@ -242,7 +264,7 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 		err = e
 		resp.Transaction = &t
 	case "switch":
-		t, e := s.Manager.Switch(ctx, req.SourceID)
+		t, e := s.switchRegistered(ctx, req.SourceID)
 		err = e
 		resp.Transaction = &t
 	default:
@@ -255,6 +277,22 @@ func (s *Server) handle(ctx context.Context, conn *net.UnixConn, release func())
 }
 
 func validateRequest(r Request) error {
+	if r.Operation == "continuity" {
+		if r.Continuity == nil || r.Maintenance != nil || r.Gateway != nil || r.Engine != nil ||
+			r.ProbePath != nil ||
+			r.Desired != nil ||
+			r.TransactionID != "" ||
+			r.TimeoutSeconds != 0 ||
+			r.SourceID != "" ||
+			r.Address != "" ||
+			r.Slot != 0 {
+			return errors.New("invalid_request")
+		}
+		return validateContinuityRequest(*r.Continuity)
+	}
+	if r.Continuity != nil {
+		return errors.New("invalid_request")
+	}
 	if r.Operation != "maintenance" && r.Maintenance != nil {
 		return errors.New("invalid_request")
 	}
@@ -503,6 +541,9 @@ func transactionResponse(r Response, e error) (Transaction, error) {
 }
 
 func (m *Manager) Switch(ctx context.Context, sourceID string) (Transaction, error) {
+	if tx, handled, err := m.switchSelection(ctx, sourceID); handled || err != nil {
+		return tx, err
+	}
 	s, err := m.Status()
 	if err != nil {
 		return Transaction{}, err

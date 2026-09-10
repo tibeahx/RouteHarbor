@@ -67,6 +67,10 @@ func (s *Server) expireNativeProbesLocked() {
 // prepare RPCs. Durable committed and pending allocations always outrank leases.
 func (s *Server) validateProbeAllocationLocked(p dataplane.Path) error {
 	s.expireNativeProbesLocked()
+	if s.continuity != nil &&
+		probeAllocationConflict(p, continuityAllocation(s.continuity.request)) {
+		return errors.New("probe_allocation_conflict")
+	}
 	for _, r := range s.nativeProbes {
 		if probeAllocationConflict(p, r.Path.path()) {
 			return errors.New("probe_allocation_conflict")
@@ -111,7 +115,11 @@ func (s *Server) validateProbeAllocationLocked(p dataplane.Path) error {
 		if plan == nil {
 			continue
 		}
-		for _, old := range plan.Paths {
+		paths := plan.Paths
+		if plan.Continuity != nil {
+			paths = append(append([]dataplane.Path(nil), paths...), plan.Continuity.Path)
+		}
+		for _, old := range paths {
 			if probeAllocationConflict(p, old) {
 				return errors.New("probe_allocation_conflict")
 			}

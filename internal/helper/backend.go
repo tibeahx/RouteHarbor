@@ -52,6 +52,32 @@ func (b *NetworkBackend) Check(ctx context.Context, p dataplane.Plan) error {
 	if checked.NFT != p.NFT {
 		return errors.New("invalid_plan: generated rules do not match typed intent")
 	}
+	if err = b.checkEnvironment(ctx, p, false); err != nil {
+		return err
+	}
+	if err = b.checkTables(ctx); err != nil {
+		return err
+	}
+	p, err = withLocalAddresses(p)
+	if err != nil {
+		return err
+	}
+	if _, err = b.Runner.Run(
+		ctx,
+		b.NFTBinary,
+		[]string{"--check", "--file", "-"},
+		[]byte(p.GuardNFT+p.NFT),
+	); err != nil {
+		return errors.New("nft_check_failed: kernel rejected generated rules before mutation")
+	}
+	return nil
+}
+
+func (b *NetworkBackend) checkEnvironment(
+	ctx context.Context,
+	p dataplane.Plan,
+	selectedOnly bool,
+) error {
 	report := b.Detect(ctx)
 	if !report.Supported || report.Firewall != "fw4/nftables" {
 		return errors.New(
@@ -106,7 +132,14 @@ func (b *NetworkBackend) Check(ctx context.Context, p dataplane.Plan) error {
 			)
 		}
 	}
-	for _, path := range p.Desired.Paths {
+	paths := p.Desired.Paths
+	if p.Desired.Continuity != nil {
+		paths = append(append([]dataplane.Path(nil), paths...), p.Desired.Continuity.Path)
+	}
+	for _, path := range paths {
+		if selectedOnly && path.SourceID != p.Desired.Selected {
+			continue
+		}
 		if path.Kind == "packet-engine" {
 			if !report.Capabilities["nfqueue"].Available {
 				return errors.New(
@@ -135,21 +168,6 @@ func (b *NetworkBackend) Check(ctx context.Context, p dataplane.Plan) error {
 				return errors.New("interface_mismatch: path is not an active netifd tunnel device")
 			}
 		}
-	}
-	if err = b.checkTables(ctx); err != nil {
-		return err
-	}
-	p, err = withLocalAddresses(p)
-	if err != nil {
-		return err
-	}
-	if _, err = b.Runner.Run(
-		ctx,
-		b.NFTBinary,
-		[]string{"--check", "--file", "-"},
-		[]byte(p.GuardNFT+p.NFT),
-	); err != nil {
-		return errors.New("nft_check_failed: kernel rejected generated rules before mutation")
 	}
 	return nil
 }

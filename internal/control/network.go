@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/tibeahx/OpenRHP/internal/adapter"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
 	"github.com/tibeahx/OpenRHP/internal/helper"
 	"github.com/tibeahx/OpenRHP/internal/model"
@@ -90,6 +91,7 @@ func (n *NetworkCoordinator) Prepare(
 		return nil, errors.New("network disabled")
 	}
 	paths := []dataplane.Path{}
+	carrierPaths := []adapter.Path{}
 	unavailable := []string{}
 	committed := map[string]bool{}
 	if previous.Committed != nil {
@@ -126,6 +128,7 @@ func (n *NetworkCoordinator) Prepare(
 			return nil, e
 		}
 		kind := s.Type
+		carrierPaths = append(carrierPaths, p)
 		if p.TransparentPort > 0 {
 			kind = "tproxy"
 		}
@@ -150,6 +153,22 @@ func (n *NetworkCoordinator) Prepare(
 		Selected:      selected,
 		Fallback:      c.Policy.Fallback,
 		BreakExisting: c.Policy.BreakExisting,
+	}
+	if continuityEnabled(c) {
+		if n.Runtime.Continuity == nil {
+			return nil, errors.New("continuity unavailable")
+		}
+		d.Continuity, e = n.Runtime.Continuity.Prepare(
+			ctx,
+			n.Runtime,
+			c,
+			carrierPaths,
+			selected,
+			nil,
+		)
+		if e != nil {
+			return nil, e
+		}
 	}
 	if _, e := dataplane.Compile(d); e != nil {
 		return nil, e
@@ -194,6 +213,20 @@ func (n *NetworkCoordinator) Action(
 		if n.transaction != id || n.preparedRevision != n.Runtime.Store.Get().Revision {
 			return nil, errors.New("configuration changed; prepare again")
 		}
+		if continuityEnabled(n.Runtime.Store.Get()) {
+			if n.Runtime.Continuity == nil {
+				return nil, errors.New("continuity unavailable")
+			}
+			n.Runtime.Continuity.Refresh(ctx)
+			n.Runtime.mu.Lock()
+			selected := n.Runtime.decision.Selected
+			n.Runtime.mu.Unlock()
+			if selected != "" && !n.Runtime.Continuity.Ready(selected) {
+				return nil, errors.New(
+					"selected relay path is not ready; inspect continuity transports before applying",
+				)
+			}
+		}
 		txn, e = n.Client.Apply(ctx, id, n.timeout)
 	case "confirm":
 		if n.transaction != id || n.preparedRevision != n.Runtime.Store.Get().Revision {
@@ -222,6 +255,13 @@ func (n *NetworkCoordinator) Action(
 	}
 	if action == "confirm" || action == "rollback" {
 		n.refreshRetained(ctx)
+		if n.Runtime.Continuity != nil {
+			state, err := n.Client.Status(ctx)
+			if err == nil && (state.Committed == nil || state.Committed.Continuity == nil) {
+				_ = n.Runtime.Continuity.Close(ctx)
+				_ = n.Runtime.Adapters.Stop(ctx, adapter.ContinuitySourceID)
+			}
+		}
 	}
 	return toMap(txn), nil
 }
@@ -276,6 +316,9 @@ func (n *NetworkCoordinator) Current(ctx context.Context) (map[string]any, error
 // A modified configuration requires a fresh transaction; a restart restores only
 // a private configuration snapshot that matches the helper journal.
 func (n *NetworkCoordinator) Sync(ctx context.Context) {
+	if n.Runtime.Continuity != nil {
+		n.Runtime.Continuity.Refresh(ctx)
+	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
 	if !n.initialized {
@@ -300,6 +343,19 @@ func (n *NetworkCoordinator) Sync(ctx context.Context) {
 	}
 	if s.MaintenanceJob != "" || s.MaintenanceHold {
 		n.lastError = "maintenance_requires_confirmed_routing"
+		return
+	}
+	if s.Committed != nil && s.Committed.Continuity != nil {
+		if s.Guarded {
+			n.lastError = "continuity_requires_confirmed_routing"
+			return
+		}
+		if n.Runtime.Continuity == nil || n.Runtime.Continuity.EnsureRunning(ctx) != nil ||
+			n.Runtime.Continuity.Select(ctx, n.Runtime, selected) != nil {
+			n.lastError = "continuity_worker_unavailable"
+		} else {
+			n.lastError = ""
+		}
 		return
 	}
 	if s.Committed == nil || (s.Committed.Selected == selected && !s.Guarded) {
@@ -336,6 +392,14 @@ func (n *NetworkCoordinator) ValidateChange(ctx context.Context, old, next model
 		return errors.New(
 			"active routing requires explicit decommission: use preserve-closed or restore-direct through trusted local access",
 		)
+	}
+	if state.Committed != nil && state.Committed.Continuity != nil && continuityEnabled(next) {
+		if !reflect.DeepEqual(state.Committed.Continuity.Config, *next.Continuity) ||
+			!sameContinuitySources(old.Sources, next.Sources) {
+			return errors.New(
+				"disable and confirm continuity before changing its relay, limits or prepared sources",
+			)
+		}
 	}
 	retained := map[string]bool{}
 	if state.Committed != nil {

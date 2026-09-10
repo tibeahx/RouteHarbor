@@ -167,3 +167,12 @@ The integration follows OpenWrt's [fw4 include discovery](https://github.com/ope
 and [firewall lifecycle](https://github.com/openwrt/firewall4/blob/master/root/etc/init.d/firewall).
 `fw4 flush` deletes every nft table; the independent routing guard exists for that
 specific lifecycle case.
+
+The optional `openrhp-continuity` package installs `/usr/libexec/openrhp-continuity`
+for private relay session continuity and depends on gateway plus TPROXY/socket
+kernel support. It is separate from the base gateway install, has no independently
+enabled procd service, and is started through the authenticated helper. The SDK
+recipe now produces seven package variants; historical six-package evidence does
+not certify this new worker. `make build` and `scripts/build-matrix.sh` also include
+`openrhp-continuity` and the VPS binary `openrhp-relay`. Pairing and the VPS service
+are described in [session-continuity.md](session-continuity.md).

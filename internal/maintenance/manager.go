@@ -63,7 +63,7 @@ func (m *Manager) Capabilities(ctx context.Context) (map[string]any, error) {
 			"openrhp",
 			"openrhp-sing-box",
 			"openrhp-xray",
-			"openrhp-conntrack",
+			"openrhp-conntrack", "openrhp-continuity",
 		},
 		"actions": []string{"install", "upgrade", "remove"},
 	}

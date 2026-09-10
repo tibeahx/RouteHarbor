@@ -23,6 +23,7 @@ EXPECTED = {
     'openrhp-sing-box': None,
     'openrhp-xray': None,
     'openrhp-conntrack': None,
+    'openrhp-continuity': ('usr/libexec/openrhp-continuity', 'github.com/tibeahx/OpenRHP/cmd/openrhp-continuity'),
 }
 MAX_BYTES = 128 << 20
 

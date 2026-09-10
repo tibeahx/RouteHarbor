@@ -12,7 +12,7 @@ for target in amd64 386 armv5 armv6 armv7 arm64 mips-softfloat mipsle-softfloat 
     armv*) arch=arm; arm=${target#armv} ;;
     mips*-*) arch=${target%-*} ;;
   esac
-  if [ "${PROTOTYPE:-0}" = 1 ]; then programs=prototype; else programs="openrhp openrhp-helper openrhp-node openrhp-release"; fi
+  if [ "${PROTOTYPE:-0}" = 1 ]; then programs=prototype; else programs="openrhp openrhp-helper openrhp-node openrhp-release openrhp-continuity openrhp-relay"; fi
   for program in $programs; do
   if [ "$program" = prototype ]; then entry=./scripts/prototypes/minimal.go; else entry=./cmd/$program; fi
   CGO_ENABLED=0 GOOS=linux GOARCH="$arch" GOARM="$arm" GOMIPS=softfloat GOMIPS64=softfloat "$GO" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$OUT/$program-linux-$target" "$entry"

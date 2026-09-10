@@ -200,6 +200,70 @@
     $('network-enabled').checked = cfg.network.enabled;
     $('dns-mode').value = cfg.network.dns;
     $('dns-resolver').value = cfg.network.dns_resolver || '';
+    const continuity = cfg.continuity || {};
+    $('continuity-enabled').checked = continuity.enabled === true;
+    $('continuity-relay').value = continuity.relay_address || '';
+    $('continuity-pin').value = continuity.relay_fingerprint || '';
+    $('continuity-buffer').value = (continuity.buffer_bytes ?? 33554432) / 1048576;
+    $('continuity-udp-reserve').value = (continuity.udp_reserve_bytes ?? 4194304) / 1048576;
+    $('continuity-grace').value = continuity.disconnected_grace_seconds ?? 30;
+    continuityRequired();
+  }
+
+  function continuityRequired() {
+    const enabled = $('continuity-enabled').checked;
+    $('continuity-relay').required = enabled;
+    $('continuity-pin').required = enabled;
+  }
+
+  function renderContinuity() {
+    const enabled = cfg.continuity?.enabled === true,
+      c = state.continuity || {},
+      status = enabled ? c.status || 'Unavailable' : 'Disabled';
+    $('continuity-state').textContent = status;
+    const paths = (c.paths || []).map((p) => p.name + ': ' + (p.ready ? 'ready' : 'not ready'));
+    $('continuity-detail').textContent = !enabled
+      ? 'Session continuity is disabled.'
+      : [
+          c.degraded_reason || (c.status ? '' : 'No worker readiness measurement is available.'),
+          ...paths,
+        ]
+          .filter(Boolean)
+          .join(' · ') || 'Readiness reported by the continuity worker.';
+    $('continuity-qualification').textContent =
+      c.qualified === true
+        ? 'A measured qualification is available for the current device and path profile; runtime conditions may change.'
+        : 'Switch latency has not been qualified for this device and path profile.';
+    $('continuity-fingerprint').textContent = c.worker_fingerprint || 'Not provisioned';
+    const number = (n, suffix = '') => (Number.isFinite(n) ? String(n) + suffix : '—'),
+      bytes = (n) =>
+        !Number.isFinite(n)
+          ? '—'
+          : n < 1024
+            ? n + ' B'
+            : n < 1048576
+              ? (n / 1024).toFixed(2) + ' KiB'
+              : (n / 1048576).toFixed(2) + ' MiB',
+      values = [
+        ['Active path', c.active_path || '—'],
+        ['Standby path', c.standby_path || '—'],
+        ['Buffered traffic', bytes(c.queue_bytes)],
+        ['UDP queued', bytes(c.udp_queue_bytes)],
+        ['Control queued', bytes(c.control_queue_bytes)],
+        ['TCP flows', number(c.tcp_flows)],
+        ['UDP flows', number(c.udp_flows)],
+        ['Replayed frames', number(c.replayed_frames)],
+        ['Expired UDP', number(c.expired_udp)],
+        ['Dropped UDP', number(c.dropped_udp)],
+        ['Path switches', number(c.switches)],
+        [
+          'Last path change to acknowledgement',
+          c.switches > 0 ? number(c.last_switch_pause_ms, ' ms') : '—',
+        ],
+      ];
+    $('continuity-metrics').replaceChildren();
+    for (const [name, value] of values)
+      $('continuity-metrics').append(el('dt', name), el('dd', value));
   }
 
   function renderSources() {
@@ -436,6 +500,7 @@
     'openrhp-sing-box',
     'openrhp-xray',
     'openrhp-conntrack',
+    'openrhp-continuity',
   ];
   const maintenanceID = /^[0-9a-f]{32}$/;
   const maintenanceActive = ['prepared', 'running', 'verifying'];
@@ -889,6 +954,7 @@
       )
         invalidateMaintenanceReview('Configuration changed. Review a fresh software plan.');
       renderOverview();
+      renderContinuity();
       renderSources();
       renderTargets();
       if (forms || previous !== cfg.revision) renderForms();
@@ -1538,6 +1604,26 @@
   $('check-all').addEventListener('click', () =>
     action(() => api('probes', { method: 'POST', data: { speed: true } }), S.queued),
   );
+  $('continuity-enabled').addEventListener('change', continuityRequired);
+  $('continuity-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    action(
+      () =>
+        api('continuity', {
+          method: 'PUT',
+          cas: true,
+          data: {
+            enabled: $('continuity-enabled').checked,
+            relay_address: $('continuity-relay').value.trim(),
+            relay_fingerprint: $('continuity-pin').value.trim().toLowerCase(),
+            buffer_bytes: Number($('continuity-buffer').value) * 1048576,
+            udp_reserve_bytes: Number($('continuity-udp-reserve').value) * 1048576,
+            disconnected_grace_seconds: Number($('continuity-grace').value),
+          },
+        }),
+      'Continuity settings saved. Prepare and confirm routing to activate the saved plan.',
+    );
+  });
   $('network-form').addEventListener('submit', (e) => {
     e.preventDefault();
     action(

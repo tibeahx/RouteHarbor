@@ -86,10 +86,11 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) routes() map[string]http.HandlerFunc {
 	routes := map[string]http.HandlerFunc{}
 	register := func(pattern string, handler http.HandlerFunc) { routes[pattern] = handler }
-	for _, path := range []string{"status", "capabilities", "preflight", "openapi", "config", "sources", "operations", "diagnostics", "events", "engines", "nodes", "tokens"} {
+	for _, path := range []string{"status", "capabilities", "preflight", "openapi", "config", "continuity", "sources", "operations", "diagnostics", "events", "engines", "nodes", "tokens"} {
 		register("GET /api/v1/"+path, s.read)
 	}
 	register("GET /api/v1/operations/{id}", s.read)
+	register("PUT /api/v1/continuity", s.mutate)
 	register("GET /api/v1/sources/{id}/history", s.read)
 	register("GET /api/v1/transactions/{id}", s.read)
 	for _, path := range []string{"config/validate", "config/plan", "config/export", "nodes/discover"} {
@@ -285,6 +286,8 @@ func (s *Server) read(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(contract.OpenAPI)
 	case "/api/v1/config":
 		write(w, 200, config.Redact(c))
+	case "/api/v1/continuity":
+		write(w, 200, config.RedactContinuity(c.Continuity))
 	case "/api/v1/sources":
 		write(w, 200, config.Redact(c).Sources)
 	case "/api/v1/status":
@@ -475,6 +478,8 @@ func (s *Server) inspect(w http.ResponseWriter, r *http.Request) {
 		out["policy_after"] = c.Policy
 		out["network_before"] = old.Network
 		out["network_after"] = c.Network
+		out["continuity_before"] = config.RedactContinuity(old.Continuity)
+		out["continuity_after"] = config.RedactContinuity(c.Continuity)
 		out["requires_network_transaction"] = c.Network.Enabled
 	}
 	write(w, 200, out)
@@ -752,6 +757,17 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 			fail(400, "invalid_network", "Invalid network settings")
 			return
 		}
+	case path == "/api/v1/continuity":
+		// Decode into a new pointer: a partial object must not inherit old fields.
+		var continuity *model.ContinuityConfig
+		if !bytes.Equal(bytes.TrimSpace(body), []byte("null")) {
+			e = adapter.StrictDecode(body, &continuity)
+		}
+		if e != nil {
+			fail(400, "invalid_continuity", "Expected public continuity settings or null")
+			return
+		}
+		c.Continuity = continuity
 	case path == "/api/v1/policy":
 		if e = adapter.StrictDecode(body, &c.Policy); e != nil {
 			fail(400, "invalid_policy", "Invalid policy object")

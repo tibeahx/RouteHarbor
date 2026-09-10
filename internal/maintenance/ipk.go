@@ -44,7 +44,7 @@ func allowedPackage(name string) bool {
 		"openrhp-node",
 		"openrhp-sing-box",
 		"openrhp-xray",
-		"openrhp-conntrack",
+		"openrhp-conntrack", "openrhp-continuity",
 		"sing-box",
 		"xray-core",
 		"conntrack",

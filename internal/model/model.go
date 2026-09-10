@@ -8,15 +8,31 @@ import (
 
 const SchemaVersion = 1
 
+// ContinuityFixedReserveBytes accounts for bounded ingress staging and mapping overhead in
+// the public total application-buffer budget. Kernel/TLS memory is additional.
+const ContinuityFixedReserveBytes int64 = 512 << 10
+
 type Config struct {
-	SchemaVersion int           `json:"schema_version"`
-	Revision      uint64        `json:"revision"`
-	Role          string        `json:"role"`
-	Sources       []Source      `json:"sources"`
-	Targets       []Target      `json:"targets"`
-	Policy        Policy        `json:"policy"`
-	Probes        ProbeSettings `json:"probes"`
-	Network       Network       `json:"network"`
+	SchemaVersion int               `json:"schema_version"`
+	Revision      uint64            `json:"revision"`
+	Role          string            `json:"role"`
+	Sources       []Source          `json:"sources"`
+	Targets       []Target          `json:"targets"`
+	Policy        Policy            `json:"policy"`
+	Probes        ProbeSettings     `json:"probes"`
+	Network       Network           `json:"network"`
+	Continuity    *ContinuityConfig `json:"continuity,omitempty"`
+}
+
+// ContinuityConfig contains public pairing and resource settings only. The
+// gateway certificate and private key live in a separate private identity file.
+type ContinuityConfig struct {
+	Enabled                  bool   `json:"enabled"`
+	RelayAddress             string `json:"relay_address"`
+	RelayFingerprint         string `json:"relay_fingerprint"`
+	BufferBytes              int64  `json:"buffer_bytes"`
+	UDPReserveBytes          int64  `json:"udp_reserve_bytes"`
+	DisconnectedGraceSeconds int    `json:"disconnected_grace_seconds"`
 }
 type Source struct {
 	ID       string          `json:"id"`
