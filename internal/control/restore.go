@@ -8,6 +8,7 @@ import (
 
 	"github.com/tibeahx/OpenRHP/internal/adapter"
 	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/OpenRHP/internal/dispatch"
 	"github.com/tibeahx/OpenRHP/internal/helper"
 	"github.com/tibeahx/OpenRHP/internal/model"
 )
@@ -35,7 +36,7 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 	current := n.Runtime.Store.Get()
 	confirmed := current
 	if state.Committed != nil &&
-		(len(state.Committed.Paths) > 0 || len(state.Committed.Unavailable) > 0) {
+		(len(state.Committed.Paths) > 0 || len(state.Committed.Unavailable) > 0 || state.Committed.Selective != nil) {
 		found := false
 		if state.Transaction != nil && state.Transaction.State == "confirmed" {
 			if saved, ok, err := n.Runtime.Store.Checkpoint(state.Transaction.ID); err != nil {
@@ -165,6 +166,9 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 		}
 		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
+		if n.Runtime.Routing != nil {
+			_ = n.Runtime.Routing.Close(cleanup)
+		}
 		if n.Runtime.Continuity != nil {
 			_ = n.Runtime.Continuity.Close(cleanup)
 		}
@@ -232,10 +236,46 @@ func (n *NetworkCoordinator) initializeLocked(ctx context.Context) error {
 			return n.restoreFailure("continuity_input_restore_failed")
 		}
 	}
+	// Restore both committed and staged classifiers. Prepare only recreates the
+	// exact recorded listeners; the helper's journal continues to decide which
+	// ingress is active, including a boot-time emergency-direct guard.
+	restoreSelective := func(c model.Config, d dataplane.Desired) error {
+		if d.Selective == nil {
+			return nil
+		}
+		if n.Runtime.Routing == nil {
+			return errors.New("selective dispatcher unavailable")
+		}
+		carriers := []adapter.Path{}
+		for _, path := range d.Paths {
+			source, ok := sources[path.SourceID]
+			if !ok {
+				return errors.New("selective source checkpoint missing")
+			}
+			prepared, err := n.Runtime.Adapters.ProbePath(ctx, source)
+			if err != nil {
+				return err
+			}
+			carriers = append(carriers, prepared)
+		}
+		_, err := n.Runtime.Routing.Prepare(ctx, c, carriers, d.Selected, d.Selective)
+		return err
+	}
+	if state.Committed != nil {
+		if err := restoreSelective(confirmed, *state.Committed); err != nil {
+			return n.restoreFailure("selective_input_restore_failed")
+		}
+	}
+	if pending {
+		saved, _, _ := n.Runtime.Store.Checkpoint(state.Transaction.ID)
+		if err := restoreSelective(saved, state.Transaction.Candidate); err != nil {
+			return n.restoreFailure("selective_pending_restore_failed")
+		}
+	}
 	n.lastError = ""
 	n.Runtime.setPathBlock("")
 	if state.Committed != nil &&
-		(len(state.Committed.Paths) > 0 || len(state.Committed.Unavailable) > 0) &&
+		(len(state.Committed.Paths) > 0 || len(state.Committed.Unavailable) > 0 || state.Committed.Selective != nil) &&
 		reflect.DeepEqual(confirmed, current) {
 		n.confirmedRevision = current.Revision
 	}
@@ -295,6 +335,11 @@ func (r *Runtime) setPathBlock(code string) {
 }
 
 func matchesDesired(c model.Config, d dataplane.Desired) bool {
+	if model.SelectiveRouting(c) != (d.Selective != nil) ||
+		d.Selective != nil &&
+			(d.Selective.PolicyHash != routingConfigHash(c) || d.Selective.FailurePolicy != c.Routing.FailurePolicy) {
+		return false
+	}
 	if continuityEnabled(c) != (d.Continuity != nil) ||
 		d.Continuity != nil && !reflect.DeepEqual(*c.Continuity, d.Continuity.Config) {
 		return false
@@ -334,4 +379,13 @@ func matchesDesired(c model.Config, d dataplane.Desired) bool {
 		}
 	}
 	return true
+}
+
+// routingConfigHash binds private checkpoints to the public routing policy while
+// bulk registry generations remain independently published outside the journal.
+func routingConfigHash(c model.Config) string {
+	if !model.SelectiveRouting(c) {
+		return ""
+	}
+	return dispatch.PolicyHash(*c.Routing)
 }

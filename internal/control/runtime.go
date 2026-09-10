@@ -31,6 +31,7 @@ type Runtime struct {
 	Prober         Prober
 	Network        *NetworkCoordinator
 	Continuity     *ContinuityControl
+	Routing        *RoutingControl
 	Journal        *Journal
 	mu             sync.Mutex
 	selector       *selection.Selector
@@ -88,6 +89,9 @@ func (r *Runtime) Start() {
 				return
 			case now := <-t.C:
 				r.tick(now)
+				if r.Routing != nil {
+					r.Routing.Tick(now)
+				}
 				if r.Network != nil {
 					ctx, cancel := context.WithTimeout(r.ctx, 10*time.Second)
 					r.Network.Sync(ctx)
@@ -103,6 +107,9 @@ func (r *Runtime) Close() {
 	r.wg.Wait()
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	if r.Routing != nil {
+		_ = r.Routing.Close(ctx)
+	}
 	if r.Continuity != nil {
 		_ = r.Continuity.Close(ctx)
 	}
@@ -296,7 +303,16 @@ func (r *Runtime) Probe(ctx context.Context, id string, speed bool) (model.Measu
 }
 
 func (r *Runtime) evaluateLocked(c model.Config, now time.Time) {
-	d := r.selector.Evaluate(c.Sources, now)
+	sources := c.Sources
+	if model.SelectiveRouting(c) && !continuityEnabled(c) {
+		sources = make([]model.Source, 0, len(c.Sources))
+		for _, source := range c.Sources {
+			if source.Type != "direct" {
+				sources = append(sources, source)
+			}
+		}
+	}
+	d := r.selector.Evaluate(sources, now)
 	r.decision = d
 	if d.Changed {
 		r.events = append(r.events, d)

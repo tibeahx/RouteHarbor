@@ -22,6 +22,7 @@ type Config struct {
 	Probes        ProbeSettings     `json:"probes"`
 	Network       Network           `json:"network"`
 	Continuity    *ContinuityConfig `json:"continuity,omitempty"`
+	Routing       *RoutingConfig    `json:"routing,omitempty"`
 }
 
 // ContinuityConfig contains public pairing and resource settings only. The

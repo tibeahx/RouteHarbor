@@ -10,10 +10,10 @@ network dependency downloads. It produces these separate packages:
 
 | Package | Responsibility |
 | --- | --- |
-| `openrhp` | Unprivileged gateway controller, embedded English UI and setup command |
+| `openrhp` | Unprivileged gateway controller, embedded English UI, setup command and conntrack dependency for selective DNS recovery |
 | `openrhp-guard` | Root helper, detached watchdog and persistent safety policy |
 | `openrhp-node` | Unprivileged paired-node TLS agent and separate root node helper |
-| `openrhp-conntrack` | Optional connection tracking utility and kernel dependencies for old-source tracking reset |
+| `openrhp-conntrack` | Compatibility alias for the connection tracking dependency now required by the core gateway package |
 | `openrhp-sing-box` | Optional dependency bundle for the upstream sing-box package and TPROXY modules |
 | `openrhp-xray` | Optional dependency bundle for the upstream Xray package and TPROXY modules |
 
@@ -24,8 +24,10 @@ an unverified executable download or redistribute that engine in its own package
 
 Switches preserve established connection marks by default. The optional
 `policy.break_existing` field enables a bounded reset of the previous source's
-tracking after routing confirmation. Install `openrhp-conntrack` and pass both-family
-privileged preflight before enabling it. A failed reset remains visible while the
+tracking after routing confirmation. Pass both-family privileged preflight before
+enabling it. The core gateway now installs conntrack because selective emergency
+recovery also removes only the dispatcher slot's DNS NAT state; this restores
+normal DNS for applications that reuse an existing UDP socket. A failed reset remains visible while the
 new route stays confirmed; see [configuration](configuration.md). The upstream
 [conntrack package](https://github.com/openwrt/packages/blob/openwrt-24.10/net/conntrack-tools/Makefile)
 installs the fixed `/usr/sbin/conntrack` utility and pulls kernel netlink support

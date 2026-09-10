@@ -504,6 +504,7 @@ func TestPrivateCheckpointRetainsSecretsWithoutPromotingCandidate(t *testing.T) 
 
 func TestOptionalConnectionTrackingReset(t *testing.T) {
 	c := Defaults()
+	c.Routing = nil // Connection resets are a legacy all-traffic option.
 	c.Policy.BreakExisting = true
 	if err := Validate(c); err != nil {
 		t.Fatal(err)

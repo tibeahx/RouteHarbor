@@ -128,11 +128,16 @@
                 </div>
                 <details>
                   <summary>Selection thresholds and fallback</summary>
-                  <label for="fallback">When no healthy path remains</label
-                  ><select id="fallback">
+                  <label id="fallback-label" for="fallback">When no healthy path remains</label
+                  ><select id="fallback" aria-describedby="fallback-selective-help">
                     <option value="closed">Block protected traffic</option>
-                    <option value="direct">Allow direct fallback</option></select
-                  ><label for="improvement">Required improvement (%)</label
+                    <option value="direct">Allow direct fallback</option>
+                  </select>
+                  <p id="fallback-selective-help" class="hint" hidden>
+                    Unavailable bypass methods block only bypass traffic. Ordinary destinations stay
+                    direct; classifier failure restores direct for all destinations.
+                  </p>
+                  <label for="improvement">Required improvement (%)</label
                   ><input id="improvement" type="number" min="1" max="1000" /><label
                     for="confirmations"
                     >Confirming checks</label
@@ -168,6 +173,90 @@
           <details class="history">
             <summary>Selection history</summary>
             <ol id="history-list"></ol>
+          </details>
+          <details id="selective-routing-panel" class="advanced">
+            <summary>Selective routing and blocked destinations</summary>
+            <p>
+              Ordinary traffic leaves directly through your WAN. Known blocked domains and explicit
+              blocked IP ranges use the selected bypass method. Domains sharing an IP can take
+              different routes through managed DNS.
+            </p>
+            <div class="section-heading">
+              <h2>Routing status</h2>
+              <span id="selective-state" class="pill">Unavailable</span>
+            </div>
+            <p id="selective-detail" role="status"></p>
+            <dl id="selective-metrics" class="continuity-metrics"></dl>
+            <p id="selective-emergency" class="hint" hidden>
+              Emergency direct is active. External destinations use ordinary WAN and DNS. Existing
+              connections can break; refresh the application's DNS cache before reconnecting.
+            </p>
+            <p id="selective-legacy" class="hint" hidden>
+              This installation retains legacy all-traffic routing. Saving selective settings
+              prepares an explicit migration; review, apply and confirm the network transaction to
+              activate it.
+            </p>
+            <form id="selective-form">
+              <label for="routing-mode">Traffic scope</label>
+              <select id="routing-mode">
+                <option value="selective">Only blocked destinations</option>
+                <option value="legacy-all">Legacy: all external traffic</option>
+              </select>
+              <label class="check"
+                ><input id="routing-registry" type="checkbox" />Use Antifilter registry lists</label
+              >
+              <p class="hint">
+                Third-party publication of registry domains and explicit subnets. Refreshed every 30
+                minutes; the last good snapshot survives update failures. Lists older than 24 hours
+                are marked stale.
+              </p>
+              <label class="check"
+                ><input id="routing-detection" type="checkbox" />Detect restrictions with
+                comparative checks</label
+              >
+              <label for="routing-controls">Control resource IDs (comma-separated)</label
+              ><input id="routing-controls" autocomplete="off" />
+              <p class="hint">
+                Choose resources already added under Resources to check. Detection uses TCP/TLS on
+                port 443 and three comparisons at least 10 seconds apart. A temporary exact-domain
+                rule lasts one hour. “Detected restriction” does not prove an RKN block. The first
+                connection can fail; requests are never automatically replayed.
+              </p>
+              <h3>Manual exceptions</h3>
+              <p class="hint">
+                Local destinations remain local. Manual direct rules precede manual bypass rules,
+                lists and detected restrictions. Domain rules are exact unless subdomains are
+                explicitly included.
+              </p>
+              <div id="routing-rules"></div>
+              <button id="routing-add-rule" type="button" class="quiet">Add exception</button>
+              <p class="hint">
+                Keep “Block protected traffic” selected under path fallback before migrating.
+                Classifier or managed DNS failure enables emergency direct for all destinations. A
+                bypass method failing only affects blocked destinations. Saving does not apply
+                routing.
+              </p>
+              <button type="submit" class="secondary">Save selective routing settings</button>
+            </form>
+            <button id="routing-refresh" type="button" class="quiet">Refresh registry lists</button>
+            <form id="routing-check-form">
+              <label for="routing-check-domain">Destination domain to check</label
+              ><input
+                id="routing-check-domain"
+                placeholder="example.org"
+                autocomplete="off"
+                required
+                maxlength="253"
+              />
+              <button type="submit" class="secondary">Check destination</button>
+            </form>
+            <p id="routing-check-result" role="status"></p>
+            <p class="hint">
+              Apps using their own encrypted DNS cannot receive domain-specific routing unless their
+              address matches an explicit IP rule. Synthetic managed DNS replies do not support
+              strict DNSSEC validation; URL-only blocks, slowdowns and QUIC-only restrictions are
+              outside detection.
+            </p>
           </details>
           <details id="continuity-panel" class="advanced">
             <summary>Session continuity through your relay</summary>
@@ -266,11 +355,16 @@
               <label for="local-prefixes">Local subnets (comma separated)</label
               ><input id="local-prefixes" autocomplete="off" />
               <p id="discovered-interfaces" class="hint"></p>
-              <label for="dns-mode">DNS policy</label
-              ><select id="dns-mode">
+              <label id="dns-mode-label" for="dns-mode">DNS policy</label
+              ><select id="dns-mode" aria-describedby="dns-selective-help">
                 <option value="block">Block unprotected DNS</option>
-                <option value="selected-path">Use the selected access method</option></select
-              ><label for="dns-resolver">DNS resolver IP (required for selected path)</label
+                <option value="selected-path">Use the selected access method</option>
+              </select>
+              <p id="dns-selective-help" class="hint" hidden>
+                Managed FakeIP DNS; legacy DNS policy applies only in legacy mode.
+              </p>
+              <label id="dns-resolver-label" for="dns-resolver"
+                >DNS resolver IP (required for selected path)</label
               ><input
                 id="dns-resolver"
                 autocomplete="off"

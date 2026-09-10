@@ -8,7 +8,20 @@ The relay is an additional trusted component and a point of failure. A relay reb
 expired disconnected grace, exhausted resources, or an unavailable standby can still
 interrupt traffic. No fixed switch-latency guarantee has been established.
 
-Without this optional profile, path selection sends new connections through the
+In selective routing, only blocked/bypass destinations use the relay. Ordinary
+traffic leaves directly through WAN. A direct source may transport encrypted traffic
+to the relay; it never becomes a direct fallback for a bypass destination.
+
+New workers prepare an authenticated loopback SOCKS5 bridge alongside their legacy
+transparent listeners. The private bridge stays dormant in legacy routing; a
+confirmed routing transaction chooses which input receives application traffic.
+Moving between legacy and selective routing with unchanged relay, network and
+source allocations therefore keeps the same worker and relay session. The bridge
+accepts TCP and bounded UDP associations to numeric public destinations only. Its
+random credentials remain in private process configuration and never appear in
+status, ordinary diagnostics, command arguments or the transaction journal.
+
+Without this optional profile, path selection sends new bypass connections through the
 selected source. Existing marked connections retain their previous prepared path;
 there is no application traffic replay across unrelated external IP addresses.
 Old configuration files omit `continuity` and keep that behavior.
@@ -128,3 +141,8 @@ datagrams, and unchanged LAN rules. The two named carriers share one synthetic
 egress, so this proves functional continuity rather than independent WAN failover
 or a measured device latency target. The relay uses the real core and destination
 policy within the test executable; the separate relay CLI has focused tests.
+
+In selective mode, classifier or managed DNS failure follows the explicit emergency
+direct policy documented in [selective-routing.md](selective-routing.md). Worker
+or relay failure alone does not invoke it and does not disturb ordinary direct
+traffic. A comparative restriction probe must test the actual relay exit.

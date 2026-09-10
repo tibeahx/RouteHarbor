@@ -154,6 +154,9 @@ func (b *NetworkBackend) Remove(ctx context.Context, p dataplane.Plan) error {
 	if err := b.removeDNSGuard(ctx, p); err != nil {
 		return err
 	}
+	if err := b.cleanupSelectiveGuards(ctx, nil, &p, false); err != nil {
+		return err
+	}
 	// Empty owned tables have no packet-handling effect and remain recognizable.
 	for _, table := range []string{dataplane.Table, dataplane.ProbeTable} {
 		if _, err := b.Runner.Run(
@@ -207,6 +210,9 @@ func (m *Manager) quarantineLocked(ctx context.Context, s *State) error {
 	}
 	if d == nil {
 		return nil
+	}
+	if d.Selective != nil && !s.MaintenanceHold && s.MaintenanceJob == "" {
+		return m.selectiveEmergencyLocked(ctx, s, *d)
 	}
 	b, ok := m.backend.(interface {
 		CheckQuarantine(context.Context, dataplane.Plan) error
@@ -271,7 +277,28 @@ func (m *Manager) CanRemove() error {
 
 func (m *Manager) Decommission(ctx context.Context, policy string) error {
 	if policy == "preserve-closed" {
-		return m.BootGuard(ctx)
+		return m.locked(func(s *State) error {
+			selective := s.Committed != nil && s.Committed.Selective != nil ||
+				active(s.Transaction) && s.Transaction.Candidate.Selective != nil
+			if selective {
+				if s.MaintenanceJob != "" {
+					return ErrMaintenanceActive
+				}
+				// A pending confirmation must not clear this later explicit hold.
+				// Resolve the transaction before decommissioning either side of
+				// a migration that involves selective routing.
+				if active(s.Transaction) {
+					return ErrBusy
+				}
+				if !s.MaintenanceHold {
+					s.MaintenanceHold = true
+					if err := m.save(s); err != nil {
+						return err
+					}
+				}
+			}
+			return m.quarantineLocked(ctx, s)
+		})
 	}
 	if policy != "restore-direct" {
 		return errors.New("decommission_policy_required: choose preserve-closed or restore-direct")
@@ -290,6 +317,15 @@ func (m *Manager) decommissionLocked(ctx context.Context, s *State) error {
 	}
 	if s.Committed == nil {
 		return nil
+	}
+	if s.Committed.Selective != nil && s.MaintenanceJob == "" && !s.MaintenanceHold {
+		// Removal temporarily closes ingress. Record that ownership before the
+		// backend creates LAN safety rules, so a crash or failed removal can be
+		// recovered without mistaking our own quarantine for foreign policy.
+		s.MaintenanceHold = true
+		if err := m.save(s); err != nil {
+			return err
+		}
 	}
 	if err := m.quarantineLocked(ctx, s); err != nil {
 		return err
@@ -311,11 +347,18 @@ func (m *Manager) decommissionLocked(ctx context.Context, s *State) error {
 	if err = b.Remove(ctx, p); err != nil {
 		return err
 	}
+	if s.Committed.Selective != nil && s.MaintenanceJob == "" {
+		// Explicit local restore-direct releases the decommission hold. A
+		// package job retains ownership of its separate maintenance gate.
+		s.MaintenanceHold = false
+	}
 	s.Committed = nil
 	s.DNSGuard = nil
 	s.Ingress = nil
 	s.IngressBound = false
 	s.Transaction = nil
 	s.Guarded = false
+	s.SelectiveEmergency = false
+	s.SelectiveEmergencyPending = false
 	return m.save(s)
 }

@@ -41,6 +41,8 @@ type testWatchdog struct {
 	armed int
 }
 
+func (w *testWatchdog) ArmPrepared(string) error { w.armed++; return w.err }
+
 func (w *testWatchdog) Arm(string) error {
 	w.armed++
 	return w.err

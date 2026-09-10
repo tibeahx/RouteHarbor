@@ -47,3 +47,17 @@ proof that a second AP's clients have working DHCP, DNS or internet.
 Use **Sign out** to clear the browser's key. Use **Download diagnostics** for a
 redacted report. Changes made by another UI or agent cause a revision conflict;
 refresh and review the new state before saving your edit again.
+
+## Choose which destinations use bypass
+
+New installations default to **Only blocked destinations**, with interception still
+off. Open **Selective routing and blocked destinations** to review Antifilter
+provenance, exact-domain/IP exceptions, and emergency direct behavior. Detection is
+off until you explicitly choose control resources. Save, prepare, apply and confirm
+a network transaction; saving alone never changes the network. Old configurations
+retain their previous all-traffic behavior until this explicit migration.
+
+Ordinary destinations use WAN; failures of a bypass method should affect only bypass
+traffic. Classifier or managed DNS failure restores ordinary WAN and DNS, as
+explicitly permitted by the profile. That recovery can interrupt sessions and
+require a DNS-cache refresh. See [selective routing](selective-routing.md).

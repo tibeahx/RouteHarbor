@@ -721,10 +721,12 @@ func TestQueuesBoundedAndUDPExpiresWhileDisconnected(t *testing.T) {
 	if s.QueueBytes > l.BufferBytes || s.UDPQueueBytes > l.UDPReserveBytes {
 		t.Fatal("queue budget exceeded")
 	}
-	eventually(t, func() bool { return g.Snapshot().ExpiredUDP > 0 })
-	if g.Snapshot().UDPQueueBytes != flowOverhead {
-		t.Fatal("expired send queue retained payload")
-	}
+	// Datagrams have distinct enqueue timestamps. Seeing the first expiration
+	// does not mean a later datagram has already crossed its replay deadline.
+	eventually(t, func() bool {
+		snapshot := g.Snapshot()
+		return snapshot.ExpiredUDP > 0 && snapshot.UDPQueueBytes == flowOverhead
+	})
 	if g.Snapshot().Qualified {
 		t.Fatal("unmeasured link claimed qualified")
 	}

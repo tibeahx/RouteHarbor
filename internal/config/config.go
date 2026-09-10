@@ -28,6 +28,7 @@ func Defaults() model.Config {
 	return model.Config{
 		SchemaVersion: model.SchemaVersion,
 		Revision:      1,
+		Routing:       RoutingDefaults(),
 		Role:          "gateway",
 		Sources:       []model.Source{},
 		Targets:       []model.Target{},
@@ -233,6 +234,9 @@ func Validate(c model.Config) error {
 	if err := validateContinuity(c); err != nil {
 		return err
 	}
+	if err := validateRouting(c); err != nil {
+		return err
+	}
 	data, err := json.Marshal(c)
 	if err != nil || len(data) > MaxConfigBytes {
 		return bad("configuration", "invalid JSON or exceeds byte limit")
@@ -245,6 +249,7 @@ func Validate(c model.Config) error {
 func Redact(c model.Config) model.Config {
 	c = clone(c)
 	c.Continuity = RedactContinuity(c.Continuity)
+	c.Routing = RedactRouting(c.Routing)
 	for i := range c.Sources {
 		c.Sources[i].Settings = json.RawMessage(`{}`)
 	}

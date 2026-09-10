@@ -44,6 +44,7 @@ type Desired struct {
 	Fallback      string            `json:"fallback"`
 	BreakExisting bool              `json:"break_existing,omitempty"`
 	Continuity    *ContinuityIntent `json:"continuity,omitempty"`
+	Selective     *SelectiveIntent  `json:"selective,omitempty"`
 }
 type Route struct {
 	Family   int    `json:"family"`
@@ -78,6 +79,9 @@ func Build(network model.Network, paths []Path, selected, fallback string) (Plan
 }
 
 func Compile(d Desired) (Plan, error) {
+	if d.Selective != nil {
+		return compileSelective(d)
+	}
 	p := Plan{Desired: d, Routes: []Route{}, Warnings: []string{}}
 	if d.Continuity != nil {
 		var err error
@@ -560,12 +564,13 @@ func render(d Desired, guard bool) string {
 
 // SafeRollback does not silently reopen direct access after a strict transaction.
 func SafeRollback(candidate Desired, previous *Desired) Desired {
-	if candidate.Fallback == "direct" && previous != nil {
+	if (candidate.Fallback == "direct" || candidate.Selective != nil) && previous != nil {
 		return *previous
 	}
 	safe := candidate
 	safe.Paths = nil
 	safe.Continuity = nil
+	safe.Selective = nil
 	safe.Selected = ""
 	safe.Fallback = "closed"
 	safe.Network.DNS = "block"

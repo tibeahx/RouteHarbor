@@ -13,6 +13,7 @@ test.beforeEach(async ({ request }) => {
   c.policy.mode = 'off';
   c.policy.pinned = '';
   c.policy.break_existing = false;
+  c.routing = null; // This suite exercises legacy all-traffic selection and resets.
   const saved = await request.put('/api/v1/config', {
     headers: {
       ...headers,

@@ -5,6 +5,7 @@
   let token = '',
     cfg = null,
     state = null,
+    routingState = null,
     caps = null,
     poll = null,
     refreshing = false,
@@ -84,6 +85,8 @@
     token = '';
     cfg = null;
     state = null;
+    routingState = null;
+    $('routing-check-result').textContent = '';
     gatewayCoverage = null;
     gatewaySetup = null;
     gatewayFingerprint = '';
@@ -183,13 +186,27 @@
   }
 
   function renderForms() {
+    const selective = cfg.routing?.mode === 'selective';
+    const fixedBypassPolicy = selective || cfg.continuity?.enabled === true;
     $('selection-mode').value = cfg.policy.mode;
     $('fallback').value = cfg.policy.fallback;
+    $('fallback').disabled = fixedBypassPolicy;
+    $('fallback').querySelector('option[value="direct"]').disabled = fixedBypassPolicy;
+    $('fallback-label').textContent = selective
+      ? 'When no healthy bypass remains'
+      : 'When no healthy path remains';
+    $('fallback-selective-help').hidden = !selective;
     $('improvement').value = cfg.policy.improvement_percent;
     $('confirmations').value = cfg.policy.confirmations;
     $('break-existing').checked = cfg.policy.break_existing;
+    $('break-existing').disabled =
+      cfg.routing?.mode === 'selective' || cfg.continuity?.enabled === true;
     $('pinned-source').replaceChildren();
-    for (const s of cfg.sources.filter((s) => s.enabled)) {
+    for (const s of cfg.sources.filter(
+      (s) =>
+        s.enabled &&
+        (s.type !== 'direct' || cfg.routing?.mode !== 'selective' || cfg.continuity?.enabled),
+    )) {
       $('pinned-source').append(new Option(s.name, s.id));
     }
     $('pinned-source').value = cfg.policy.pinned || '';
@@ -199,6 +216,12 @@
     $('local-prefixes').value = cfg.network.local_prefixes.join(', ');
     $('network-enabled').checked = cfg.network.enabled;
     $('dns-mode').value = cfg.network.dns;
+    $('dns-mode').disabled = selective;
+    $('dns-mode-label').textContent = selective ? 'Legacy DNS policy' : 'DNS policy';
+    $('dns-selective-help').hidden = !selective;
+    $('dns-resolver-label').textContent = selective
+      ? 'DNS resolver IP (required for managed DNS)'
+      : 'DNS resolver IP (required for selected path)';
     $('dns-resolver').value = cfg.network.dns_resolver || '';
     const continuity = cfg.continuity || {};
     $('continuity-enabled').checked = continuity.enabled === true;
@@ -208,6 +231,113 @@
     $('continuity-udp-reserve').value = (continuity.udp_reserve_bytes ?? 4194304) / 1048576;
     $('continuity-grace').value = continuity.disconnected_grace_seconds ?? 30;
     continuityRequired();
+    const routing = cfg.routing || {};
+    $('routing-mode').value = routing.mode || 'legacy-all';
+    $('routing-registry').checked = routing.registry?.enabled === true;
+    $('routing-detection').checked = routing.detection?.enabled === true;
+    $('routing-controls').value = (routing.detection?.control_target_ids || []).join(', ');
+    $('routing-rules').replaceChildren();
+    for (const rule of routing.exceptions || []) addRoutingRule(rule);
+  }
+
+  function addRoutingRule(rule = { action: 'bypass' }) {
+    const row = el('fieldset'),
+      legend = el('legend', 'Exception'),
+      actionLabel = el('label', 'Route'),
+      action = el('select'),
+      domainLabel = el('label', 'Domain, IP or CIDR'),
+      destination = el('input'),
+      subLabel = el('label', 'Include subdomains'),
+      sub = el('input'),
+      remove = el('button', 'Remove exception', 'quiet');
+    action.append(new Option('Direct WAN', 'direct'), new Option('Selected bypass', 'bypass'));
+    action.value = rule.action;
+    action.dataset.ruleAction = '';
+    actionLabel.append(action);
+    destination.value = rule.domain || rule.cidr || '';
+    destination.required = true;
+    destination.maxLength = 253;
+    destination.dataset.ruleDestination = '';
+    domainLabel.append(destination);
+    sub.type = 'checkbox';
+    sub.checked = rule.include_subdomains === true;
+    sub.dataset.ruleSubdomains = '';
+    subLabel.className = 'check';
+    subLabel.prepend(sub);
+    remove.type = 'button';
+    remove.addEventListener('click', () => row.remove());
+    row.append(legend, actionLabel, domainLabel, subLabel, remove);
+    $('routing-rules').append(row);
+  }
+
+  function renderSelectiveRouting() {
+    const r = routingState || {},
+      registry = r.registry || {},
+      detection = r.detection || {};
+    $('selective-state').textContent = r.state || 'Unavailable';
+    $('selective-emergency').hidden = r.state !== 'emergency-direct';
+    $('selective-legacy').hidden = cfg.routing?.mode === 'selective';
+    $('selective-detail').textContent =
+      r.state === 'unavailable' || !r.state
+        ? 'No classifier readiness measurement is available.'
+        : r.state === 'inactive'
+          ? 'Routing is not active. Review and confirm a network transaction.'
+          : r.state === 'emergency-direct'
+            ? 'Classifier or managed DNS failure: emergency direct.'
+            : cfg.routing?.mode === 'selective'
+              ? 'Ordinary destinations use direct WAN. Bypass rules use the selected method.'
+              : 'Legacy routing applies the selected method to all external destinations.';
+    const count = (value) => (Number.isFinite(value) ? String(value) : '—');
+    const metrics = [
+      ['Bypass method', r.selected || '—'],
+      [
+        'List source',
+        registry.provider === 'antifilter'
+          ? 'Antifilter · third-party registry publication'
+          : registry.provider || '—',
+      ],
+      [
+        'List freshness',
+        registry.updated_at
+          ? timeAgo(registry.updated_at) + (registry.stale ? ' · Stale' : '')
+          : registry.stale
+            ? 'Stale · no current snapshot'
+            : '—',
+      ],
+      ['Registry domains', count(registry.domain_count)],
+      ['Explicit IP ranges', count(registry.cidr_count)],
+      ['Detected restriction rules', count(detection.learned_count)],
+      ['Pending comparisons', count(detection.pending_count)],
+      ['Published generation', count(r.published_generation)],
+      ['Verified engine generation', count(r.verified_generation)],
+      ['List update issue', registry.last_error || '—'],
+      ['Detection issue', detection.last_error || '—'],
+    ];
+    $('selective-metrics').replaceChildren();
+    for (const [label, value] of metrics)
+      $('selective-metrics').append(el('dt', label), el('dd', value));
+  }
+
+  async function routingOperation(path, data) {
+    let op = await api(path, { method: 'POST', cas: true, data });
+    for (let i = 0; ['pending', 'running'].includes(op.state) && i < 120; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      if (!token) return;
+      op = await api('operations/' + op.id);
+    }
+    if (['pending', 'running'].includes(op.state))
+      throw Error('The operation is still running. Check the operation journal before retrying.');
+    const result = op.result?.routing || {};
+    $('routing-check-result').textContent = path.endsWith('/check')
+      ? [
+          'Route: ' + (result.action || 'Unknown'),
+          'Reason: ' + (result.reason || 'Unknown'),
+          'Path: ' + (result.route || 'Unknown'),
+          result.expires_at ? 'Expires: ' + result.expires_at : '',
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : 'Registry refresh completed. Review snapshot freshness and published generation.';
   }
 
   function continuityRequired() {
@@ -944,9 +1074,14 @@
     refreshing = true;
     try {
       const previous = cfg?.revision;
-      const [c, s] = await Promise.all([api('config'), api('status')]);
+      const [c, s, routing] = await Promise.all([
+        api('config'),
+        api('status'),
+        api('routing/status').catch(() => ({ state: 'unavailable' })),
+      ]);
       cfg = c;
       state = s;
+      routingState = routing;
       if (
         maintenance.review &&
         !maintenance.attempted &&
@@ -955,6 +1090,7 @@
         invalidateMaintenanceReview('Configuration changed. Review a fresh software plan.');
       renderOverview();
       renderContinuity();
+      renderSelectiveRouting();
       renderSources();
       renderTargets();
       if (forms || previous !== cfg.revision) renderForms();
@@ -1604,6 +1740,55 @@
   $('check-all').addEventListener('click', () =>
     action(() => api('probes', { method: 'POST', data: { speed: true } }), S.queued),
   );
+  $('routing-add-rule').addEventListener('click', () => addRoutingRule());
+  $('selective-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    action(() => {
+      const exceptions = [...$('routing-rules').children].map((row) => {
+        const destination = row.querySelector('[data-rule-destination]').value.trim().toLowerCase();
+        const rule = { action: row.querySelector('[data-rule-action]').value };
+        if (
+          destination.includes('/') ||
+          destination.includes(':') ||
+          /^\d+(\.\d+){3}$/.test(destination)
+        )
+          rule.cidr = destination;
+        else {
+          rule.domain = destination;
+          rule.include_subdomains = row.querySelector('[data-rule-subdomains]').checked;
+        }
+        return rule;
+      });
+      return api('routing', {
+        method: 'PUT',
+        cas: true,
+        data: {
+          mode: $('routing-mode').value,
+          failure_policy: 'direct',
+          registry: { enabled: $('routing-registry').checked, provider: 'antifilter' },
+          detection: {
+            enabled: $('routing-detection').checked,
+            control_target_ids: $('routing-controls')
+              .value.split(',')
+              .map((v) => v.trim())
+              .filter(Boolean),
+          },
+          exceptions,
+        },
+      });
+    }, 'Routing settings saved. Prepare and confirm routing to activate the saved plan.');
+  });
+  $('routing-refresh').addEventListener('click', () =>
+    action(() => routingOperation('routing/refresh', {})),
+  );
+  $('routing-check-form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    action(() =>
+      routingOperation('routing/check', {
+        domain: $('routing-check-domain').value.trim().toLowerCase(),
+      }),
+    );
+  });
   $('continuity-enabled').addEventListener('change', continuityRequired);
   $('continuity-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -1634,7 +1819,7 @@
           data: {
             ...cfg.network,
             enabled: $('network-enabled').checked,
-            dns: $('dns-mode').value,
+            dns: cfg.routing?.mode === 'selective' ? cfg.network.dns : $('dns-mode').value,
             dns_resolver: $('dns-resolver').value.trim(),
             lan_interfaces: $('lan-devices')
               .value.split(',')

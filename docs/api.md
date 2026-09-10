@@ -161,3 +161,14 @@ operation record. Unknown identity fields are rejected. GET `/status` reports th
 worker's public readiness, queues, replay/drop counters and pairing fingerprint;
 private certificates and keys never belong to this API. Missing measurements must
 remain unknown in clients. See [session-continuity.md](session-continuity.md).
+
+## Selective routing
+
+`GET/PUT /api/v1/routing` reads/replaces the optional selective profile. PUT requires
+admin, quoted `If-Match`, and `Idempotency-Key`; it saves intent, preserving source
+credentials, without applying network changes. Missing/null preserves legacy
+semantics. `GET /routing/status` exposes only state, provenance/freshness, counts
+and generations. `POST /routing/refresh` (`{}`) and `POST /routing/check`
+(`{"domain":"example.org"}`) are admin-only CAS/idempotent operations; poll their
+operation IDs. Unavailable service returns 503 rather than fabricated readiness.
+See [selective-routing.md](selective-routing.md).

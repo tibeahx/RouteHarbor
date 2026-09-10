@@ -51,6 +51,7 @@ type Server struct {
 	AllowedHosts []string
 	UI           http.Handler
 	Network      NetworkService
+	Routing      RoutingService
 	Coverage     CoverageService
 	Maintenance  maintenance.Service
 	Platform     func(context.Context) (platform.Report, error)
@@ -86,11 +87,14 @@ func (s *Server) Handler() http.Handler {
 func (s *Server) routes() map[string]http.HandlerFunc {
 	routes := map[string]http.HandlerFunc{}
 	register := func(pattern string, handler http.HandlerFunc) { routes[pattern] = handler }
-	for _, path := range []string{"status", "capabilities", "preflight", "openapi", "config", "continuity", "sources", "operations", "diagnostics", "events", "engines", "nodes", "tokens"} {
+	for _, path := range []string{"status", "capabilities", "preflight", "openapi", "config", "continuity", "routing", "routing/status", "sources", "operations", "diagnostics", "events", "engines", "nodes", "tokens"} {
 		register("GET /api/v1/"+path, s.read)
 	}
 	register("GET /api/v1/operations/{id}", s.read)
 	register("PUT /api/v1/continuity", s.mutate)
+	register("PUT /api/v1/routing", s.mutate)
+	register("POST /api/v1/routing/refresh", s.mutate)
+	register("POST /api/v1/routing/check", s.mutate)
 	register("GET /api/v1/sources/{id}/history", s.read)
 	register("GET /api/v1/transactions/{id}", s.read)
 	for _, path := range []string{"config/validate", "config/plan", "config/export", "nodes/discover"} {
@@ -288,6 +292,10 @@ func (s *Server) read(w http.ResponseWriter, r *http.Request) {
 		write(w, 200, config.Redact(c))
 	case "/api/v1/continuity":
 		write(w, 200, config.RedactContinuity(c.Continuity))
+	case "/api/v1/routing":
+		write(w, 200, config.RedactRouting(c.Routing))
+	case "/api/v1/routing/status":
+		s.readRoutingStatus(w, r)
 	case "/api/v1/sources":
 		write(w, 200, config.Redact(c).Sources)
 	case "/api/v1/status":
@@ -480,6 +488,8 @@ func (s *Server) inspect(w http.ResponseWriter, r *http.Request) {
 		out["network_after"] = c.Network
 		out["continuity_before"] = config.RedactContinuity(old.Continuity)
 		out["continuity_after"] = config.RedactContinuity(c.Continuity)
+		out["routing_before"] = config.RedactRouting(old.Routing)
+		out["routing_after"] = config.RedactRouting(c.Routing)
 		out["requires_network_transaction"] = c.Network.Enabled
 	}
 	write(w, 200, out)
@@ -567,6 +577,10 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	id := r.PathValue("id")
+	if path == "/api/v1/routing/refresh" || path == "/api/v1/routing/check" {
+		s.routingOperation(w, r, body, op.ID)
+		return
+	}
 	if path == "/api/v1/probes" || strings.HasSuffix(path, "/probe") {
 		var req struct {
 			Speed bool `json:"speed"`
@@ -738,6 +752,9 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 		}
 		c, backupResult = *candidate, result
 	case path == "/api/v1/config":
+		// Complete legacy files omit routing. Do not inherit the new-install
+		// selective default when importing an old all-traffic configuration.
+		c.Routing = nil
 		if e = adapter.StrictDecode(body, &c); e != nil {
 			fail(400, "invalid_config", "Expected a complete configuration object")
 			return
@@ -757,6 +774,16 @@ func (s *Server) mutate(w http.ResponseWriter, r *http.Request) {
 			fail(400, "invalid_network", "Invalid network settings")
 			return
 		}
+	case path == "/api/v1/routing":
+		var routing *model.RoutingConfig
+		if !bytes.Equal(bytes.TrimSpace(body), []byte("null")) {
+			e = adapter.StrictDecode(body, &routing)
+		}
+		if e != nil {
+			fail(400, "invalid_routing", "Expected complete routing settings or null")
+			return
+		}
+		c.Routing = routing
 	case path == "/api/v1/continuity":
 		// Decode into a new pointer: a partial object must not inherit old fields.
 		var continuity *model.ContinuityConfig

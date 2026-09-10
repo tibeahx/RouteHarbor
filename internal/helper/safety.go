@@ -29,7 +29,7 @@ func safetyNetworks(p *dataplane.Plan) []model.Network {
 		return nil
 	}
 	out := append([]model.Network(nil), p.SafetyNetworks...)
-	if p.Desired.Fallback == "closed" {
+	if p.Desired.Fallback == "closed" && p.Desired.Selective == nil {
 		out = append(out, p.Desired.Network)
 	}
 	for i := range out {
@@ -48,7 +48,8 @@ func addSafetyOwner(p *dataplane.Plan, network model.Network) {
 }
 
 func safetyRuleAllowed(rule ipRule, old *dataplane.Plan) bool {
-	if rule.Unsupported || hasDNSSelectors(rule) || number(rule.Table) != safetyTable ||
+	if rule.Unsupported || rule.Destination != "" || hasDNSSelectors(rule) ||
+		number(rule.Table) != safetyTable ||
 		len(rule.FWMark) != 0 ||
 		len(rule.FWMask) != 0 {
 		return false
@@ -168,7 +169,7 @@ func (b *NetworkBackend) applySafety(
 	if err := b.checkSafety(ctx, p, old); err != nil {
 		return err
 	}
-	if p.Desired.Fallback == "closed" {
+	if p.Desired.Fallback == "closed" && p.Desired.Selective == nil {
 		for _, family := range []int{4, 6} {
 			if _, err := b.Runner.Run(
 				ctx,
@@ -284,7 +285,7 @@ func (b *NetworkBackend) cleanupSafety(
 				device = rule.IIFName
 			}
 			keep := false
-			if p.Desired.Fallback == "closed" {
+			if p.Desired.Fallback == "closed" && p.Desired.Selective == nil {
 				for index, dev := range ingressInterfaces(p) {
 					if device == dev && rule.Priority == safetyPriority+index {
 						keep = true
@@ -319,7 +320,7 @@ func (b *NetworkBackend) cleanupSafety(
 				continue
 			}
 			keep := false
-			if p.Desired.Fallback == "closed" {
+			if p.Desired.Fallback == "closed" && p.Desired.Selective == nil {
 				for _, next := range newRoutes {
 					if next == r {
 						keep = true
@@ -360,7 +361,7 @@ func (b *NetworkBackend) cleanupSafety(
 				blackholeExists = true
 			}
 		}
-		if p.Desired.Fallback != "closed" && blackholeExists {
+		if (p.Desired.Fallback != "closed" || p.Desired.Selective != nil) && blackholeExists {
 			if _, err := b.Runner.Run(
 				ctx,
 				b.IPBinary,

@@ -31,6 +31,9 @@ func run() error {
 	if len(os.Args) < 2 {
 		return errors.New("usage: openrhp-helper serve|watchdog|recover [options]")
 	}
+	if os.Args[1] == "dns-front" && len(os.Args) == 2 {
+		return helper.RunDispatcherDNS()
+	}
 	if runtime.GOOS != "linux" || os.Geteuid() != 0 {
 		return errors.New(
 			"privileged helper requires Linux and root; network mutation is unavailable on this host",
@@ -54,7 +57,8 @@ func run() error {
 		}
 		return helper.RunPacketWorker(*slot)
 	}
-	if os.Args[1] == "engine-worker" || os.Args[1] == "continuity-worker" {
+	if os.Args[1] == "engine-worker" || os.Args[1] == "continuity-worker" ||
+		os.Args[1] == "dispatcher-worker" {
 		workerFlags := flag.NewFlagSet("engine-worker", flag.ContinueOnError)
 		uid := workerFlags.Uint("uid", 0, "service UID")
 		gid := workerFlags.Uint("gid", 0, "service GID")
@@ -66,6 +70,9 @@ func run() error {
 		}
 		if os.Args[1] == "continuity-worker" {
 			return helper.RunContinuitySupervisor(uint32(*uid), uint32(*gid))
+		}
+		if os.Args[1] == "dispatcher-worker" {
+			return helper.RunDispatcherSupervisor(uint32(*uid), uint32(*gid))
 		}
 		return helper.RunEngineWorker(uint32(*uid), uint32(*gid))
 	}
@@ -166,11 +173,18 @@ func run() error {
 	case "recover":
 		_, err = manager.Recover(context.Background())
 		return err
-	case "watchdog":
+	case "watchdog", "prepared-watchdog":
 		// Readiness must not acquire the journal lock held by the applying parent.
 		// NewManager has checked the state directory; Recover takes the shared lock.
 		if len(*transaction) != 32 {
 			return errors.New("watchdog requires a transaction identity")
+		}
+		lease, owner, err := manager.WatchdogLease(*transaction, os.Args[1] == "prepared-watchdog")
+		if err != nil {
+			return err
+		}
+		if owner {
+			defer func() { _ = lease.Close() }()
 		}
 		if *readyFD >= 3 {
 			f := os.NewFile(uintptr(*readyFD), "watchdog-ready")
@@ -183,15 +197,44 @@ func run() error {
 				return err
 			}
 		}
+		if !owner {
+			return nil
+		}
+		failures := 0
 		for {
 			state, statusErr := manager.Status()
 			if statusErr == nil &&
 				(state.Transaction == nil || state.Transaction.ID != *transaction) {
 				return nil
 			}
+			if os.Args[1] == "prepared-watchdog" && statusErr == nil && state.Transaction != nil {
+				switch state.Transaction.State {
+				case "applying", "applied", "confirmed", "rolling-back":
+					return nil
+				}
+			}
 			done, recoverErr := manager.Recover(context.Background())
 			if done && recoverErr == nil {
-				return nil
+				watch, healthErr := manager.WatchSelectiveOnceFor(
+					context.Background(),
+					*transaction,
+				)
+				if !watch {
+					return nil
+				}
+				if healthErr != nil {
+					failures++
+				} else {
+					failures = 0
+				}
+				if failures >= 3 {
+					if err := manager.SelectiveEmergencyFor(
+						context.Background(),
+						*transaction,
+					); err == nil {
+						failures = 0
+					}
+				}
 			}
 			time.Sleep(time.Second)
 		}

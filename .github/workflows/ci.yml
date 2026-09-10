@@ -63,6 +63,10 @@ jobs:
       - run: sh scripts/lab-maintenance.sh
       - run: sh scripts/lab-engines.sh
       - run: sh scripts/lab-engine-worker.sh
+      - run: sh scripts/lab-selective.sh
+      - run: sh scripts/lab-dispatcher.sh
+      - run: sh scripts/lab-dispatcher-worker.sh
+      - run: sh scripts/lab-selective-acceptance.sh
   security:
     runs-on: ubuntu-24.04
     steps:

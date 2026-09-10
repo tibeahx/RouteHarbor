@@ -170,6 +170,15 @@ func (n *NetworkCoordinator) Prepare(
 			return nil, e
 		}
 	}
+	if model.SelectiveRouting(c) {
+		if n.Runtime.Routing == nil {
+			return nil, errors.New("selective routing unavailable")
+		}
+		d.Selective, e = n.Runtime.Routing.Prepare(ctx, c, carrierPaths, selected, nil)
+		if e != nil {
+			return nil, e
+		}
+	}
 	if _, e := dataplane.Compile(d); e != nil {
 		return nil, e
 	}
@@ -255,6 +264,13 @@ func (n *NetworkCoordinator) Action(
 	}
 	if action == "confirm" || action == "rollback" {
 		n.refreshRetained(ctx)
+		if n.Runtime.Routing != nil {
+			state, err := n.Client.Status(ctx)
+			if err == nil && (state.Committed == nil || state.Committed.Selective == nil) {
+				_ = n.Runtime.Routing.Close(ctx)
+				_ = n.Runtime.Adapters.Stop(ctx, dataplane.SelectiveSourceID)
+			}
+		}
 		if n.Runtime.Continuity != nil {
 			state, err := n.Client.Status(ctx)
 			if err == nil && (state.Committed == nil || state.Committed.Continuity == nil) {
@@ -284,9 +300,14 @@ func (n *NetworkCoordinator) Current(ctx context.Context) (map[string]any, error
 	}
 	n.mu.Lock()
 	defer n.mu.Unlock()
+	effective := effectiveRoutingDesired(s)
 	out := map[string]any{
-		"applied":                      s.Committed != nil && !s.Guarded,
-		"guarded":                      s.Guarded,
+		"applied": effective != nil && !s.Guarded,
+		"guarded": s.Guarded,
+		"emergency_direct": effective != nil && effective.Selective != nil &&
+			(s.SelectiveEmergency || s.SelectiveEmergencyPending) &&
+			!s.MaintenanceHold &&
+			s.MaintenanceJob == "",
 		"confirmed_for_current_config": n.confirmedRevision == n.Runtime.Store.Get().Revision,
 		"last_error":                   n.lastError,
 		"maintenance_job":              s.MaintenanceJob,
@@ -296,9 +317,9 @@ func (n *NetworkCoordinator) Current(ctx context.Context) (map[string]any, error
 		out["confirmed_for_current_config"] = false
 		out["last_error"] = "maintenance_requires_confirmed_routing"
 	}
-	if s.Committed != nil {
-		out["selected"] = s.Committed.Selected
-		out["unavailable_sources"] = append([]string{}, s.Committed.Unavailable...)
+	if effective != nil {
+		out["selected"] = effective.Selected
+		out["unavailable_sources"] = append([]string{}, effective.Unavailable...)
 	}
 	if s.Transaction != nil {
 		out["transaction_id"] = s.Transaction.ID
@@ -310,6 +331,16 @@ func (n *NetworkCoordinator) Current(ctx context.Context) (map[string]any, error
 		}
 	}
 	return out, nil
+}
+
+// Apply switches packet ingress before confirmation promotes Candidate to
+// Committed. Readiness and classification must describe that actual ingress;
+// prepared or incomplete transitions continue to retain the committed policy.
+func effectiveRoutingDesired(s helper.State) *dataplane.Desired {
+	if s.Transaction != nil && s.Transaction.State == "applied" {
+		return &s.Transaction.Candidate
+	}
+	return s.Committed
 }
 
 // Sync applies only choices inside the already-confirmed adapter allocation set.
@@ -330,9 +361,6 @@ func (n *NetworkCoordinator) Sync(ctx context.Context) {
 		}
 	}
 	c := n.Runtime.Store.Get()
-	if n.confirmedRevision != c.Revision {
-		return
-	}
 	n.Runtime.mu.Lock()
 	selected := n.Runtime.decision.Selected
 	n.Runtime.mu.Unlock()
@@ -343,6 +371,45 @@ func (n *NetworkCoordinator) Sync(ctx context.Context) {
 	}
 	if s.MaintenanceJob != "" || s.MaintenanceHold {
 		n.lastError = "maintenance_requires_confirmed_routing"
+		return
+	}
+	effective := effectiveRoutingDesired(s)
+	if effective != nil && effective.Selective != nil {
+		// A draft configuration must not drive a committed selector. Continue
+		// observing its classifier and preserve any journaled emergency state.
+		if n.confirmedRevision != c.Revision ||
+			s.Transaction != nil && s.Transaction.State == "applied" {
+			selected = effective.Selected
+		}
+		if slices.Contains(effective.Unavailable, selected) {
+			n.lastError = "recovered_source_requires_routing_prepare"
+			return
+		}
+		if n.Runtime.Routing == nil || n.Runtime.Routing.Sync(ctx, s, selected) != nil {
+			n.lastError = "selective_dispatcher_unavailable"
+			return
+		}
+		if s.SelectiveEmergency || s.SelectiveEmergencyPending {
+			n.lastError = "selective_emergency_direct"
+			return
+		}
+		if s.Guarded {
+			n.lastError = "selective_requires_confirmed_routing"
+			return
+		}
+		if effective.Continuity != nil && (n.Runtime.Continuity == nil ||
+			n.Runtime.Continuity.EnsureRunning(ctx) != nil ||
+			n.Runtime.Continuity.Select(ctx, n.Runtime, selected) != nil) {
+			n.lastError = "continuity_worker_unavailable"
+			return
+		}
+		n.lastError = ""
+		return
+	}
+	if n.Runtime.Routing != nil {
+		_ = n.Runtime.Routing.Sync(ctx, s, selected)
+	}
+	if n.confirmedRevision != c.Revision {
 		return
 	}
 	if s.Committed != nil && s.Committed.Continuity != nil {

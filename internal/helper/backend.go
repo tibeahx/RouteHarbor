@@ -136,6 +136,17 @@ func (b *NetworkBackend) checkEnvironment(
 	if p.Desired.Continuity != nil {
 		paths = append(append([]dataplane.Path(nil), paths...), p.Desired.Continuity.Path)
 	}
+	if p.Desired.Selective != nil {
+		if err := b.CheckFlowReset(ctx); err != nil {
+			return err
+		}
+		paths = append(append([]dataplane.Path(nil), paths...), p.Desired.Selective.Path)
+		for _, i := range report.Interfaces {
+			if err := validateSelectivePrefixes(p, i.Prefixes); err != nil {
+				return err
+			}
+		}
+	}
 	for _, path := range paths {
 		if selectedOnly && path.SourceID != p.Desired.Selected {
 			continue
@@ -288,6 +299,9 @@ func (b *NetworkBackend) Apply(
 	); err != nil {
 		return errors.New("nft_check_failed")
 	}
+	if err = b.applySelectiveGuards(ctx, p, previous); err != nil {
+		return err
+	}
 	if err = b.applyDNSGuard(ctx, p, previous); err != nil {
 		return err
 	}
@@ -356,6 +370,14 @@ func (b *NetworkBackend) Apply(
 			}
 		}
 	}
+	if err = b.cleanupSelectiveGuards(ctx, &p, previous, false); err != nil {
+		return err
+	}
+	if p.Desired.Selective != nil && previous != nil {
+		if err = b.removeDNSGuard(ctx, *previous); err != nil {
+			return err
+		}
+	}
 	if err = b.cleanupSafety(ctx, p, previous); err != nil {
 		return err
 	}
@@ -380,18 +402,20 @@ func containsRoute(list []dataplane.Route, r dataplane.Route) bool {
 }
 
 type ipRule struct {
-	Priority    int             `json:"priority"`
-	FWMark      json.RawMessage `json:"fwmark"`
-	FWMask      json.RawMessage `json:"fwmask"`
-	Table       json.RawMessage `json:"table"`
-	IIF         string          `json:"iif"`
-	IIFName     string          `json:"iifname"`
-	Unsupported bool            `json:"-"`
-	UIDStart    *uint32         `json:"uid_start"`
-	UIDEnd      *uint32         `json:"uid_end"`
-	IPProto     string          `json:"ipproto"`
-	DPort       uint16          `json:"dport"`
-	Action      string          `json:"action"`
+	Priority          int             `json:"priority"`
+	FWMark            json.RawMessage `json:"fwmark"`
+	FWMask            json.RawMessage `json:"fwmask"`
+	Table             json.RawMessage `json:"table"`
+	IIF               string          `json:"iif"`
+	IIFName           string          `json:"iifname"`
+	Unsupported       bool            `json:"-"`
+	UIDStart          *uint32         `json:"uid_start"`
+	UIDEnd            *uint32         `json:"uid_end"`
+	IPProto           string          `json:"ipproto"`
+	DPort             uint16          `json:"dport"`
+	Action            string          `json:"action"`
+	Destination       string          `json:"dst,omitempty"`
+	DestinationLength *int            `json:"dstlen,omitempty"`
 }
 
 // Unrecognized selectors or actions must not be mistaken for a standard or
@@ -426,7 +450,12 @@ func (r *ipRule) UnmarshalJSON(data []byte) error {
 			if string(value) != "null" || decoded.IIF == "" && decoded.IIFName == "" {
 				decoded.Unsupported = true
 			}
-		case "src", "dst":
+		case "dstlen":
+		case "dst":
+			if string(value) == `"all"` {
+				decoded.Destination = ""
+			}
+		case "src":
 			if string(value) != `"all"` {
 				decoded.Unsupported = true
 			}
@@ -439,12 +468,26 @@ func (r *ipRule) UnmarshalJSON(data []byte) error {
 			decoded.Unsupported = true
 		}
 	}
+	if decoded.DestinationLength != nil {
+		addr, err := netip.ParseAddr(decoded.Destination)
+		if err != nil || *decoded.DestinationLength < 0 ||
+			*decoded.DestinationLength > addr.BitLen() {
+			decoded.Unsupported = true
+		} else {
+			prefix := netip.PrefixFrom(addr, *decoded.DestinationLength)
+			if prefix != prefix.Masked() {
+				decoded.Unsupported = true
+			}
+			decoded.Destination = prefix.String()
+		}
+	}
 	*r = ipRule(decoded)
 	return nil
 }
 
 func defaultRule(rule ipRule) bool {
-	if rule.Unsupported || hasDNSSelectors(rule) || len(rule.FWMark) != 0 ||
+	if rule.Unsupported || rule.Destination != "" || hasDNSSelectors(rule) ||
+		len(rule.FWMark) != 0 ||
 		len(rule.FWMask) != 0 ||
 		rule.IIF != "" ||
 		rule.IIFName != "" {
@@ -495,7 +538,9 @@ func (b *NetworkBackend) rules(ctx context.Context, family int) ([]ipRule, error
 }
 
 func ruleMatches(rule ipRule, r dataplane.Route) bool {
-	return !rule.Unsupported && !hasDNSSelectors(rule) && rule.IIF == "" && rule.IIFName == "" &&
+	return !rule.Unsupported && rule.Destination == "" && !hasDNSSelectors(rule) &&
+		rule.IIF == "" &&
+		rule.IIFName == "" &&
 		rule.Priority == r.Priority &&
 		number(rule.FWMark) == uint64(r.Mark) &&
 		number(rule.FWMask) == uint64(dataplane.MarkMask) &&
@@ -538,7 +583,8 @@ func (b *NetworkBackend) checkRoutes(
 			if defaultRule(rule) {
 				continue
 			}
-			ours := safetyRuleAllowed(rule, previous) || dnsRuleAllowed(rule, previous)
+			ours := safetyRuleAllowed(rule, previous) || dnsRuleAllowed(rule, previous) ||
+				selectiveRuleAllowed(family, rule, previous)
 			for _, r := range allowed {
 				if r.Family == family && ruleMatches(rule, r) {
 					ours = true

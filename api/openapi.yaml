@@ -3779,6 +3779,385 @@
           }
         }
       }
+    },
+    "/routing": {
+      "get": {
+        "operationId": "routingSettings",
+        "summary": "Read routing settings; null preserves legacy routing",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/RoutingConfig"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        }
+      },
+      "put": {
+        "operationId": "replaceRoutingSettings",
+        "summary": "Save routing settings with CAS; activation requires prepare, apply and confirm",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "428": {
+            "description": "Quoted If-Match configuration revision is required"
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/RoutingConfig"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routing/status": {
+      "get": {
+        "operationId": "routingStatus",
+        "summary": "Routing readiness, registry freshness and detector counters without DNS history",
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutingStatus"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          }
+        }
+      }
+    },
+    "/routing/refresh": {
+      "post": {
+        "operationId": "routingRefresh",
+        "summary": "Refresh and validate registry lists, keeping the last good snapshot on failure",
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "428": {
+            "description": "Quoted If-Match configuration revision is required"
+          },
+          "202": {
+            "description": "Accepted administrative operation; poll its operation ID. Duplicate keys return the same operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Previously completed operation replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        }
+      }
+    },
+    "/routing/check": {
+      "post": {
+        "operationId": "routingCheck",
+        "summary": "Inspect the applied destination route and enqueue unknown domains for enabled detection",
+        "responses": {
+          "400": {
+            "description": "Invalid request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Authentication required"
+          },
+          "403": {
+            "description": "Insufficient scope or origin not allowed"
+          },
+          "409": {
+            "description": "Revision, pending transaction or idempotency conflict"
+          },
+          "422": {
+            "description": "Unsupported or invalid configuration"
+          },
+          "429": {
+            "description": "Rate or queue limit"
+          },
+          "503": {
+            "description": "Capability unavailable"
+          },
+          "428": {
+            "description": "Quoted If-Match configuration revision is required"
+          },
+          "202": {
+            "description": "Accepted administrative operation; poll its operation ID. Duplicate keys return the same operation.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Previously completed operation replay",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Operation"
+                }
+              }
+            }
+          }
+        },
+        "parameters": [
+          {
+            "name": "Idempotency-Key",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 8,
+              "maxLength": 128
+            },
+            "description": "Unique for this logical mutation. Reuse only with identical method/path/body and If-Match. Retained for 24h; interrupted work is reported, never blindly rerun."
+          },
+          {
+            "name": "If-Match",
+            "in": "header",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Quoted current config revision, e.g. \"1\"."
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "domain"
+                ],
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "maxLength": 253,
+                    "description": "Canonical lowercase public DNS name; no URL or IP literal."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -3949,7 +4328,7 @@
           "break_existing": {
             "type": "boolean",
             "default": false,
-            "description": "Opt in to deleting tracked connections belonging to the previous OpenRHP path after a path switch. Off by default; may interrupt active applications. Requires privileged conntrack support and a newly confirmed routing plan. Foreign connection entries are not flushed, and connections are not migrated between external IPs."
+            "description": "Opt in to deleting tracked connections belonging to the previous OpenRHP path after a path switch. Off by default; must remain false for selective routing or continuity. May interrupt active applications. Requires privileged conntrack support and a newly confirmed routing plan. Foreign connection entries are not flushed, and connections are not migrated between external IPs."
           }
         }
       },
@@ -4069,6 +4448,16 @@
             "anyOf": [
               {
                 "$ref": "#/components/schemas/ContinuityConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "routing": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RoutingConfig"
               },
               {
                 "type": "null"
@@ -4598,6 +4987,206 @@
           },
           "error_code": {
             "type": "string"
+          }
+        }
+      },
+      "RoutingRule": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "enum": [
+              "direct",
+              "bypass"
+            ]
+          },
+          "domain": {
+            "type": "string",
+            "maxLength": 253,
+            "description": "Canonical lowercase ASCII DNS name, exact unless include_subdomains is true."
+          },
+          "include_subdomains": {
+            "type": "boolean",
+            "default": false
+          },
+          "cidr": {
+            "type": "string",
+            "description": "Canonical public IPv4/IPv6 literal or prefix; never derived by resolving a domain."
+          }
+        },
+        "oneOf": [
+          {
+            "required": [
+              "domain"
+            ],
+            "not": {
+              "required": [
+                "cidr"
+              ]
+            }
+          },
+          {
+            "required": [
+              "cidr"
+            ],
+            "not": {
+              "required": [
+                "domain"
+              ]
+            }
+          }
+        ]
+      },
+      "RoutingConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "mode",
+          "failure_policy",
+          "registry",
+          "detection",
+          "exceptions"
+        ],
+        "description": "Missing/null preserves legacy behavior. New installations default to selective with network disabled. Saving requires a separate network transaction for activation.",
+        "properties": {
+          "mode": {
+            "enum": [
+              "selective",
+              "legacy-all"
+            ]
+          },
+          "failure_policy": {
+            "const": "direct",
+            "description": "Explicit emergency WAN direct permission on classifier/DNS failure; independent of closed bypass fallback."
+          },
+          "registry": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled",
+              "provider"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "provider": {
+                "const": "antifilter",
+                "description": "Third-party publication of registry domains and explicit prefixes; no resolved or aggregated addresses."
+              }
+            }
+          },
+          "detection": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "enabled",
+              "control_target_ids"
+            ],
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "default": false
+              },
+              "control_target_ids": {
+                "type": "array",
+                "maxItems": 64,
+                "uniqueItems": true,
+                "items": {
+                  "type": "string"
+                },
+                "description": "Configured HTTPS target IDs using port 443; enabling detection requires at least one explicit control."
+              }
+            }
+          },
+          "exceptions": {
+            "type": "array",
+            "maxItems": 4096,
+            "items": {
+              "$ref": "#/components/schemas/RoutingRule"
+            }
+          }
+        }
+      },
+      "RoutingStatus": {
+        "type": "object",
+        "description": "Allowlisted state and counts only; never DNS query history. Missing engine verification is unknown, not a successful acknowledgement.",
+        "properties": {
+          "mode": {
+            "enum": [
+              "legacy-all",
+              "selective"
+            ]
+          },
+          "state": {
+            "enum": [
+              "inactive",
+              "ready",
+              "emergency-direct",
+              "unavailable"
+            ]
+          },
+          "selected": {
+            "type": "string"
+          },
+          "default_action": {
+            "const": "direct"
+          },
+          "failure_policy": {
+            "const": "direct"
+          },
+          "published_generation": {
+            "type": "integer"
+          },
+          "verified_generation": {
+            "type": "integer"
+          },
+          "registry": {
+            "type": "object",
+            "properties": {
+              "provider": {
+                "type": "string"
+              },
+              "generation": {
+                "type": "integer"
+              },
+              "domain_count": {
+                "type": "integer"
+              },
+              "cidr_count": {
+                "type": "integer"
+              },
+              "updated_at": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "stale": {
+                "type": "boolean"
+              },
+              "last_error": {
+                "type": "string"
+              }
+            }
+          },
+          "detection": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean"
+              },
+              "learned_count": {
+                "type": "integer"
+              },
+              "pending_count": {
+                "type": "integer"
+              },
+              "last_error": {
+                "type": "string"
+              }
+            }
           }
         }
       }

@@ -42,7 +42,11 @@ func sameProbeAllocation(a, b dataplane.Path) bool {
 }
 
 func probeAllocationConflict(a, b dataplane.Path) bool {
-	return (a.SourceID == b.SourceID || a.Slot == b.Slot) && !sameProbeAllocation(a, b)
+	sameID := a.SourceID == b.SourceID
+	if a.SourceID == dataplane.SelectiveSourceID && b.SourceID == dataplane.SelectiveSourceID {
+		sameID = false
+	}
+	return (sameID || a.Slot == b.Slot) && !sameProbeAllocation(a, b)
 }
 
 func (p NativeProbePath) path() dataplane.Path {
@@ -67,6 +71,11 @@ func (s *Server) expireNativeProbesLocked() {
 // prepare RPCs. Durable committed and pending allocations always outrank leases.
 func (s *Server) validateProbeAllocationLocked(p dataplane.Path) error {
 	s.expireNativeProbesLocked()
+	for _, record := range s.dispatchers {
+		if probeAllocationConflict(p, dispatcherPath(record.spec)) {
+			return errors.New("probe_allocation_conflict")
+		}
+	}
 	if s.continuity != nil &&
 		probeAllocationConflict(p, continuityAllocation(s.continuity.request)) {
 		return errors.New("probe_allocation_conflict")
@@ -116,6 +125,9 @@ func (s *Server) validateProbeAllocationLocked(p dataplane.Path) error {
 			continue
 		}
 		paths := plan.Paths
+		if plan.Selective != nil {
+			paths = append(append([]dataplane.Path(nil), paths...), plan.Selective.Path)
+		}
 		if plan.Continuity != nil {
 			paths = append(append([]dataplane.Path(nil), paths...), plan.Continuity.Path)
 		}

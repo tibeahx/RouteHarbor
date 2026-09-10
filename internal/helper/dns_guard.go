@@ -77,7 +77,8 @@ func hasDNSSelectors(r ipRule) bool {
 }
 
 func dnsRuleAllowed(r ipRule, owner *dataplane.Plan) bool {
-	if owner == nil || owner.DNSGuardUID == 0 || r.Unsupported || r.UIDStart == nil ||
+	if owner == nil || owner.DNSGuardUID == 0 || r.Unsupported || r.Destination != "" ||
+		r.UIDStart == nil ||
 		r.UIDEnd == nil ||
 		*r.UIDStart != owner.DNSGuardUID ||
 		*r.UIDEnd != owner.DNSGuardUID ||
@@ -121,7 +122,7 @@ func (b *NetworkBackend) applyDNSGuard(
 	p dataplane.Plan,
 	old *dataplane.Plan,
 ) error {
-	if p.DNSGuardUID == 0 {
+	if p.DNSGuardUID == 0 || p.Desired.Selective != nil {
 		return nil
 	}
 	for _, family := range []int{4, 6} {

@@ -20,7 +20,8 @@ window.OpenRHPStrings = Object.freeze({
     'packet-engine': 'DPI packet engine',
   },
   typeHints: {
-    direct: 'Uses your regular WAN connection. You can exclude it from automatic selection.',
+    direct:
+      'Uses your regular WAN connection. Selective routing excludes direct from bypass selection; it can carry traffic to your private relay.',
     socks5: 'Connect through a SOCKS5 proxy you already control.',
     'http-connect': 'Connect through an HTTP CONNECT proxy you already control.',
     'sing-box': 'Paste one supported outbound object, not a full engine configuration.',
