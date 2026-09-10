@@ -50,8 +50,8 @@ func opkgFixture(t *testing.T, name, version, depends, postinst string) []byte {
 		)
 	}
 	filename := "usr/bin/" + name
-	if name == "openrhp-guard" {
-		filename = "usr/share/openrhp-guard-fixture"
+	if name == "routeharbor-guard" {
+		filename = "usr/share/routeharbor-guard-fixture"
 	}
 	return archive(
 		t,
@@ -79,7 +79,7 @@ func opkgFixture(t *testing.T, name, version, depends, postinst string) []byte {
 }
 
 func TestOpenWrtOpkgOffline(t *testing.T) {
-	if os.Getenv("OPENRHP_OPKG_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_OPKG_LAB") != "1" {
 		t.Skip("requires dedicated disposable OpenWrt rootfs lab")
 	}
 	if os.Geteuid() != 0 {
@@ -95,7 +95,7 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	guard := filepath.Join(t.TempDir(), "guard.ipk")
 	if err := os.WriteFile(
 		guard,
-		opkgFixture(t, "openrhp-guard", "0.1.0-r1", "", ""),
+		opkgFixture(t, "routeharbor-guard", "0.1.0-r1", "", ""),
 		0o600,
 	); err != nil {
 		t.Fatal(err)
@@ -106,16 +106,16 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	}
 	baseline := opkgFixture(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.0-r1",
-		"openrhp-guard",
+		"routeharbor-guard",
 		"echo baseline >/tmp/maintenance-postinst-baseline",
 	)
 	candidate := opkgFixture(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.1-r1",
-		"openrhp-guard",
+		"routeharbor-guard",
 		"echo candidate >/tmp/maintenance-postinst-candidate",
 	)
 	old, err := f.stage(t, "0.1.0", baseline)
@@ -138,7 +138,7 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 		}
 		plan, err := manager.Plan(
 			ctx,
-			Request{Action: action, BundleID: bundle.ID, Components: []string{"openrhp"}},
+			Request{Action: action, BundleID: bundle.ID, Components: []string{"routeharbor"}},
 		)
 		if err != nil {
 			t.Fatal("plan", err)
@@ -168,14 +168,18 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	wrapper, err := f.stage(
 		t,
 		"0.1.0",
-		opkgFixture(t, "openrhp-conntrack", "0.1.0-r1", "openrhp", ""),
+		opkgFixture(t, "routeharbor-conntrack", "0.1.0-r1", "routeharbor", ""),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	wrapperPlan, err := manager.Plan(
 		ctx,
-		Request{Action: "install", BundleID: wrapper.ID, Components: []string{"openrhp-conntrack"}},
+		Request{
+			Action:     "install",
+			BundleID:   wrapper.ID,
+			Components: []string{"routeharbor-conntrack"},
+		},
 	)
 	if err != nil {
 		t.Fatal("dependent wrapper plan", err)
@@ -189,7 +193,7 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	}
 	// The system feed exists, but the production environment must not load it.
 	if err := os.WriteFile(
-		"/etc/opkg/openrhp-poison.conf",
+		"/etc/opkg/routeharbor-poison.conf",
 		[]byte("src poison file:///tmp/forbidden-feed\n"),
 		0o600,
 	); err != nil {
@@ -213,9 +217,9 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	// worker must retain an interrupted job, then require explicit root recovery.
 	broken := opkgFixture(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.2-r1",
-		"openrhp-guard",
+		"routeharbor-guard",
 		"if [ ! -e /tmp/maintenance-kill-once ]; then touch /tmp/maintenance-kill-once; echo $PPID >/tmp/maintenance-opkg.pid; sleep 60; fi",
 	)
 	bad, err := f.stage(t, "0.1.2", broken)
@@ -224,7 +228,7 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	}
 	plan, err := manager.Plan(
 		ctx,
-		Request{Action: "upgrade", BundleID: bad.ID, Components: []string{"openrhp"}},
+		Request{Action: "upgrade", BundleID: bad.ID, Components: []string{"routeharbor"}},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -271,13 +275,13 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 		t.Fatal(status, err)
 	}
 	inventory, err := backend.Inventory(ctx)
-	if err != nil || inventory.Packages["openrhp"] != "0.1.1-r1" {
+	if err != nil || inventory.Packages["routeharbor"] != "0.1.1-r1" {
 		t.Fatal("previous signed version not restored", inventory, err)
 	}
 	// Same-version repair must restore bytes, even if opkg already says installed.
 	plan, err = manager.Plan(
 		ctx,
-		Request{Action: "upgrade", BundleID: next.ID, Components: []string{"openrhp"}},
+		Request{Action: "upgrade", BundleID: next.ID, Components: []string{"routeharbor"}},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -289,7 +293,7 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 	if err = manager.update(id, "running", "package_manager", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err = os.WriteFile("/usr/bin/openrhp", []byte("partial"), 0o755); err != nil {
+	if err = os.WriteFile("/usr/bin/routeharbor", []byte("partial"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	if err = manager.Run(ctx, id); err != nil {
@@ -309,7 +313,7 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 		ctx,
 		Request{
 			Action:        "remove",
-			Components:    []string{"openrhp"},
+			Components:    []string{"routeharbor"},
 			RemovalPolicy: "preserve-closed",
 		},
 	)
@@ -317,8 +321,8 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 		t.Fatal("controller and dependent wrapper removal preflight", err)
 	}
 	inventory, err = backend.Inventory(ctx)
-	if err != nil || inventory.Packages["openrhp"] != "0.1.1-r1" ||
-		inventory.Packages["openrhp-conntrack"] != "0.1.0-r1" {
+	if err != nil || inventory.Packages["routeharbor"] != "0.1.1-r1" ||
+		inventory.Packages["routeharbor-conntrack"] != "0.1.0-r1" {
 		t.Fatal(
 			"removal preview changed installed packages or recovery lost the wrapper",
 			inventory,
@@ -337,9 +341,9 @@ func TestOpenWrtOpkgOffline(t *testing.T) {
 		t.Fatal(status, err)
 	}
 	inventory, err = backend.Inventory(ctx)
-	if err != nil || inventory.Packages["openrhp"] != "" ||
-		inventory.Packages["openrhp-conntrack"] != "" ||
-		inventory.Packages["openrhp-guard"] == "" {
+	if err != nil || inventory.Packages["routeharbor"] != "" ||
+		inventory.Packages["routeharbor-conntrack"] != "" ||
+		inventory.Packages["routeharbor-guard"] == "" {
 		t.Fatal("removal did not retain only the guard", inventory, err)
 	}
 	t.Log(

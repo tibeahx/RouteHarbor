@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	contract "github.com/tibeahx/OpenRHP/api"
+	contract "github.com/tibeahx/RouteHarbor/api"
 )
 
 // Both directions matter: an undocumented write endpoint is an operational and

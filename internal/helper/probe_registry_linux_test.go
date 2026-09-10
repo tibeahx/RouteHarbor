@@ -13,15 +13,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 func TestLinuxFirstUseNativeProbeRegistration(t *testing.T) {
 	requireNetLab(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	namespace := "openrhp-probe-origin"
+	namespace := "routeharbor-probe-origin"
 	_ = exec.Command("/sbin/ip", "netns", "del", namespace).Run()
 	_ = exec.Command("/sbin/ip", "link", "del", "probe-veth").Run()
 	defer func() { _ = exec.Command("/sbin/ip", "netns", "del", namespace).Run() }()

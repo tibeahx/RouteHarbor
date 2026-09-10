@@ -11,17 +11,17 @@ import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-FILES = ROOT / "packaging/openwrt/openrhp/files"
+FILES = ROOT / "packaging/openwrt/routeharbor/files"
 
 class PackagingTests(unittest.TestCase):
     def test_shell_syntax(self):
-        paths = list(FILES.glob("*.init")) + [FILES / "openrhp-setup", FILES / "openrhp-node-setup", ROOT / "scripts/sdk-build.sh"]
+        paths = list(FILES.glob("*.init")) + [FILES / "routeharbor-setup", FILES / "routeharbor-node-setup", ROOT / "scripts/sdk-build.sh"]
         for path in paths:
             with self.subTest(path=path.name):
                 subprocess.run(["sh", "-n", str(path)], check=True)
 
     def test_disabled_gateway_and_node_make_no_changes(self):
-        for name in ("openrhp.init", "openrhp-node.init"):
+        for name in ("routeharbor.init", "routeharbor-node.init"):
             with self.subTest(role=name), tempfile.TemporaryDirectory() as temp:
                 trace = pathlib.Path(temp) / "trace"
                 harness = '''
@@ -43,19 +43,19 @@ start_service
                 self.assertFalse(trace.exists(), trace.read_text() if trace.exists() else "")
 
     def test_privilege_and_durability_boundaries(self):
-        core = (FILES / "openrhp.init").read_text()
-        node = (FILES / "openrhp-node.init").read_text()
-        guard = (FILES / "openrhp-guard.init").read_text()
-        self.assertIn("procd_set_param user openrhp\n", core)
-        self.assertIn("procd_set_param user openrhp-node\n", node)
-        self.assertIn("--state /etc/openrhp", core)
-        self.assertIn("--state-dir /etc/openrhp-helper", guard)
+        core = (FILES / "routeharbor.init").read_text()
+        node = (FILES / "routeharbor-node.init").read_text()
+        guard = (FILES / "routeharbor-guard.init").read_text()
+        self.assertIn("procd_set_param user routeharbor\n", core)
+        self.assertIn("procd_set_param user routeharbor-node\n", node)
+        self.assertIn("--state /etc/routeharbor", core)
+        self.assertIn("--state-dir /etc/routeharbor-helper", guard)
         self.assertLess(guard.index("quarantine --state-dir"), guard.index("procd_open_instance"))
         self.assertIn("START=18", guard)
         self.assertNotIn("--development", core)
 
     def test_setup_cannot_mutate_user_network_uci_or_chown_a_tree(self):
-        for name in ("openrhp-setup", "openrhp-node-setup"):
+        for name in ("routeharbor-setup", "routeharbor-node-setup"):
             text = (FILES / name).read_text()
             self.assertNotIn("chown -R", text)
             self.assertIn('"$(id -u)" -eq 0', text)
@@ -65,9 +65,9 @@ start_service
 
     def test_recipe_retains_guard_and_leaves_package_format_to_sdk(self):
         recipe = (FILES.parent / "Makefile").read_text()
-        self.assertIn("DEPENDS:=+openrhp-guard", recipe)
-        self.assertIn("Package/openrhp-guard/prerm", recipe)
-        self.assertIn("can-remove --state-dir /etc/openrhp-helper", recipe)
+        self.assertIn("DEPENDS:=+routeharbor-guard", recipe)
+        self.assertIn("Package/routeharbor-guard/prerm", recipe)
+        self.assertIn("can-remove --state-dir /etc/routeharbor-helper", recipe)
         self.assertIn("go1.27.1", recipe)
         self.assertIn("GOPROXY=off", recipe)
         script = (ROOT / "scripts/sdk-build.sh").read_text()
@@ -77,13 +77,13 @@ start_service
 
     def test_continuity_package_is_optional_and_helper_supervised(self):
         recipe = (FILES.parent / "Makefile").read_text()
-        self.assertIn("Package/openrhp-continuity/install", recipe)
-        self.assertIn("bin/openrhp-continuity $(1)/usr/libexec/", recipe)
-        self.assertNotIn("openrhp-continuity.init", recipe)
-        core = recipe.split("define Package/openrhp\n", 1)[1].split("endef", 1)[0]
-        self.assertNotIn("+openrhp-continuity", core)
-        service = (ROOT / "packaging/systemd/openrhp-relay.service").read_text()
-        self.assertIn("User=openrhp-relay", service)
+        self.assertIn("Package/routeharbor-continuity/install", recipe)
+        self.assertIn("bin/routeharbor-continuity $(1)/usr/libexec/", recipe)
+        self.assertNotIn("routeharbor-continuity.init", recipe)
+        core = recipe.split("define Package/routeharbor\n", 1)[1].split("endef", 1)[0]
+        self.assertNotIn("+routeharbor-continuity", core)
+        service = (ROOT / "packaging/systemd/routeharbor-relay.service").read_text()
+        self.assertIn("User=routeharbor-relay", service)
         self.assertIn("StateDirectoryMode=0700", service)
         self.assertIn("NoNewPrivileges=true", service)
         self.assertNotIn("--private-key", service)

@@ -6,7 +6,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 func dispatcherWANIdentity(ctx context.Context, iface string) (string, error) {

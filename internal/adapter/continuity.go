@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 const ContinuitySourceID = "__continuity"

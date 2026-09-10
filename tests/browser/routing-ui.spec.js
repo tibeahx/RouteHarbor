@@ -5,7 +5,7 @@ const fs = require('node:fs');
 test('confirmed routing stays visible when optional connection cleanup needs a retry', async ({
   page,
 }) => {
-  const token = fs.readFileSync(process.env.OPENRHP_TEST_TOKEN_FILE, 'utf8').trim();
+  const token = fs.readFileSync(process.env.ROUTEHARBOR_TEST_TOKEN_FILE, 'utf8').trim();
   await page.route('**/api/v1/capabilities', async (route) => {
     const response = await route.fetch();
     const capabilities = await response.json();

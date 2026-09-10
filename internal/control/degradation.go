@@ -5,7 +5,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 // degradationSpeedDueLocked only changes when the next bounded speed check is

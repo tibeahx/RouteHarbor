@@ -10,15 +10,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 const (
-	Table                = "openrhp"
-	GuardTable           = "openrhp_guard"
-	ProbeTable           = "openrhp_probe"
-	Owner                = "OpenRHP service-owned v1"
+	Table                = "routeharbor"
+	GuardTable           = "routeharbor_guard"
+	ProbeTable           = "routeharbor_probe"
+	Owner                = "RouteHarbor service-owned v1"
 	MarkMask      uint32 = 0xffff0000
 	NamespaceMask uint32 = 0xff000000
 	Namespace     uint32 = 0x4f000000
@@ -360,7 +360,7 @@ func render(d Desired, guard bool) string {
 		table,
 	)
 	if !guard {
-		b.WriteString(" chain select_flow { comment \"OpenRHP classifier v1\";\n")
+		b.WriteString(" chain select_flow { comment \"RouteHarbor classifier v1\";\n")
 		b.WriteString(selectionRules(d))
 		b.WriteString(" }\n")
 		// Conntrack exists after priority -200. Classify DNS before NAT (-155),

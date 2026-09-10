@@ -1,17 +1,17 @@
 [
   {
-    "ipk": "openrhp-conntrack_0.1.0-r1_x86_64.ipk",
-    "package": "openrhp-conntrack",
+    "ipk": "routeharbor-conntrack_0.1.0-r1_x86_64.ipk",
+    "package": "routeharbor-conntrack",
     "architecture": "x86_64",
     "binaries": []
   },
   {
-    "ipk": "openrhp-guard_0.1.0-r1_x86_64.ipk",
-    "package": "openrhp-guard",
+    "ipk": "routeharbor-guard_0.1.0-r1_x86_64.ipk",
+    "package": "routeharbor-guard",
     "architecture": "x86_64",
     "binaries": [
       {
-        "path": "usr/libexec/openrhp-helper",
+        "path": "usr/libexec/routeharbor-helper",
         "bytes": 5902460,
         "sha256": "15450aca5cd47d3979d3d71b1da7196d115ba8adf9a906bff0426d50e94816bb",
         "go_version": "go1.27.1",
@@ -22,12 +22,12 @@
     ]
   },
   {
-    "ipk": "openrhp-node_0.1.0-r1_x86_64.ipk",
-    "package": "openrhp-node",
+    "ipk": "routeharbor-node_0.1.0-r1_x86_64.ipk",
+    "package": "routeharbor-node",
     "architecture": "x86_64",
     "binaries": [
       {
-        "path": "usr/bin/openrhp-node",
+        "path": "usr/bin/routeharbor-node",
         "bytes": 7954556,
         "sha256": "121c818236c87abce6add38e78ec8d50691626ac7923a0f88af4fa9b9c863bb5",
         "go_version": "go1.27.1",
@@ -38,24 +38,24 @@
     ]
   },
   {
-    "ipk": "openrhp-sing-box_0.1.0-r1_x86_64.ipk",
-    "package": "openrhp-sing-box",
+    "ipk": "routeharbor-sing-box_0.1.0-r1_x86_64.ipk",
+    "package": "routeharbor-sing-box",
     "architecture": "x86_64",
     "binaries": []
   },
   {
-    "ipk": "openrhp-xray_0.1.0-r1_x86_64.ipk",
-    "package": "openrhp-xray",
+    "ipk": "routeharbor-xray_0.1.0-r1_x86_64.ipk",
+    "package": "routeharbor-xray",
     "architecture": "x86_64",
     "binaries": []
   },
   {
-    "ipk": "openrhp_0.1.0-r1_x86_64.ipk",
-    "package": "openrhp",
+    "ipk": "routeharbor_0.1.0-r1_x86_64.ipk",
+    "package": "routeharbor",
     "architecture": "x86_64",
     "binaries": [
       {
-        "path": "usr/bin/openrhp",
+        "path": "usr/bin/routeharbor",
         "bytes": 9441404,
         "sha256": "8ea3c41c78b5f70ef0892c48fbea196d357f0a2458b55d7d9c940c40e5aefdb7",
         "go_version": "go1.27.1",

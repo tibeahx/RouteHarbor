@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func TestRestoreAllocationsPreservesConfirmedLANPortsAndMarks(t *testing.T) {

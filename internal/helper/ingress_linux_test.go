@@ -13,7 +13,7 @@ import (
 
 func TestLinuxBridgeIngressGuard(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_INGRESS_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_INGRESS_CHILD") != "1" {
 		binary, err := os.Executable()
 		if err != nil {
 			t.Fatal(err)
@@ -26,7 +26,7 @@ func TestLinuxBridgeIngressGuard(t *testing.T) {
 			"-test.run=^TestLinuxBridgeIngressGuard$",
 			"-test.v",
 		)
-		cmd.Env = append(os.Environ(), "OPENRHP_INGRESS_CHILD=1")
+		cmd.Env = append(os.Environ(), "ROUTEHARBOR_INGRESS_CHILD=1")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("namespace: %v\n%s", err, out)

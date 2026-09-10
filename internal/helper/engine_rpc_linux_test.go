@@ -15,19 +15,19 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func TestLinuxManagedEngineRPCClientFixture(t *testing.T) {
-	if os.Getenv("OPENRHP_ENGINE_RPC_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_RPC_CHILD") != "1" {
 		return
 	}
 	if os.Geteuid() == 0 {
 		t.Fatal("API fixture must be unprivileged")
 	}
-	client := &Client{SocketPath: os.Getenv("OPENRHP_ENGINE_RPC_SOCKET"), ExpectedUID: 0}
-	manager := adapter.NewManager(os.Getenv("OPENRHP_ENGINE_RPC_RUNTIME"))
+	client := &Client{SocketPath: os.Getenv("ROUTEHARBOR_ENGINE_RPC_SOCKET"), ExpectedUID: 0}
+	manager := adapter.NewManager(os.Getenv("ROUTEHARBOR_ENGINE_RPC_RUNTIME"))
 	manager.ManagedEngines = client
 	manager.DNSResolver = "8.8.8.8"
 	manager.EnableIPv6 = true
@@ -40,7 +40,7 @@ func TestLinuxManagedEngineRPCClientFixture(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
-	if restore := os.Getenv("OPENRHP_ENGINE_RPC_RESTORE"); restore != "" {
+	if restore := os.Getenv("ROUTEHARBOR_ENGINE_RPC_RESTORE"); restore != "" {
 		raw, e := os.ReadFile(restore)
 		if e != nil {
 			t.Fatal(e)
@@ -69,10 +69,10 @@ func TestLinuxManagedEngineRPCClientFixture(t *testing.T) {
 		t.Fatal(e)
 	}
 	raw, _ := json.Marshal(p)
-	if e = os.WriteFile(os.Getenv("OPENRHP_ENGINE_RPC_READY"), raw, 0o644); e != nil {
+	if e = os.WriteFile(os.Getenv("ROUTEHARBOR_ENGINE_RPC_READY"), raw, 0o644); e != nil {
 		t.Fatal(e)
 	}
-	if os.Getenv("OPENRHP_ENGINE_RPC_STOP") == "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_RPC_STOP") == "1" {
 		if e = manager.Stop(context.Background(), source.ID); e != nil {
 			t.Fatal("explicit managed stop", e)
 		}
@@ -90,12 +90,12 @@ func TestLinuxManagedEngineRPCClientFixture(t *testing.T) {
 
 func TestLinuxManagedEngineRPCUnprivilegedAPIAndCrashCleanup(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_ENGINE_WORKER_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_WORKER_LAB") != "1" {
 		t.Skip("requires pinned engines plus privileged worker lab")
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	root, e := os.MkdirTemp("", "openrhp-engine-rpc-")
+	root, e := os.MkdirTemp("", "routeharbor-engine-rpc-")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -146,14 +146,14 @@ func TestLinuxManagedEngineRPCUnprivilegedAPIAndCrashCleanup(t *testing.T) {
 		)
 		cmd.Env = append(
 			os.Environ(),
-			"OPENRHP_ENGINE_RPC_CHILD=1",
-			"OPENRHP_ENGINE_RPC_SOCKET="+socket,
-			"OPENRHP_ENGINE_RPC_RUNTIME="+runtimeDir,
-			"OPENRHP_ENGINE_RPC_READY="+ready,
-			"OPENRHP_ENGINE_RPC_RESTORE="+restore,
+			"ROUTEHARBOR_ENGINE_RPC_CHILD=1",
+			"ROUTEHARBOR_ENGINE_RPC_SOCKET="+socket,
+			"ROUTEHARBOR_ENGINE_RPC_RUNTIME="+runtimeDir,
+			"ROUTEHARBOR_ENGINE_RPC_READY="+ready,
+			"ROUTEHARBOR_ENGINE_RPC_RESTORE="+restore,
 		)
 		if stop {
-			cmd.Env = append(cmd.Env, "OPENRHP_ENGINE_RPC_STOP=1")
+			cmd.Env = append(cmd.Env, "ROUTEHARBOR_ENGINE_RPC_STOP=1")
 		}
 		cmd.SysProcAttr = &syscall.SysProcAttr{
 			Credential: &syscall.Credential{Uid: 65534, Gid: 65534, Groups: []uint32{}},

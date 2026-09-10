@@ -1,8 +1,8 @@
 # OpenWrt SDK and userland evidence
 
-The OpenWrt 24.10.7 x86/64 SDK produced real development IPKs for `openrhp`,
-`openrhp-guard`, `openrhp-node`, `openrhp-conntrack`, `openrhp-sing-box` and
-`openrhp-xray` (six packages). The SDK build
+The OpenWrt 24.10.7 x86/64 SDK produced real development IPKs for `routeharbor`,
+`routeharbor-guard`, `routeharbor-node`, `routeharbor-conntrack`, `routeharbor-sing-box` and
+`routeharbor-xray` (six packages). The SDK build
 ran on Linux in an isolated Docker volume using the verified Go 1.27.1 toolchain.
 The Go compiler used no CGO or network dependency downloads. Package runtime
 `DEPENDS` metadata remained intact; ordinary `opkg install` accepted the gateway,
@@ -31,7 +31,7 @@ x86_64 base repository in its `dependencies` directory. Copy the repository's
 `docker/lab-openwrt/Dockerfile` there, then build without network access:
 
 ```sh
-docker build --platform linux/amd64 --network none -t openrhp-openwrt-deps:24.10.7 /absolute/verified-openwrt-lab-inputs
+docker build --platform linux/amd64 --network none -t routeharbor-openwrt-deps:24.10.7 /absolute/verified-openwrt-lab-inputs
 python3 scripts/lab-openwrt.py --packages /absolute/current-sdk-ipks
 ```
 

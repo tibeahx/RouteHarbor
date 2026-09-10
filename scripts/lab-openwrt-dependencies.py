@@ -16,7 +16,7 @@ import urllib.request
 
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--output', type=pathlib.Path, required=True)
-parser.add_argument('--verifier-image', default='openrhp-openwrt-deps:24.10.7')
+parser.add_argument('--verifier-image', default='routeharbor-openwrt-deps:24.10.7')
 args = parser.parse_args()
 root = args.output.resolve()
 root.mkdir(parents=True, exist_ok=True)

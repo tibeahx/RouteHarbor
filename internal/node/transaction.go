@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 type (

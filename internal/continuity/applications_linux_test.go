@@ -191,7 +191,7 @@ func applicationFaults(t *testing.T, f *fixture, exchange func()) {
 }
 
 func TestLinuxContinuityApplications(t *testing.T) {
-	if os.Getenv("OPENRHP_CONTINUITY_APP_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_CONTINUITY_APP_LAB") != "1" {
 		t.Skip("run scripts/lab-continuity-apps.sh for actual SSH, QUIC, WebSocket and DNS clients")
 	}
 	t.Run("SSH", func(t *testing.T) {
@@ -466,7 +466,7 @@ class Echo(QuicConnectionProtocol):
             self._quic.send_stream_data(event.stream_id,event.data,end_stream=event.end_stream)
             self.transmit()
 async def main():
-    config=QuicConfiguration(is_client=False,alpn_protocols=['openrhp-test'])
+    config=QuicConfiguration(is_client=False,alpn_protocols=['routeharbor-test'])
     config.load_cert_chain(sys.argv[2],sys.argv[3])
     server=await serve('127.0.0.1',int(sys.argv[1]),configuration=config,create_protocol=Echo)
     print('READY',flush=True)
@@ -480,7 +480,7 @@ from aioquic.asyncio import connect
 from aioquic.quic.configuration import QuicConfiguration
 ` + framedPythonIO + `
 async def main():
-    config=QuicConfiguration(is_client=True,alpn_protocols=['openrhp-test'])
+    config=QuicConfiguration(is_client=True,alpn_protocols=['routeharbor-test'])
     config.verify_mode=ssl.CERT_NONE # ephemeral test-only certificate inside offline namespace
     async with connect('127.0.0.1',int(sys.argv[1]),configuration=config) as connection:
         reader,writer=await connection.create_stream()

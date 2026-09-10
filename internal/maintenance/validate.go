@@ -12,12 +12,12 @@ func ValidateRequest(request Request, start bool) error {
 	seen := map[string]bool{}
 	for _, component := range request.Components {
 		switch component {
-		case "openrhp",
-			"openrhp-sing-box",
-			"openrhp-xray",
-			"openrhp-conntrack",
-			"openrhp-continuity":
-		case "openrhp-guard":
+		case "routeharbor",
+			"routeharbor-sing-box",
+			"routeharbor-xray",
+			"routeharbor-conntrack",
+			"routeharbor-continuity":
+		case "routeharbor-guard":
 			return errors.New("maintenance_guard_replacement_unsupported")
 		default:
 			return errors.New("maintenance_component_unsupported")

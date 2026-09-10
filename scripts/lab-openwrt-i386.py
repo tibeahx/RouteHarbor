@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Execute i386 suites on the separately booted, signed OpenWrt x86/generic VM.
 
-Start it with OPENRHP_VM_PROFILE=x86-generic scripts/lab-openwrt-vm.sh first.
+Start it with ROUTEHARBOR_VM_PROFILE=x86-generic scripts/lab-openwrt-vm.sh first.
 This never installs packages, changes networking, or touches the x86_64 lab.
 """
 import hashlib
@@ -12,7 +12,7 @@ import subprocess
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 OUTPUT = ROOT / 'test-results' / 'openwrt-i386'
-CONTAINER = 'openrhp-openwrt-i386-lab'
+CONTAINER = 'routeharbor-openwrt-i386-lab'
 CONTROL = '/lab/vmctl-i386.py'
 IMAGE_SHA256 = '394014a15bfb1efd0cd47242897d72493f6a2b3be81b7099a340490384457b82'
 
@@ -32,7 +32,7 @@ def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     inspect = json.loads(run(['docker', 'inspect', CONTAINER]))[0]
     if (inspect['HostConfig']['NetworkMode'] != 'none' or
-            inspect['Config']['Labels'].get('org.openrhp.lab') != 'full-boot'):
+            inspect['Config']['Labels'].get('org.routeharbor.lab') != 'full-boot'):
         raise RuntimeError('Refusing a container outside the isolated full-boot lab')
     info = json.loads(run(['docker', 'exec', CONTAINER, 'python3', CONTROL, 'info']))
     if info['image_sha256'] != IMAGE_SHA256:
@@ -52,12 +52,12 @@ def main():
     results = []
     for name, package in [('stdlib', './scripts/testdata/abi-netpoll'),
                           ('selection', './internal/selection'), ('config', './internal/config'),
-                          ('release', './cmd/openrhp-release')]:
+                          ('release', './cmd/routeharbor-release')]:
         binary = OUTPUT / (name + '.test')
         args = [go, 'build'] if name == 'stdlib' else [go, 'test', '-c']
         run([*args, '-o', str(binary), package], timeout=180)
         binary.chmod(0o755)
-        remote = '/tmp/openrhp-i386-' + name
+        remote = '/tmp/routeharbor-i386-' + name
         run(['docker', 'cp', str(binary), CONTAINER + ':' + remote])
         run(['docker', 'exec', CONTAINER, 'python3', CONTROL, 'put', remote, remote])
         arguments = '' if name == 'stdlib' else ' -test.timeout 90s -test.v'

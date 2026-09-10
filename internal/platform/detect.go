@@ -210,14 +210,14 @@ func (d Detector) Detect(ctx context.Context) Report {
 		false,
 		"Combined client and backhaul operation requires device-specific validation",
 	}
-	include, _ := d.ReadFile("/usr/share/nftables.d/ruleset-pre/90-openrhp-guard.nft")
+	include, _ := d.ReadFile("/usr/share/nftables.d/ruleset-pre/90-routeharbor-guard.nft")
 	printed, printErr := d.Runner.Run(ctx, "/sbin/fw4", []string{"print"}, nil)
 	autoIncludes := printErr == nil &&
 		strings.Contains(
 			string(printed),
-			`include "/usr/share/nftables.d/ruleset-pre/90-openrhp-guard.nft"`,
+			`include "/usr/share/nftables.d/ruleset-pre/90-routeharbor-guard.nft"`,
 		)
-	if strings.Contains(string(include), `include "/etc/openrhp-helper/guard.nft"`) &&
+	if strings.Contains(string(include), `include "/etc/routeharbor-helper/guard.nft"`) &&
 		autoIncludes {
 		r.Capabilities["lifecycle_guard"] = Capability{
 			true,

@@ -19,7 +19,7 @@ nothing. It verifies each manifest with `usign`, checks the image against that
 manifest and then enforces the fixed whole-image digest above before booting.
 
 The verifier is the already independently verified
-`openrhp-openwrt-deps:24.10.7` image, using `/etc/opkg/keys`. Its official 24.10.7
+`routeharbor-openwrt-deps:24.10.7` image, using `/etc/opkg/keys`. Its official 24.10.7
 x86/64 base rootfs SHA-256 is
 `862c25809a12356bdc051d144f53a4ebb6494bd0239a19e8c54cd9160db89b21`;
 see the [SDK provenance](../../docs/evidence/openwrt-sdk.md). The verification
@@ -28,7 +28,7 @@ Debian host tools, with QEMU system pinned to
 `1:7.2+dfsg-7+deb12u18+b3` through signed Debian APT metadata.
 
 ```sh
-docker build -t openrhp-malta-lab:24.10.7 docker/lab-malta
+docker build -t routeharbor-malta-lab:24.10.7 docker/lab-malta
 mkdir -p /absolute/private-malta-state
 chmod 0700 /absolute/private-malta-state
 GO=/absolute/go1.27.1/bin/go python3 scripts/lab-openwrt-mips64.py /absolute/verified-malta-inputs /absolute/private-malta-state

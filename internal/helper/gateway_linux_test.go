@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/coverage"
+	"github.com/tibeahx/RouteHarbor/internal/coverage"
 )
 
 // This subprocess fixture verifies detached process and journal behavior only.
@@ -102,11 +102,11 @@ func gatewayWatchdogFixture(args []string) error {
 }
 
 func TestLinuxGatewayApplyCrashChild(t *testing.T) {
-	if os.Getenv("OPENRHP_GATEWAY_CRASH_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_GATEWAY_CRASH_CHILD") != "1" {
 		t.Skip("subprocess only")
 	}
 	requireNetLab(t)
-	dir := os.Getenv("OPENRHP_GATEWAY_CRASH_DIR")
+	dir := os.Getenv("ROUTEHARBOR_GATEWAY_CRASH_DIR")
 	executable, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -157,8 +157,8 @@ func TestLinuxGatewayWatchdogAfterManagerSIGKILL(t *testing.T) {
 	child := exec.Command(executable, "-test.run=^TestLinuxGatewayApplyCrashChild$", "-test.v")
 	child.Env = append(
 		os.Environ(),
-		"OPENRHP_GATEWAY_CRASH_CHILD=1",
-		"OPENRHP_GATEWAY_CRASH_DIR="+dir,
+		"ROUTEHARBOR_GATEWAY_CRASH_CHILD=1",
+		"ROUTEHARBOR_GATEWAY_CRASH_DIR="+dir,
 	)
 	child.Stdout, child.Stderr = os.Stdout, os.Stderr
 	if err = child.Start(); err != nil {

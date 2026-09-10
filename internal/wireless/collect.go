@@ -13,7 +13,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type interfaceState struct {

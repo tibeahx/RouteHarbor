@@ -2,12 +2,12 @@ GO ?= go
 .PHONY: build test check lint fmt fmt-check fmt-web fmt-web-check matrix lab clean
 build:
 	mkdir -p bin
-	$(GO) build -trimpath -o bin/openrhp ./cmd/openrhp
-	$(GO) build -trimpath -o bin/openrhp-helper ./cmd/openrhp-helper
-	$(GO) build -trimpath -o bin/openrhp-node ./cmd/openrhp-node
-	$(GO) build -trimpath -o bin/openrhp-release ./cmd/openrhp-release
-	$(GO) build -trimpath -o bin/openrhp-continuity ./cmd/openrhp-continuity
-	$(GO) build -trimpath -o bin/openrhp-relay ./cmd/openrhp-relay
+	$(GO) build -trimpath -o bin/routeharbor ./cmd/routeharbor
+	$(GO) build -trimpath -o bin/routeharbor-helper ./cmd/routeharbor-helper
+	$(GO) build -trimpath -o bin/routeharbor-node ./cmd/routeharbor-node
+	$(GO) build -trimpath -o bin/routeharbor-release ./cmd/routeharbor-release
+	$(GO) build -trimpath -o bin/routeharbor-continuity ./cmd/routeharbor-continuity
+	$(GO) build -trimpath -o bin/routeharbor-relay ./cmd/routeharbor-relay
 test:
 	$(GO) test -race ./...
 check:

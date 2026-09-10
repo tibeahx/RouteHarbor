@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/coverage"
+	"github.com/tibeahx/RouteHarbor/internal/coverage"
 )
 
 func TestPrivateGatewayEnvelopeRejectsMixedOperations(t *testing.T) {

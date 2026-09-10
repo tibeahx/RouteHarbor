@@ -11,7 +11,7 @@ import (
 )
 
 func TestNativePacketLifecycle(t *testing.T) {
-	if os.Getenv("OPENRHP_PACKET_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_PACKET_LAB") != "1" {
 		t.Skip("requires disposable privileged pinned nfqws Linux lab")
 	}
 	m := NewPacketManager()

@@ -2,17 +2,22 @@
 
 No stable installation release or production signing trust root is published yet.
 Do not install files merely because their names match an example. The repository
-ships an offline `openrhp-release` utility for the release process.
+ships an offline `routeharbor-release` utility for the release process.
 
-A schema-1 manifest binds `project:OpenRHP`, stable numeric `version`, full source
+For installations using an earlier project identity, follow the
+[installation identity transition](branding.md#installation-identity). The new
+package and private state names require explicit decommissioning and a fresh
+installation; ordinary package updates do not migrate that identity.
+
+A schema-1 manifest binds `project:RouteHarbor`, stable numeric `version`, full source
 `commit`, and artifacts with exact `name`, OpenWrt `architecture`, `sha256`, `bytes`.
 The detached signature is standard Ed25519 over the manifest's bytes. The trusted
 public key is supplied by the administrator independently of the downloaded archive.
 
 ```sh
-go build -o openrhp-release ./cmd/openrhp-release
-openrhp-release verify --manifest manifest.json --signature manifest.sig \
-  --key /trusted/location/openrhp.pub --arch EXACT_OPENWRT_PACKAGE_ARCH \
+go build -o routeharbor-release ./cmd/routeharbor-release
+routeharbor-release verify --manifest manifest.json --signature manifest.sig \
+  --key /trusted/location/routeharbor.pub --arch EXACT_OPENWRT_PACKAGE_ARCH \
   --current-version INSTALLED_VERSION --artifact DOWNLOADED_PACKAGE
 ```
 
@@ -24,7 +29,7 @@ anything. Keep the verified files in an administrator-owned private staging dire
 until the package manager consumes them; do not allow another process to replace them.
 
 Release signing keys are not checked in. Maintainers generate/store them offline with
-`openrhp-release keygen`. Future key rotation must be authenticated by the previously
+`routeharbor-release keygen`. Future key rotation must be authenticated by the previously
 trusted key and an independently confirmed new fingerprint; downloading a new key
 beside a new package is not rotation approval. Manifest/package association must match
 the tagged source commit and published build/SBOM evidence.
@@ -32,15 +37,15 @@ the tagged source commit and published build/SBOM evidence.
 ## Backup and recovery
 
 On the installed router, use existing root administrator access and run
-`openrhp as-service backup --state /etc/openrhp --recipient age1... --out /etc/openrhp/admin/NEW_BACKUP.age`.
-The command re-executes only the trusted installed `/usr/bin/openrhp` as the actual
+`routeharbor as-service backup --state /etc/routeharbor --recipient age1... --out /etc/routeharbor/admin/NEW_BACKUP.age`.
+The command re-executes only the trusted installed `/usr/bin/routeharbor` as the actual
 non-root service UID/GID, with no supplementary groups, before opening service
 state or writing the private output. Root does not follow a service-writable
 state tree or change its ownership. Output must be a new path writable by the
 service user. The command supports only `token` and `backup` administration.
 
 For a development state directory, invoke
-`openrhp backup --state STATE --recipient age1... --out NEW_PRIVATE_FILE.age`
+`routeharbor backup --state STATE --recipient age1... --out NEW_PRIVATE_FILE.age`
 directly as that directory's owner. The backup command uses
 the standard age tool to encrypt the full source configuration for a recipient chosen
 by the administrator. The private decryption identity is kept separately. No bespoke
@@ -61,7 +66,7 @@ configuration API with current revision, then independent path checks and a new
 confirmed network transaction. Never apply a copied interface mapping blindly.
 
 Before an update retain old/new verified packages offline, backup, rollback instructions
-and a working management path. Update only OpenRHP and explicitly selected dependencies.
+and a working management path. Update only RouteHarbor and explicitly selected dependencies.
 OpenWrt upgrades, bootloader operations and node firmware flashing are separate work.
 A failed update must preserve the user's traffic policy; do not remove closed guards
 as an automatic repair. Use [removal/recovery](uninstall.md) for decommissioning.

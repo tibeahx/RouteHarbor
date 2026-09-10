@@ -8,7 +8,7 @@ user's request on 2026-09-09 while the current changes are submitted for review.
 
 Prerequisites:
 
-- The verified `openrhp-openwrt-boot-lab` full-system VM, using Docker network
+- The verified `routeharbor-openwrt-boot-lab` full-system VM, using Docker network
   `none`, no published ports and the existing pinned SSH identity.
 - A clean installed and bootstrapped package baseline: routing off, policy off,
   no sources or resources, no maintenance hold/job and an available root helper.

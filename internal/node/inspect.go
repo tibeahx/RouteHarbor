@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type BridgeSetup struct {
@@ -157,7 +157,7 @@ func (b *UCIBackend) Inspect(ctx context.Context) (Setup, error) {
 				seen[port] = true
 			}
 		}
-		reserved := network["network."+section+".openrhp_disabled_uplink"]
+		reserved := network["network."+section+".routeharbor_disabled_uplink"]
 		if reserved != "" && platform.ValidInterfaceName(reserved) && !seen[reserved] {
 			ports = append(ports, reserved)
 		}
@@ -196,7 +196,7 @@ func (b *UCIBackend) Inspect(ctx context.Context) (Setup, error) {
 			for iface, kind := range wireless {
 				if kind == "wifi-iface" && wireless[iface+".device"] == name &&
 					wireless[iface+".disabled"] != "1" &&
-					wireless[iface+".openrhp_owner"] != "1" {
+					wireless[iface+".routeharbor_owner"] != "1" {
 					radio.ForeignActive = true
 				}
 			}

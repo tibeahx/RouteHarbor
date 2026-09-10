@@ -79,7 +79,7 @@ and transaction records; helper RPC carries a bounded hash/generation reference.
 Publication and observed application by the engine are distinct states.
 
 Detection defaults off. Enabling requires explicit IDs of existing HTTPS control
-resources on port 443; OpenRHP does not choose an external control service for you. Only recently
+resources on port 443; RouteHarbor does not choose an external control service for you. Only recently
 observed unknown external domains enter bounded in-memory work queues. DNS query
 history is not persisted or exposed in ordinary diagnostics. Global probe concurrency
 and work budgets also apply to these comparisons.
@@ -104,7 +104,7 @@ slowdowns and QUIC-only restrictions are not diagnosed by this version.
 A bypass method, worker or relay failing affects bypass traffic. A registry download
 or detector failure only disables that function; it is not a classifier failure.
 The independent watchdog responds to dispatcher or managed DNS failure by restoring
-ordinary WAN and DNS, removing only OpenRHP-owned restrictions including its separate
+ordinary WAN and DNS, removing only RouteHarbor-owned restrictions including its separate
 DNS guard. This **emergency direct** policy is explicit in the routing profile and
 confirmed journal. It can interrupt connections; stale FakeIP answers may require an
 application DNS-cache refresh. FakeIP destinations themselves are never leaked to WAN.

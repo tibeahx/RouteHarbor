@@ -10,10 +10,10 @@ import (
 	"net/netip"
 	"strconv"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 const (
@@ -371,7 +371,7 @@ func Generate(s Spec, files Files, secret string) ([]byte, error) {
 				"external_controller":         "127.0.0.1:" + strconv.Itoa(s.Allocation.APIPort),
 				"secret":                      secret,
 				"default_mode":                mode,
-				"access_control_allow_origin": []string{"http://openrhp.invalid"},
+				"access_control_allow_origin": []string{"http://routeharbor.invalid"},
 			},
 		},
 	})

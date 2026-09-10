@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type Gate interface {
@@ -214,7 +214,8 @@ func (b *OpkgBackend) arguments(plan Plan, paths []string, dry bool) ([]string, 
 		}
 		args = append(args, "install")
 		for i, p := range plan.Packages {
-			if !allowedPackage(p.Name) || p.Name == "openrhp-guard" || p.Name == "openrhp-node" ||
+			if !allowedPackage(p.Name) || p.Name == "routeharbor-guard" ||
+				p.Name == "routeharbor-node" ||
 				!hashID.MatchString(p.SHA256) ||
 				paths[i] != filepath.Join(b.StateDir, "artifact-"+p.SHA256+".ipk") {
 				return nil, errors.New("maintenance_installation_unsupported")
@@ -227,7 +228,10 @@ func (b *OpkgBackend) arguments(plan Plan, paths []string, dry bool) ([]string, 
 
 func removalPriority(name string) int {
 	switch name {
-	case "openrhp-sing-box", "openrhp-xray", "openrhp-conntrack", "openrhp-continuity":
+	case "routeharbor-sing-box",
+		"routeharbor-xray",
+		"routeharbor-conntrack",
+		"routeharbor-continuity":
 		return 0
 	default:
 		return 1

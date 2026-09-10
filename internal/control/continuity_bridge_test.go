@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/helper"
+	"github.com/tibeahx/RouteHarbor/internal/helper"
 )
 
 func TestContinuityBridgeReservationPrivateCopyAndRedactedStatus(t *testing.T) {

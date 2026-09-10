@@ -14,7 +14,7 @@ import ssl
 import sys
 import threading
 
-BODY = b"OpenRHP quick setup lab\n"
+BODY = b"RouteHarbor quick setup lab\n"
 ADDRESSES = [(4, "8.8.8.8"), (6, "2001:4860:4860::8888")]
 
 
@@ -40,7 +40,7 @@ class HTTPServer(http.server.ThreadingHTTPServer):
         # The synthetic responder must not issue a reverse-DNS request merely
         # to format its own server name during startup.
         socketserver.TCPServer.server_bind(self)
-        self.server_name = 'openrhp-lab'
+        self.server_name = 'routeharbor-lab'
         self.server_port = self.server_address[1]
 
 
@@ -132,7 +132,7 @@ if __name__ == "__main__":
     if len(sys.argv) == 4 and (sys.argv[1] != 'client' or sys.argv[3] != 'selected-path'):
         raise SystemExit('Only the client supports selected-path DNS verification')
     directory = pathlib.Path(sys.argv[2])
-    if directory.parent != pathlib.Path("/tmp") or not directory.name.startswith("openrhp-quick-setup-"):
+    if directory.parent != pathlib.Path("/tmp") or not directory.name.startswith("routeharbor-quick-setup-"):
         raise SystemExit("Refusing a non-lab fixture directory")
     if sys.argv[1] == 'server':
         serve(directory)

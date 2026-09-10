@@ -21,9 +21,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 type dispatcherLabReady struct {
@@ -57,21 +57,24 @@ func dispatcherLabRPC(ctx context.Context, operation func() error) error {
 }
 
 func TestLinuxDispatcherHotPublishFixture(t *testing.T) {
-	if os.Getenv("OPENRHP_DISPATCHER_PUBLISH_SLOT") == "" {
+	if os.Getenv("ROUTEHARBOR_DISPATCHER_PUBLISH_SLOT") == "" {
 		t.Skip("subprocess fixture only")
 	}
 	if os.Geteuid() != 65534 {
 		t.Fatal("publication must use unprivileged API")
 	}
-	slot, err := strconv.Atoi(os.Getenv("OPENRHP_DISPATCHER_PUBLISH_SLOT"))
+	slot, err := strconv.Atoi(os.Getenv("ROUTEHARBOR_DISPATCHER_PUBLISH_SLOT"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var ref routing.SnapshotRef
-	if err = json.Unmarshal([]byte(os.Getenv("OPENRHP_DISPATCHER_PUBLISH_REF")), &ref); err != nil {
+	if err = json.Unmarshal(
+		[]byte(os.Getenv("ROUTEHARBOR_DISPATCHER_PUBLISH_REF")),
+		&ref,
+	); err != nil {
 		t.Fatal(err)
 	}
-	client := &Client{SocketPath: os.Getenv("OPENRHP_DISPATCHER_WORKER_SOCKET"), ExpectedUID: 0}
+	client := &Client{SocketPath: os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_SOCKET"), ExpectedUID: 0}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
 	defer cancel()
 	started := time.Now()
@@ -81,7 +84,7 @@ func TestLinuxDispatcherHotPublishFixture(t *testing.T) {
 			Action:   "publish",
 			Slot:     slot,
 			Snapshot: &ref,
-			Learned:  []string{"openrhp-scale-learned.example"},
+			Learned:  []string{"routeharbor-scale-learned.example"},
 		},
 	)
 	if err != nil || status.PublishedGeneration != 2 {
@@ -249,11 +252,11 @@ func dispatcherLabTransparent(t *testing.T, port int) {
 }
 
 func TestLinuxDispatcherTrafficFixture(t *testing.T) {
-	ordinaryTarget := os.Getenv("OPENRHP_DISPATCHER_ORDINARY_TARGET")
+	ordinaryTarget := os.Getenv("ROUTEHARBOR_DISPATCHER_ORDINARY_TARGET")
 	if ordinaryTarget == "" {
 		t.Skip("subprocess fixture only")
 	}
-	learnedTarget := os.Getenv("OPENRHP_DISPATCHER_LEARNED_TARGET")
+	learnedTarget := os.Getenv("ROUTEHARBOR_DISPATCHER_LEARNED_TARGET")
 	held, err := net.DialTimeout("tcp4", ordinaryTarget, time.Second)
 	if err != nil {
 		t.Fatal("ordinary direct setup", err)
@@ -267,7 +270,7 @@ func TestLinuxDispatcherTrafficFixture(t *testing.T) {
 	dispatcherLabEcho(t, unknown)
 	_ = unknown.Close()
 	if err = os.WriteFile(
-		os.Getenv("OPENRHP_DISPATCHER_TRAFFIC_READY"),
+		os.Getenv("ROUTEHARBOR_DISPATCHER_TRAFFIC_READY"),
 		[]byte("ready"),
 		0o600,
 	); err != nil {
@@ -275,7 +278,7 @@ func TestLinuxDispatcherTrafficFixture(t *testing.T) {
 	}
 	deadline := time.Now().Add(45 * time.Second)
 	for {
-		if _, err = os.Stat(os.Getenv("OPENRHP_DISPATCHER_TRAFFIC_PUBLISHED")); err == nil {
+		if _, err = os.Stat(os.Getenv("ROUTEHARBOR_DISPATCHER_TRAFFIC_PUBLISHED")); err == nil {
 			break
 		}
 		if time.Now().After(deadline) {
@@ -398,13 +401,13 @@ func dispatcherLabDNS(t *testing.T, port int, network, name string, typ uint16) 
 // unprivileged service UID. It has no network capabilities or direct file access
 // to the helper's root-owned routing snapshots.
 func TestLinuxDispatcherWorkerClientFixture(t *testing.T) {
-	if os.Getenv("OPENRHP_DISPATCHER_WORKER_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_CHILD") != "1" {
 		t.Skip("subprocess fixture only")
 	}
 	if os.Geteuid() == 0 {
 		t.Fatal("dispatcher API fixture must be unprivileged")
 	}
-	client := &Client{SocketPath: os.Getenv("OPENRHP_DISPATCHER_WORKER_SOCKET"), ExpectedUID: 0}
+	client := &Client{SocketPath: os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_SOCKET"), ExpectedUID: 0}
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	if e := dispatcherLabRPC(
@@ -419,7 +422,7 @@ func TestLinuxDispatcherWorkerClientFixture(t *testing.T) {
 		Domains:    []string{"blocked.example"},
 		CIDRs:      []string{},
 	}
-	if path := os.Getenv("OPENRHP_DISPATCHER_SCALE_DOMAINS"); path != "" {
+	if path := os.Getenv("ROUTEHARBOR_DISPATCHER_SCALE_DOMAINS"); path != "" {
 		started := time.Now()
 		file, err := os.Open(path)
 		if err != nil {
@@ -459,7 +462,7 @@ func TestLinuxDispatcherWorkerClientFixture(t *testing.T) {
 		t.Fatal("typed snapshot recovery", e)
 	}
 	t.Logf("typed snapshot recovery: elapsed=%s", time.Since(started))
-	manager := adapter.NewManager(os.Getenv("OPENRHP_DISPATCHER_WORKER_STATE"))
+	manager := adapter.NewManager(os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_STATE"))
 	events := make(chan string, 16)
 	var processes []adapter.ManagedProcess
 	var heldKeys []string
@@ -473,9 +476,9 @@ func TestLinuxDispatcherWorkerClientFixture(t *testing.T) {
 	}()
 	ready := dispatcherLabReady{}
 	poolCount := uint8(2)
-	if os.Getenv("OPENRHP_DISPATCHER_SCALE_DOMAINS") != "" {
+	if os.Getenv("ROUTEHARBOR_DISPATCHER_SCALE_DOMAINS") != "" {
 		poolCount = 1
-		if os.Getenv("OPENRHP_DISPATCHER_SCALE_WORKERS") == "2" {
+		if os.Getenv("ROUTEHARBOR_DISPATCHER_SCALE_WORKERS") == "2" {
 			poolCount = 2
 		}
 	}
@@ -493,7 +496,7 @@ func TestLinuxDispatcherWorkerClientFixture(t *testing.T) {
 		spec.Network.IPv6 = "block"
 		spec.Sources[0].Interface = "lo"
 		spec.Sources[0].IPv6 = false
-		if os.Getenv("OPENRHP_DISPATCHER_WORKER_CRASH") == "1" {
+		if os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_CRASH") == "1" {
 			// Reuse the earlier healthy worker's persisted cache, but prepare
 			// bypass-unavailable mode. Persisted Clash mode must not override it.
 			spec.Selected = ""
@@ -576,14 +579,14 @@ func TestLinuxDispatcherWorkerClientFixture(t *testing.T) {
 		t.Fatal("staged instances shared FakeIP address")
 	}
 	raw, _ := json.Marshal(ready)
-	if e = os.WriteFile(os.Getenv("OPENRHP_DISPATCHER_WORKER_READY"), raw, 0o600); e != nil {
+	if e = os.WriteFile(os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_READY"), raw, 0o600); e != nil {
 		t.Fatal(e)
 	}
-	if os.Getenv("OPENRHP_DISPATCHER_WORKER_CRASH") == "1" {
+	if os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_CRASH") == "1" {
 		select {}
 	}
 	for {
-		if _, e = os.Stat(os.Getenv("OPENRHP_DISPATCHER_WORKER_STOP")); e == nil {
+		if _, e = os.Stat(os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_STOP")); e == nil {
 			break
 		}
 		if ctx.Err() != nil {
@@ -646,7 +649,7 @@ func dispatcherLabCredentials(t *testing.T, pid, capability string) {
 }
 
 func TestLinuxDispatcherConfigurationIsolationFixture(t *testing.T) {
-	engine := os.Getenv("OPENRHP_DISPATCHER_ISOLATION_ENGINE")
+	engine := os.Getenv("ROUTEHARBOR_DISPATCHER_ISOLATION_ENGINE")
 	if engine == "" {
 		t.Skip("subprocess fixture only")
 	}
@@ -656,7 +659,7 @@ func TestLinuxDispatcherConfigurationIsolationFixture(t *testing.T) {
 	if _, err := os.ReadFile(filepath.Join("/proc", engine, "fd", "3")); !os.IsPermission(err) {
 		t.Fatal("service UID could access privileged engine configuration", err)
 	}
-	front := os.Getenv("OPENRHP_DISPATCHER_ISOLATION_FRONT")
+	front := os.Getenv("ROUTEHARBOR_DISPATCHER_ISOLATION_FRONT")
 	raw, err := os.ReadFile(filepath.Join("/proc", front, "fd", "3"))
 	if err != nil {
 		t.Fatal("capability-free DNS frontend descriptor unavailable", err)
@@ -669,18 +672,18 @@ func TestLinuxDispatcherConfigurationIsolationFixture(t *testing.T) {
 
 func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_DISPATCHER_WORKER_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_DISPATCHER_WORKER_LAB") != "1" {
 		t.Skip("requires isolated pinned sing-box worker lab")
 	}
 	echoPort := dispatcherLabPublicFixtures(t)
 	for _, crash := range []bool{false, true} {
-		if crash && os.Getenv("OPENRHP_DISPATCHER_SCALE_DOMAINS") != "" {
+		if crash && os.Getenv("ROUTEHARBOR_DISPATCHER_SCALE_DOMAINS") != "" {
 			continue
 		}
 		t.Run(map[bool]string{false: "close", true: "owner_crash"}[crash], func(t *testing.T) {
 			ctx, cancel := context.WithCancel(context.Background())
 			defer cancel()
-			root, e := os.MkdirTemp("", "openrhp-dispatcher-rpc-")
+			root, e := os.MkdirTemp("", "routeharbor-dispatcher-rpc-")
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -708,7 +711,7 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 					return nil
 				},
 			}
-			if os.Getenv("OPENRHP_DISPATCHER_SCALE_DOMAINS") != "" {
+			if os.Getenv("ROUTEHARBOR_DISPATCHER_SCALE_DOMAINS") != "" {
 				// Use production admission capacity for the bulk transfer. The
 				// small fixture separately verifies long-lived workers release it.
 				s.MaxConnections = 8
@@ -734,14 +737,14 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 			)
 			child.Env = append(
 				os.Environ(),
-				"OPENRHP_DISPATCHER_WORKER_CHILD=1",
-				"OPENRHP_DISPATCHER_WORKER_SOCKET="+socket,
-				"OPENRHP_DISPATCHER_WORKER_STATE="+out,
-				"OPENRHP_DISPATCHER_WORKER_READY="+readyFile,
-				"OPENRHP_DISPATCHER_WORKER_STOP="+stopFile,
+				"ROUTEHARBOR_DISPATCHER_WORKER_CHILD=1",
+				"ROUTEHARBOR_DISPATCHER_WORKER_SOCKET="+socket,
+				"ROUTEHARBOR_DISPATCHER_WORKER_STATE="+out,
+				"ROUTEHARBOR_DISPATCHER_WORKER_READY="+readyFile,
+				"ROUTEHARBOR_DISPATCHER_WORKER_STOP="+stopFile,
 			)
 			if crash {
-				child.Env = append(child.Env, "OPENRHP_DISPATCHER_WORKER_CRASH=1")
+				child.Env = append(child.Env, "ROUTEHARBOR_DISPATCHER_WORKER_CRASH=1")
 			}
 			child.SysProcAttr = &syscall.SysProcAttr{
 				Credential: &syscall.Credential{Uid: 65534, Gid: 65534, Groups: []uint32{}},
@@ -819,7 +822,7 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 				}
 				dispatcherLabCredentials(t, engine, "0000000000002000")
 				dispatcherLabCredentials(t, front, "0000000000000000")
-				if !crash && os.Getenv("OPENRHP_DISPATCHER_SCALE_DOMAINS") == "" {
+				if !crash && os.Getenv("ROUTEHARBOR_DISPATCHER_SCALE_DOMAINS") == "" {
 					dispatcherLabEngineHangHealth(t, record.spec, record.ref, engine, front)
 				}
 				for label, pid := range map[string]string{"helper": strconv.Itoa(os.Getpid()), "control": strconv.Itoa(child.Process.Pid), "engine": engine, "dns_front": front} {
@@ -857,8 +860,8 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 				)
 				isolation.Env = append(
 					os.Environ(),
-					"OPENRHP_DISPATCHER_ISOLATION_ENGINE="+engine,
-					"OPENRHP_DISPATCHER_ISOLATION_FRONT="+front,
+					"ROUTEHARBOR_DISPATCHER_ISOLATION_ENGINE="+engine,
+					"ROUTEHARBOR_DISPATCHER_ISOLATION_FRONT="+front,
 				)
 				isolation.SysProcAttr = &syscall.SysProcAttr{
 					Credential: &syscall.Credential{Uid: 65534, Gid: 65534, Groups: []uint32{}},
@@ -889,7 +892,7 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 				learnedTarget := dispatcherLabFakeTarget(
 					t,
 					spec.Allocation.DNSFrontPort,
-					"openrhp-scale-learned.example",
+					"routeharbor-scale-learned.example",
 					echoPort,
 				)
 				trafficReady, trafficPublished := filepath.Join(
@@ -910,10 +913,10 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 				)
 				traffic.Env = append(
 					os.Environ(),
-					"OPENRHP_DISPATCHER_ORDINARY_TARGET="+ordinaryTarget,
-					"OPENRHP_DISPATCHER_LEARNED_TARGET="+learnedTarget,
-					"OPENRHP_DISPATCHER_TRAFFIC_READY="+trafficReady,
-					"OPENRHP_DISPATCHER_TRAFFIC_PUBLISHED="+trafficPublished,
+					"ROUTEHARBOR_DISPATCHER_ORDINARY_TARGET="+ordinaryTarget,
+					"ROUTEHARBOR_DISPATCHER_LEARNED_TARGET="+learnedTarget,
+					"ROUTEHARBOR_DISPATCHER_TRAFFIC_READY="+trafficReady,
+					"ROUTEHARBOR_DISPATCHER_TRAFFIC_PUBLISHED="+trafficPublished,
 				)
 				traffic.Stdout, traffic.Stderr = os.Stderr, os.Stderr
 				if err := traffic.Start(); err != nil {
@@ -952,9 +955,9 @@ func TestLinuxDispatcherWorkerRPCPrivilegesDNSAndOwnerCleanup(t *testing.T) {
 				)
 				publish.Env = append(
 					os.Environ(),
-					"OPENRHP_DISPATCHER_WORKER_SOCKET="+socket,
-					"OPENRHP_DISPATCHER_PUBLISH_SLOT="+strconv.Itoa(ready.Slots[0]),
-					"OPENRHP_DISPATCHER_PUBLISH_REF="+string(refJSON),
+					"ROUTEHARBOR_DISPATCHER_WORKER_SOCKET="+socket,
+					"ROUTEHARBOR_DISPATCHER_PUBLISH_SLOT="+strconv.Itoa(ready.Slots[0]),
+					"ROUTEHARBOR_DISPATCHER_PUBLISH_REF="+string(refJSON),
 				)
 				publish.SysProcAttr = &syscall.SysProcAttr{
 					Credential: &syscall.Credential{Uid: 65534, Gid: 65534, Groups: []uint32{}},

@@ -6,7 +6,7 @@ import (
 	"errors"
 	"strconv"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 // DNSGuardIdentity is read only from the private routing journal, never a request.

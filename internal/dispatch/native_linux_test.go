@@ -17,13 +17,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 func requireDispatcherLab(t *testing.T) {
 	t.Helper()
-	if os.Getenv("OPENRHP_DISPATCH_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_DISPATCH_LAB") != "1" {
 		t.Skip("requires isolated pinned-engine Linux lab")
 	}
 	if _, err := os.Stat("/.dockerenv"); err != nil || os.Geteuid() != 0 {
@@ -143,7 +143,7 @@ func labDNSAnswer(q []byte) []byte {
 }
 
 func TestDispatcherLabService(t *testing.T) {
-	if os.Getenv("OPENRHP_DISPATCH_SERVICE") != "1" {
+	if os.Getenv("ROUTEHARBOR_DISPATCH_SERVICE") != "1" {
 		t.Skip("namespace service child")
 	}
 	dns, err := net.Listen("tcp4", "11.0.0.53:53")
@@ -229,22 +229,26 @@ func TestDispatcherLabService(t *testing.T) {
 			}()
 		}
 	}
-	if err = os.WriteFile(os.Getenv("OPENRHP_DISPATCH_READY"), []byte("ready"), 0o600); err != nil {
+	if err = os.WriteFile(
+		os.Getenv("ROUTEHARBOR_DISPATCH_READY"),
+		[]byte("ready"),
+		0o600,
+	); err != nil {
 		t.Fatal(err)
 	}
 	select {}
 }
 
 func TestDispatcherLabClient(t *testing.T) {
-	if os.Getenv("OPENRHP_DISPATCH_CLIENT") != "1" {
+	if os.Getenv("ROUTEHARBOR_DISPATCH_CLIENT") != "1" {
 		t.Skip("namespace client child")
 	}
 	domain, network, want := os.Getenv(
-		"OPENRHP_DISPATCH_DOMAIN",
+		"ROUTEHARBOR_DISPATCH_DOMAIN",
 	), os.Getenv(
-		"OPENRHP_DISPATCH_NETWORK",
+		"ROUTEHARBOR_DISPATCH_NETWORK",
 	), os.Getenv(
-		"OPENRHP_DISPATCH_EXPECT",
+		"ROUTEHARBOR_DISPATCH_EXPECT",
 	)
 	ip := domain
 	if net.ParseIP(domain) == nil {
@@ -314,11 +318,11 @@ func TestDispatcherLabClient(t *testing.T) {
 	if got := strings.TrimSpace(string(buf[:n])); got != want {
 		t.Fatalf("%s %s: expected egress %s got %s", domain, network, want, got)
 	}
-	if ready := os.Getenv("OPENRHP_DISPATCH_HOLD_READY"); ready != "" {
+	if ready := os.Getenv("ROUTEHARBOR_DISPATCH_HOLD_READY"); ready != "" {
 		if err = os.WriteFile(ready, []byte("connected"), 0o600); err != nil {
 			t.Fatal(err)
 		}
-		resume := os.Getenv("OPENRHP_DISPATCH_HOLD_RESUME")
+		resume := os.Getenv("ROUTEHARBOR_DISPATCH_HOLD_RESUME")
 		deadline := time.Now().Add(60 * time.Second)
 		for {
 			if _, e := os.Stat(resume); e == nil {
@@ -468,8 +472,8 @@ func TestDispatcherSameIPDomainIsolation(t *testing.T) {
 	)
 	service.Env = append(
 		os.Environ(),
-		"OPENRHP_DISPATCH_SERVICE=1",
-		"OPENRHP_DISPATCH_READY="+ready,
+		"ROUTEHARBOR_DISPATCH_SERVICE=1",
+		"ROUTEHARBOR_DISPATCH_READY="+ready,
 	)
 	service.Stdout = os.Stdout
 	service.Stderr = os.Stderr
@@ -660,10 +664,10 @@ func TestDispatcherSameIPDomainIsolation(t *testing.T) {
 		)
 		cmd.Env = append(
 			os.Environ(),
-			"OPENRHP_DISPATCH_CLIENT=1",
-			"OPENRHP_DISPATCH_DOMAIN="+domain,
-			"OPENRHP_DISPATCH_NETWORK="+network,
-			"OPENRHP_DISPATCH_EXPECT="+want,
+			"ROUTEHARBOR_DISPATCH_CLIENT=1",
+			"ROUTEHARBOR_DISPATCH_DOMAIN="+domain,
+			"ROUTEHARBOR_DISPATCH_NETWORK="+network,
+			"ROUTEHARBOR_DISPATCH_EXPECT="+want,
 		)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
@@ -672,7 +676,7 @@ func TestDispatcherSameIPDomainIsolation(t *testing.T) {
 				string(labExec(t, "/sbin/ip", "-6", "rule", "show")),
 				string(labExec(t, "/sbin/ip", "-6", "neigh", "show")),
 				string(labExec(t, "/sbin/ip", "-n", "dispatch-client", "-6", "addr", "show")),
-				string(labExec(t, "/usr/sbin/nft", "list", "table", "inet", "openrhp")),
+				string(labExec(t, "/usr/sbin/nft", "list", "table", "inet", "routeharbor")),
 				string(labExec(t, "/usr/bin/ss", "-lnpt")),
 			)
 			t.Fatal("actual LAN dispatch", domain, network, err, string(out))
@@ -711,12 +715,12 @@ func TestDispatcherSameIPDomainIsolation(t *testing.T) {
 	)
 	hold.Env = append(
 		os.Environ(),
-		"OPENRHP_DISPATCH_CLIENT=1",
-		"OPENRHP_DISPATCH_DOMAIN=allowed.example",
-		"OPENRHP_DISPATCH_NETWORK=tcp4",
-		"OPENRHP_DISPATCH_EXPECT=11.0.0.1",
-		"OPENRHP_DISPATCH_HOLD_READY="+holdReady,
-		"OPENRHP_DISPATCH_HOLD_RESUME="+holdResume,
+		"ROUTEHARBOR_DISPATCH_CLIENT=1",
+		"ROUTEHARBOR_DISPATCH_DOMAIN=allowed.example",
+		"ROUTEHARBOR_DISPATCH_NETWORK=tcp4",
+		"ROUTEHARBOR_DISPATCH_EXPECT=11.0.0.1",
+		"ROUTEHARBOR_DISPATCH_HOLD_READY="+holdReady,
+		"ROUTEHARBOR_DISPATCH_HOLD_RESUME="+holdResume,
 	)
 	hold.Stdout, hold.Stderr = os.Stdout, os.Stderr
 	if err = hold.Start(); err != nil {
@@ -751,7 +755,9 @@ func TestDispatcherSameIPDomainIsolation(t *testing.T) {
 			runClient(blocked, network, bypass)
 		}
 	}
-	queueRules := string(labExec(t, "/usr/sbin/nft", "list", "chain", "inet", "openrhp", "output"))
+	queueRules := string(
+		labExec(t, "/usr/sbin/nft", "list", "chain", "inet", "routeharbor", "output"),
+	)
 	if !strings.Contains(queueRules, "queue to 21009") ||
 		strings.Contains(queueRules, "counter packets 0 bytes 0 queue to 21009") {
 		t.Fatal("packet path did not enter actual NFQUEUE", queueRules)

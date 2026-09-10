@@ -18,10 +18,10 @@ on every architecture or physical-router compatibility.
 
 | Binary | Linux amd64 bytes | Matrix minimum bytes | Matrix maximum bytes |
 | --- | ---: | ---: | ---: |
-| `openrhp` | 9,441,404 | 8,388,732 | 10,420,379 |
-| `openrhp-helper` | 5,918,844 | 5,308,540 | 6,684,827 |
-| `openrhp-node` | 7,954,556 | 7,012,476 | 8,847,515 |
-| `openrhp-release` | 3,379,324 | 3,080,316 | 3,866,748 |
+| `routeharbor` | 9,441,404 | 8,388,732 | 10,420,379 |
+| `routeharbor-helper` | 5,918,844 | 5,308,540 | 6,684,827 |
+| `routeharbor-node` | 7,954,556 | 7,012,476 | 8,847,515 |
+| `routeharbor-release` | 3,379,324 | 3,080,316 | 3,866,748 |
 
 Exact target rows are in [build-matrix.csv](build-matrix.csv). Sizes use stripped
 binaries with `-trimpath`, `-buildvcs=false` and `-ldflags='-s -w -buildid='`.

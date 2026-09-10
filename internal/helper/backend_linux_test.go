@@ -16,14 +16,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 func requireNetLab(t *testing.T) {
 	t.Helper()
-	if os.Getenv("OPENRHP_NET_LAB") != "1" {
-		t.Skip("set OPENRHP_NET_LAB=1 inside the isolated Docker lab")
+	if os.Getenv("ROUTEHARBOR_NET_LAB") != "1" {
+		t.Skip("set ROUTEHARBOR_NET_LAB=1 inside the isolated Docker lab")
 	}
 	if _, e := os.Stat("/.dockerenv"); e != nil {
 		t.Fatal("network lab refuses to modify a non-container host")
@@ -245,7 +245,7 @@ func (r *failPolicyOnce) Run(
 	input []byte,
 ) ([]byte, error) {
 	if !r.failed && binary == "/usr/sbin/nft" && len(args) == 2 && args[0] == "--file" &&
-		bytes.HasPrefix(input, []byte("add table inet openrhp {")) {
+		bytes.HasPrefix(input, []byte("add table inet routeharbor {")) {
 		r.failed = true
 		return nil, errors.New("injected policy install failure after routes and guard")
 	}
@@ -321,7 +321,7 @@ func (r crashRunner) Run(
 	input []byte,
 ) ([]byte, error) {
 	if len(args) == 2 && args[0] == "--file" &&
-		strings.Contains(string(input), "table inet openrhp {") {
+		strings.Contains(string(input), "table inet routeharbor {") {
 		if e := os.WriteFile(r.ready, []byte("ready"), 0o600); e != nil {
 			return nil, e
 		}
@@ -331,18 +331,18 @@ func (r crashRunner) Run(
 }
 
 func TestLinuxCrashChild(t *testing.T) {
-	if os.Getenv("OPENRHP_CRASH_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_CRASH_CHILD") != "1" {
 		t.Skip("subprocess only")
 	}
 	requireNetLab(t)
 	b := labBackend()
-	b.Runner = crashRunner{os.Getenv("OPENRHP_CRASH_READY"), labRunner{}}
+	b.Runner = crashRunner{os.Getenv("ROUTEHARBOR_CRASH_READY"), labRunner{}}
 	m, e := NewManager(
-		os.Getenv("OPENRHP_CRASH_STATE"),
+		os.Getenv("ROUTEHARBOR_CRASH_STATE"),
 		b,
 		ProcessWatchdog{
-			Binary:   "/usr/libexec/openrhp-helper",
-			StateDir: os.Getenv("OPENRHP_CRASH_STATE"),
+			Binary:   "/usr/libexec/routeharbor-helper",
+			StateDir: os.Getenv("ROUTEHARBOR_CRASH_STATE"),
 		},
 	)
 	if e != nil {
@@ -371,9 +371,9 @@ func TestLinuxIndependentWatchdogAfterHelperSIGKILL(t *testing.T) {
 	child := exec.Command(os.Args[0], "-test.run=^TestLinuxCrashChild$", "-test.v")
 	child.Env = append(
 		os.Environ(),
-		"OPENRHP_CRASH_CHILD=1",
-		"OPENRHP_CRASH_STATE="+dir,
-		"OPENRHP_CRASH_READY="+ready,
+		"ROUTEHARBOR_CRASH_CHILD=1",
+		"ROUTEHARBOR_CRASH_STATE="+dir,
+		"ROUTEHARBOR_CRASH_READY="+ready,
 	)
 	child.Stdout = os.Stdout
 	child.Stderr = os.Stderr
@@ -434,7 +434,7 @@ func TestLinuxLifecyclePersistedGuardAndRemoval(t *testing.T) {
 	manager, err := NewManager(
 		stateDir,
 		backend,
-		ProcessWatchdog{Binary: "/usr/libexec/openrhp-helper", StateDir: stateDir},
+		ProcessWatchdog{Binary: "/usr/libexec/routeharbor-helper", StateDir: stateDir},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -461,7 +461,7 @@ func TestLinuxLifecyclePersistedGuardAndRemoval(t *testing.T) {
 		t.Fatal(state, err)
 	}
 	data, err := os.ReadFile(PersistentGuardPath)
-	if err != nil || !strings.Contains(string(data), "table inet openrhp_guard") {
+	if err != nil || !strings.Contains(string(data), "table inet routeharbor_guard") {
 		t.Fatalf("persistent boot guard missing: %v", err)
 	}
 	// A real fw4-style include can recreate the owned guard after its table is lost.
@@ -516,7 +516,7 @@ func (r *failQuarantineOnce) Run(
 	input []byte,
 ) ([]byte, error) {
 	if !r.failed && binary == "/usr/sbin/nft" && len(args) == 2 && args[0] == "--file" &&
-		bytes.HasPrefix(input, []byte("add table inet openrhp_guard {")) {
+		bytes.HasPrefix(input, []byte("add table inet routeharbor_guard {")) {
 		r.failed = true
 		return nil, errors.New("injected interruption after quarantine routes and persistent guard")
 	}

@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
-const tokenFile = process.env.OPENRHP_TEST_TOKEN_FILE;
+const tokenFile = process.env.ROUTEHARBOR_TEST_TOKEN_FILE;
 if (!tokenFile)
-  throw new Error('OPENRHP_TEST_TOKEN_FILE must point to a private local test credential.');
+  throw new Error('ROUTEHARBOR_TEST_TOKEN_FILE must point to a private local test credential.');
 const token = fs.readFileSync(tokenFile, 'utf8').trim();
 
 async function login(page) {
@@ -61,12 +61,12 @@ test('paired lab access point follows detected-field prepare, apply and rollback
   page,
 }) => {
   test.skip(
-    process.env.OPENRHP_COVERAGE_APPLY_LAB !== '1',
+    process.env.ROUTEHARBOR_COVERAGE_APPLY_LAB !== '1',
     'Requires an explicitly configured isolated OpenWrt coverage lab; no physical device is modified by the default suite.',
   );
-  const name = process.env.OPENRHP_COVERAGE_NODE_NAME;
-  const port = process.env.OPENRHP_COVERAGE_UPLINK_PORT;
-  const gateway = process.env.OPENRHP_COVERAGE_GATEWAY;
+  const name = process.env.ROUTEHARBOR_COVERAGE_NODE_NAME;
+  const port = process.env.ROUTEHARBOR_COVERAGE_UPLINK_PORT;
+  const gateway = process.env.ROUTEHARBOR_COVERAGE_GATEWAY;
   if (!name || !port || !gateway)
     throw new Error(
       'Set the known lab node name, uplink port and gateway; the test never guesses network wiring.',

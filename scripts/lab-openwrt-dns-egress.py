@@ -67,7 +67,7 @@ import concurrent.futures,json,socket,struct,sys
 nonce=sys.argv[1]
 def query(case):
     family,address,transport,label=case
-    name='rhp-'+nonce+'-'+label+'.example.com'
+    name='rh-'+nonce+'-'+label+'.example.com'
     question=struct.pack('!HHHHHH',1234,256,1,0,0,0)+b''.join(bytes([len(part)])+part.encode() for part in name.split('.'))+b'\0\0\1\0\1'
     with socket.socket(family,transport) as connection:
         connection.settimeout(4)
@@ -92,7 +92,7 @@ with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
 
 
 def main():
-    lab=boot.Lab('openrhp-openwrt-boot-lab')
+    lab=boot.Lab('routeharbor-openwrt-boot-lab')
     lab.wait_api()
     # A deliberately permissive calibration is bounded to this private synthetic
     # WAN. Only exact rules proven present are removed; quarantine restores them.
@@ -108,7 +108,7 @@ def main():
             assert isinstance(uid,int) and 0<uid<2**31 and rule.get('uid_end')==uid
             assert rule.get('src')=='all' and rule.get('ipproto')==protocol and rule.get('dport')==53 and rule.get('action')=='blackhole'
             owners.append((family,offset,uid))
-    backup='/root/openrhp-lab/dhcp-before-uncached-dns'
+    backup='/root/routeharbor-lab/dhcp-before-uncached-dns'
     lab.guest('test ! -e '+backup+'\ncp /etc/config/dhcp '+backup+'\n')
     try:
         lab.guest("uci set dhcp.@dnsmasq[0].noresolv='1'\n"
@@ -116,19 +116,19 @@ def main():
                   "uci add_list dhcp.@dnsmasq[0].server='8.8.8.8'\n"
                   "uci add_list dhcp.@dnsmasq[0].server='2001:4860:4860::8888'\n"
                   "uci set dhcp.@dnsmasq[0].allservers='1'\nuci commit dhcp\n/etc/init.d/dnsmasq restart\n")
-        server=boot.start_background(lab,'uncached-dns','openrhp-wan',SERVER)
+        server=boot.start_background(lab,'uncached-dns','routeharbor-wan',SERVER)
         atexit.register(lab.signal,server,signal.SIGTERM,check=False)
         time.sleep(6)
         lab.signal(server,0)
         for phase in ['permissive-calibration','guard-active','nft-flushed']:
             if phase=='permissive-calibration':
                 lab.guest('fw4 flush\n'+''.join('ip -'+str(family)+' rule del priority '+str(29900+offset)+' uidrange '+str(uid)+'-'+str(uid)+' ipproto '+('6' if offset==0 else '17')+' dport 53 blackhole\n' for family,offset,uid in owners))
-            elif phase=='guard-active': lab.guest('/usr/libexec/openrhp-helper quarantine --state-dir /etc/openrhp-helper\n')
+            elif phase=='guard-active': lab.guest('/usr/libexec/routeharbor-helper quarantine --state-dir /etc/routeharbor-helper\n')
             else: lab.guest('fw4 flush\n')
             nonce=uuid.uuid4().hex[:12]
-            path='/tmp/openrhp-boot-uncached-'+phase+'.pcap'
+            path='/tmp/routeharbor-boot-uncached-'+phase+'.pcap'
             capture=boot.start_capture(lab,path)
-            process=subprocess.Popen(['docker','exec','-i',lab.container,'ip','netns','exec','openrhp-client','python3','-c',CLIENT,nonce],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+            process=subprocess.Popen(['docker','exec','-i',lab.container,'ip','netns','exec','routeharbor-client','python3','-c',CLIENT,nonce],stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
             time.sleep(0.7)
             sockets=lab.guest("for pid in $(pidof dnsmasq); do sed -n '/^Name:/p;/^Uid:/p;/^Gid:/p' /proc/$pid/status; done\ncat /proc/net/udp /proc/net/udp6\n").stdout
             stdout,stderr=process.communicate(timeout=20)
@@ -144,7 +144,7 @@ def main():
                 assert not forwarded,'Protected DNS emitted WAN packets (including TCP handshakes)'
                 assert not any(answers.values()),'Uncached query unexpectedly resolved while protected'
     finally:
-        lab.guest('/usr/libexec/openrhp-helper quarantine --state-dir /etc/openrhp-helper\n'
+        lab.guest('/usr/libexec/routeharbor-helper quarantine --state-dir /etc/routeharbor-helper\n'
                   'cp '+backup+' /etc/config/dhcp\n/etc/init.d/dnsmasq restart\n'
                   'sha256sum /etc/config/dhcp '+backup+'\nrm -f '+backup+'\n')
 

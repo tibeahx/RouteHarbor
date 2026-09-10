@@ -19,7 +19,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 const dnsBinary = "/usr/sbin/dnsmasq"

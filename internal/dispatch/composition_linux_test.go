@@ -16,8 +16,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func labProcess(t *testing.T, config any, file, namespace, engine string) *exec.Cmd {
@@ -75,7 +75,7 @@ func labSourceFixtures(t *testing.T, dir string, s *Spec) *exec.Cmd {
 		t.Fatal(err)
 	}
 	if err = os.WriteFile(
-		"/usr/local/share/ca-certificates/openrhp-selective-test.crt",
+		"/usr/local/share/ca-certificates/routeharbor-selective-test.crt",
 		raw,
 		0o644,
 	); err != nil {

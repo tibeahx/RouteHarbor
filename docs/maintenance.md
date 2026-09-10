@@ -21,7 +21,7 @@ does not verify the executable bytes.
 
 An administrator supplies the trusted Ed25519 public key independently of the
 package download, as a base64 value in the root-owned mode-0600 file
-`/etc/openrhp-maintenance/trust.pub`. Its parent directory must be root-owned and
+`/etc/routeharbor-maintenance/trust.pub`. Its parent directory must be root-owned and
 private. Never copy a new trust key from an unverified bundle. See
 [release trust and encrypted backups](updates.md).
 
@@ -32,7 +32,7 @@ artifact's length and hash, package metadata and bounded archive contents. It
 copies verified bytes into private storage and returns a bundle ID:
 
 ```sh
-/usr/libexec/openrhp-helper maintenance-stage --source /root/private-bundle-dir
+/usr/libexec/routeharbor-helper maintenance-stage --source /root/private-bundle-dir
 ```
 
 Stage both the previous and replacement bundles. Staging neither installs packages
@@ -55,7 +55,7 @@ through the CLI and the live [OpenAPI contract](../api/openapi.yaml):
 
 All paths are under `/api/v1`. Only an administrator can start a job. Reads and
 planning are available to a read-only credential. Supported component identities
-are `openrhp`, `openrhp-sing-box`, `openrhp-xray`, `openrhp-conntrack` and `openrhp-continuity`.
+are `routeharbor`, `routeharbor-sing-box`, `routeharbor-xray`, `routeharbor-conntrack` and `routeharbor-continuity`.
 
 For planning, supply `action` (`install`, `upgrade` or `remove`) and `components`.
 Install and upgrade additionally require a `bundle_id`. The returned plan includes
@@ -64,7 +64,7 @@ explicit `removal_policy`:
 
 - `preserve-closed` retains the independent guard and keeps protected forwarding
   closed. Removing the controller does not restore automatic path selection.
-- `restore-direct` explicitly authorizes direct access and decommissions OpenRHP's
+- `restore-direct` explicitly authorizes direct access and decommissions RouteHarbor's
   routing rules. Review that consequence before submitting the operation.
 
 Before starting, copy the plan's inventory digest to `expected_installed_digest`.
@@ -100,8 +100,8 @@ Controller removal can close the API connection. The retained privileged service
 and local administrator status command provide the recovery path:
 
 ```sh
-/usr/libexec/openrhp-helper maintenance-status --operation JOB_ID
-/usr/libexec/openrhp-helper maintenance-resume
+/usr/libexec/routeharbor-helper maintenance-status --operation JOB_ID
+/usr/libexec/routeharbor-helper maintenance-resume
 ```
 
 Replace `JOB_ID` with the returned 32-character identifier. Resume only rearms a
@@ -112,9 +112,9 @@ local root access, choose one of these actions for that same job:
 
 ```sh
 # Repair the originally requested package state from its authenticated cache.
-/usr/libexec/openrhp-helper maintenance-recover --operation JOB_ID --mode retry
+/usr/libexec/routeharbor-helper maintenance-recover --operation JOB_ID --mode retry
 # Restore the authenticated package versions retained before the operation.
-/usr/libexec/openrhp-helper maintenance-recover --operation JOB_ID --mode rollback
+/usr/libexec/routeharbor-helper maintenance-recover --operation JOB_ID --mode rollback
 ```
 
 Recovery records that explicit choice before starting its worker. It removes and
@@ -134,7 +134,7 @@ delete the journals, replace the trust key, force dependencies or remove the gua
 to make an error disappear. Stable-release acceptance requires the actual package
 and power-loss tests recorded in [the acceptance checklist](acceptance.md).
 
-`openrhp-continuity` is an optional authenticated maintenance component. The same
+`routeharbor-continuity` is an optional authenticated maintenance component. The same
 signed-package inventory, exact installed-payload verification, guarded maintenance,
 and offline rollback requirements apply. Removing the gateway includes this dependent
 worker package. Private pairing identity is retained separately in gateway state;

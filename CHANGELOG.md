@@ -2,7 +2,10 @@
 
 ## Unreleased — development preview
 
-- OpenRHP (OpenReverseHomeProxy), with an English offline control panel.
+- RouteHarbor identity across the repository, CLI, packages, services, state paths
+  and English offline control panel, with original light/dark README wordmarks and
+  a matching application icon. Earlier installations require the documented
+  [identity transition](docs/branding.md#installation-identity).
 - Versioned private configuration, source adapters, independent HTTPS probes and
   freshness-aware channel selection with degradation/recovery tests.
 - Authenticated public API, revocable admin/read credentials, revision conflicts,

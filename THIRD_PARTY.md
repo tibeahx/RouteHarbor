@@ -1,10 +1,10 @@
 # Third-party components
 
-The OpenRHP controller and helpers use Go's standard library. The official Go
+The RouteHarbor controller and helpers use Go's standard library. The official Go
 runtime/toolchain has its own BSD-style license. No external Go modules are linked.
 
 Network engines are separate, optional installed packages and are not copied into
-OpenRHP's source or core package:
+RouteHarbor's source or core package:
 
 | Component | Pinned integration version | Upstream license |
 | --- | --- | --- |

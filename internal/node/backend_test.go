@@ -103,7 +103,7 @@ func TestNodeServiceRunnerRejectsAnythingOutsideExactReloadOperations(t *testing
 
 func TestEthernetTransitionRemovesOwnedWirelessUplinkEvenWithoutRadioSettings(t *testing.T) {
 	runner := preparedUCI()
-	runner.show["wireless"] += "wireless.openrhp_backhaul='wifi-iface'\nwireless.openrhp_backhaul.openrhp_owner='1'\n"
+	runner.show["wireless"] += "wireless.routeharbor_backhaul='wifi-iface'\nwireless.routeharbor_backhaul.routeharbor_owner='1'\n"
 	backend := &UCIBackend{
 		Runner:       runner,
 		Capabilities: func(context.Context) Capabilities { return caps() },
@@ -113,7 +113,8 @@ func TestEthernetTransitionRemovesOwnedWirelessUplinkEvenWithoutRadioSettings(t 
 	}
 	removed := false
 	for _, c := range runner.commands {
-		if len(c.args) == 2 && c.args[0] == "delete" && c.args[1] == "wireless.openrhp_backhaul" {
+		if len(c.args) == 2 && c.args[0] == "delete" &&
+			c.args[1] == "wireless.routeharbor_backhaul" {
 			removed = true
 		}
 	}
@@ -150,7 +151,11 @@ func TestWirelessTransitionRemovesEthernetUplinkAndSendsCredentialsOnlyOnStdin(t
 			t.Fatal("Ethernet uplink remained in Wi-Fi bridge")
 		}
 		if len(c.args) == 2 && c.args[0] == "-q" && c.args[1] == "batch" &&
-			string(c.input) == "set wireless.openrhp_backhaul.key="+uciQuote(p.Passphrase)+"\n" {
+			string(
+				c.input,
+			) == "set wireless.routeharbor_backhaul.key="+uciQuote(
+				p.Passphrase,
+			)+"\n" {
 			seenKey = true
 		}
 	}
@@ -176,7 +181,7 @@ func TestUCIRejectsForeignObjectsAndCompetingServicesBeforeMutation(t *testing.T
 				p.Channel = 6
 				runner.show["wireless"] += "wireless.existing='wifi-iface'\nwireless.existing.device='radio0'\n"
 			case "foreign-owned-name":
-				runner.show["wireless"] += "wireless.openrhp_backhaul='wifi-iface'\n"
+				runner.show["wireless"] += "wireless.routeharbor_backhaul='wifi-iface'\n"
 			case "wrong-address":
 				p.ManagementAddress = "10.0.8.5/24"
 			case "port-theft":

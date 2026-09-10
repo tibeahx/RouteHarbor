@@ -2,7 +2,7 @@
 
 This matrix maps the implemented control areas to [OWASP ASVS 5.0.0](https://owasp.org/www-project-application-security-verification-standard/) and the [OWASP API Security Top 10, 2023 edition](https://owasp.org/API-Security/editions/2023/en/0x11-t10/). It is an implementation checklist with named evidence, not a complete ASVS assessment, certification, or guarantee. Exact requirement IDs are used only where the corresponding versioned requirement was checked.
 
-| Control area | Application to OpenRHP | Evidence and remaining boundary |
+| Control area | Application to RouteHarbor | Evidence and remaining boundary |
 | --- | --- | --- |
 | ASVS v5.0.0-1.2.5, OS command injection | Fixed executables, validated typed arguments, strict source subsets, no imported scripts; UCI secret assignments use parser-specific stdin quoting. | [Adapter import tests](../internal/adapter/validate_test.go), [helper decoder tests](../internal/helper/manager_test.go), [actual UCI parser test](../internal/node/uci_parser_test.go). A full engine configuration is intentionally rejected. |
 | ASVS browser encoding; API8 security configuration | Untrusted text uses DOM text nodes; CSP and Host/Origin checks; no browser credential persistence or external scripts. | [Real browser tests](../tests/browser/control.spec.js), [API security tests](../internal/api/server_test.go). Browser extensions and an already compromised administrator device are outside this boundary. |

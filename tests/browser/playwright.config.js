@@ -4,7 +4,7 @@ module.exports = defineConfig({
   testMatch: '*.spec.js',
   fullyParallel: false,
   workers: 1,
-  use: { baseURL: process.env.OPENRHP_TEST_URL || 'http://127.0.0.1:8787', headless: true },
+  use: { baseURL: process.env.ROUTEHARBOR_TEST_URL || 'http://127.0.0.1:8787', headless: true },
   reporter: 'list',
   outputDir: '../../test-results/browser',
 });

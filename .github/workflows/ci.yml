@@ -79,12 +79,12 @@ jobs:
           cache: false
       - name: Scan known reachable Go vulnerabilities
         run: |
-          GOBIN="$RUNNER_TEMP/openrhp-tools" go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
-          "$RUNNER_TEMP/openrhp-tools/govulncheck" ./...
+          GOBIN="$RUNNER_TEMP/routeharbor-tools" go install golang.org/x/vuln/cmd/govulncheck@v1.7.0
+          "$RUNNER_TEMP/routeharbor-tools/govulncheck" ./...
       - name: Scan repository history for secrets
         run: |
-          mkdir -p "$RUNNER_TEMP/openrhp-gitleaks"
-          curl --fail --silent --show-error --location --proto '=https' https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/openrhp-gitleaks/archive.tar.gz"
-          printf '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  %s\n' "$RUNNER_TEMP/openrhp-gitleaks/archive.tar.gz" | sha256sum --check
-          tar -xzf "$RUNNER_TEMP/openrhp-gitleaks/archive.tar.gz" -C "$RUNNER_TEMP/openrhp-gitleaks" gitleaks
-          "$RUNNER_TEMP/openrhp-gitleaks/gitleaks" git --redact --no-banner .
+          mkdir -p "$RUNNER_TEMP/routeharbor-gitleaks"
+          curl --fail --silent --show-error --location --proto '=https' https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz -o "$RUNNER_TEMP/routeharbor-gitleaks/archive.tar.gz"
+          printf '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  %s\n' "$RUNNER_TEMP/routeharbor-gitleaks/archive.tar.gz" | sha256sum --check
+          tar -xzf "$RUNNER_TEMP/routeharbor-gitleaks/archive.tar.gz" -C "$RUNNER_TEMP/routeharbor-gitleaks" gitleaks
+          "$RUNNER_TEMP/routeharbor-gitleaks/gitleaks" git --redact --no-banner .

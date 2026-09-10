@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	DNSHealthName = "openrhp-health.invalid"
+	DNSHealthName = "routeharbor-health.invalid"
 	MaxDNSMessage = 65535
 )
 

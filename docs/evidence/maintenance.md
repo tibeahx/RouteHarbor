@@ -40,7 +40,7 @@ six seconds without a failure (`-fuzztime=5s -parallel=2`).
 An optional read-only check can inspect the final SDK outputs independently:
 
 ```sh
-OPENRHP_SDK_IPK_DIR=/absolute/sdk/packages go test ./internal/maintenance \
+ROUTEHARBOR_SDK_IPK_DIR=/absolute/sdk/packages go test ./internal/maintenance \
   -run '^TestActualSDKPackageFormatAndGuardBoundary$' -count=1 -v
 ```
 

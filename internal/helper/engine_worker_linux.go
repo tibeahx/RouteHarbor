@@ -18,11 +18,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 const (
-	engineWorkerBinary = "/usr/libexec/openrhp-helper"
+	engineWorkerBinary = "/usr/libexec/routeharbor-helper"
 	capNetRaw          = 13
 )
 
@@ -140,7 +140,7 @@ func enginePipe(fd uintptr, name string) (*os.File, error) {
 }
 
 func engineConfigFD(raw []byte, gid uint32) (*os.File, error) {
-	const dir = "/var/run/openrhp-engine-worker"
+	const dir = "/var/run/routeharbor-engine-worker"
 	parent, err := filepath.EvalSymlinks(filepath.Dir(dir))
 	if err != nil {
 		return nil, err

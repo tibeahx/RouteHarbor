@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // NativeProbePath carries no user-controlled mark, address, routing rule or command.

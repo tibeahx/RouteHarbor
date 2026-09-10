@@ -29,7 +29,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/tibeahx/OpenRHP)
+        - prefix(github.com/tibeahx/RouteHarbor)
       custom-order: true
     golines:
       max-len: 100

@@ -1,21 +1,21 @@
 # OpenWrt SDK packages
 
-OpenRHP uses the OpenWrt SDK to produce packages for the SDK's exact release and
+RouteHarbor uses the OpenWrt SDK to produce packages for the SDK's exact release and
 package architecture. A Linux Go architecture is not an OpenWrt package
 architecture. A successful package build is not evidence of router compatibility.
 
-The source recipe is `packaging/openwrt/openrhp/Makefile`. It builds the controller,
+The source recipe is `packaging/openwrt/routeharbor/Makefile`. It builds the controller,
 privileged helper and node binary with the pinned Go 1.27.1 runtime, no CGO and no
 network dependency downloads. It produces these separate packages:
 
 | Package | Responsibility |
 | --- | --- |
-| `openrhp` | Unprivileged gateway controller, embedded English UI, setup command and conntrack dependency for selective DNS recovery |
-| `openrhp-guard` | Root helper, detached watchdog and persistent safety policy |
-| `openrhp-node` | Unprivileged paired-node TLS agent and separate root node helper |
-| `openrhp-conntrack` | Compatibility alias for the connection tracking dependency now required by the core gateway package |
-| `openrhp-sing-box` | Optional dependency bundle for the upstream sing-box package and TPROXY modules |
-| `openrhp-xray` | Optional dependency bundle for the upstream Xray package and TPROXY modules |
+| `routeharbor` | Unprivileged gateway controller, embedded English UI, setup command and conntrack dependency for selective DNS recovery |
+| `routeharbor-guard` | Root helper, detached watchdog and persistent safety policy |
+| `routeharbor-node` | Unprivileged paired-node TLS agent and separate root node helper |
+| `routeharbor-conntrack` | Compatibility alias for the connection tracking dependency now required by the core gateway package |
+| `routeharbor-sing-box` | Optional dependency bundle for the upstream sing-box package and TPROXY modules |
+| `routeharbor-xray` | Optional dependency bundle for the upstream Xray package and TPROXY modules |
 
 The engine adapters check their supported versions at runtime. Installing a bundle
 does not make an incompatible engine version supported. nfqws v72.10 remains a
@@ -77,14 +77,14 @@ lives under `/etc`, while engine runtime files remain under `/var/run`.
 
 | Path | Owner and contents |
 | --- | --- |
-| `/etc/openrhp` | `openrhp`, mode 0700; controller configuration and credential store |
-| `/etc/openrhp-helper` | root, mode 0700; durable transaction journal and generated guard |
-| `/etc/openrhp-maintenance` | root, mode 0700; independently supplied trust key, signed offline package cache and durable maintenance jobs |
-| `/var/run/openrhp` | root; helper socket, mode 0600, assigned to the API user |
-| `/var/run/openrhp-engines` | `openrhp`, mode 0700; temporary engine configuration |
-| `/var/run/openrhp-engine-worker` | root, mode 0700; transient helper-generated engine configuration, unlinked after opening |
-| `/etc/openrhp-node` | `openrhp-node`, mode 0700; node identity and pairing state |
-| `/etc/openrhp-node-helper` | root, mode 0700; node UCI transaction state |
+| `/etc/routeharbor` | `routeharbor`, mode 0700; controller configuration and credential store |
+| `/etc/routeharbor-helper` | root, mode 0700; durable transaction journal and generated guard |
+| `/etc/routeharbor-maintenance` | root, mode 0700; independently supplied trust key, signed offline package cache and durable maintenance jobs |
+| `/var/run/routeharbor` | root; helper socket, mode 0600, assigned to the API user |
+| `/var/run/routeharbor-engines` | `routeharbor`, mode 0700; temporary engine configuration |
+| `/var/run/routeharbor-engine-worker` | root, mode 0700; transient helper-generated engine configuration, unlinked after opening |
+| `/etc/routeharbor-node` | `routeharbor-node`, mode 0700; node identity and pairing state |
+| `/etc/routeharbor-node-helper` | root, mode 0700; node UCI transaction state |
 
 User/group IDs are allocated by the SDK's package user machinery and resolved at
 service start. The root helper authenticates the actual connecting UID with
@@ -103,9 +103,9 @@ and the persistent guard empty. It does not edit WAN, PPPoE, DHCP, SSID or the u
 firewall UCI. Gateway bootstrap is performed through existing administrator access:
 
 ```sh
-mkdir -p /root/openrhp-private
-chmod 0700 /root/openrhp-private
-/usr/libexec/openrhp-setup /root/openrhp-private/admin.token
+mkdir -p /root/routeharbor-private
+chmod 0700 /root/routeharbor-private
+/usr/libexec/routeharbor-setup /root/routeharbor-private/admin.token
 ```
 
 This starts the panel on loopback. Open it through a trusted SSH tunnel, or
@@ -170,11 +170,11 @@ and [firewall lifecycle](https://github.com/openwrt/firewall4/blob/master/root/e
 `fw4 flush` deletes every nft table; the independent routing guard exists for that
 specific lifecycle case.
 
-The optional `openrhp-continuity` package installs `/usr/libexec/openrhp-continuity`
+The optional `routeharbor-continuity` package installs `/usr/libexec/routeharbor-continuity`
 for private relay session continuity and depends on gateway plus TPROXY/socket
 kernel support. It is separate from the base gateway install, has no independently
 enabled procd service, and is started through the authenticated helper. The SDK
 recipe now produces seven package variants; historical six-package evidence does
 not certify this new worker. `make build` and `scripts/build-matrix.sh` also include
-`openrhp-continuity` and the VPS binary `openrhp-relay`. Pairing and the VPS service
+`routeharbor-continuity` and the VPS binary `routeharbor-relay`. Pairing and the VPS service
 are described in [session-continuity.md](session-continuity.md).

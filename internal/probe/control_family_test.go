@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 func TestControlTLSRequiresHealthyDirectCandidateFamilies(t *testing.T) {

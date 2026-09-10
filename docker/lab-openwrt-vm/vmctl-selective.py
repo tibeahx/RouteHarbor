@@ -7,7 +7,7 @@ import struct
 import sys
 import vmctl
 
-vmctl.CONTAINER = 'openrhp-selective-boot-lab'
+vmctl.CONTAINER = 'routeharbor-selective-boot-lab'
 vmctl.WAN_PREFIX = '11.0.0'
 
 
@@ -15,7 +15,7 @@ def capacity():
     """Grow a stopped lab image via regular files; never open a block device."""
     vmctl.require_lab()
     state = vmctl.STATE
-    identity = {'project': 'OpenRHP isolated full-boot lab', 'image_sha256': vmctl.SHA256}
+    identity = {'project': 'RouteHarbor isolated full-boot lab', 'image_sha256': vmctl.SHA256}
     if json.loads((state/'owner.json').read_text()) != identity:
         raise RuntimeError('Foreign VM disk owner')
     evidence = state/'selective-capacity.json'

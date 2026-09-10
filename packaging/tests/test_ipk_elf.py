@@ -7,7 +7,7 @@ from check_ipk_elf import EXPECTED, sdk_packages
 
 class SDKArtifactSelectionTests(unittest.TestCase):
     def setUp(self):
-        self.temporary = tempfile.TemporaryDirectory(prefix='openrhp-sdk-selector-')
+        self.temporary = tempfile.TemporaryDirectory(prefix='routeharbor-sdk-selector-')
         self.addCleanup(self.temporary.cleanup)
         self.sdk = pathlib.Path(self.temporary.name)
         (self.sdk / '.config').write_text('CONFIG_TARGET_ARCH_PACKAGES="x86_64"\n')
@@ -28,15 +28,15 @@ class SDKArtifactSelectionTests(unittest.TestCase):
         self.assertTrue(all(path.name.endswith('_0.1.0-r1_x86_64.ipk') for path in paths))
 
     def test_missing_current_package_does_not_fall_back_to_stale_output(self):
-        (self.output / 'openrhp_0.1.0-r1_x86_64.ipk').unlink()
-        (self.output / 'openrhp_0.0.9-r1_x86_64.ipk').touch()
+        (self.output / 'routeharbor_0.1.0-r1_x86_64.ipk').unlink()
+        (self.output / 'routeharbor_0.0.9-r1_x86_64.ipk').touch()
         with self.assertRaisesRegex(ValueError, 'exactly one current SDK artifact'):
             sdk_packages(self.sdk, self.recipe)
 
     def test_duplicate_current_artifact_is_ambiguous(self):
         other = self.sdk / 'bin/targets/x86/64/packages'
         other.mkdir(parents=True)
-        (other / 'openrhp_0.1.0-r1_x86_64.ipk').touch()
+        (other / 'routeharbor_0.1.0-r1_x86_64.ipk').touch()
         with self.assertRaisesRegex(ValueError, 'exactly one current SDK artifact'):
             sdk_packages(self.sdk, self.recipe)
 

@@ -49,7 +49,7 @@ every check. Changing source/target configuration invalidates affected decisions
 - `break_existing` is false by default. Opting in resets **only the previous
   selected source's connection tracking** after the next routing change is
   confirmed. Existing marked connections otherwise retain their allocated path
-  while it remains prepared. Install the optional `openrhp-conntrack` package
+  while it remains prepared. Install the optional `routeharbor-conntrack` package
   (`conntrack` and its kernel netlink dependencies); privileged preflight checks
   IPv4 and IPv6 before accepting the opt-in. No table flush or arbitrary mark
   deletion is exposed. No source change means no reset. The matching and deletion
@@ -75,7 +75,7 @@ transaction applies rules. Select discovered `lan_interfaces`, `wan_interface` a
 canonical `local_prefixes`; interface names/subnets are never guessed from a model.
 `ipv6:block` is conservative. `ipv6:proxy` requires verified support on every active
 path. DNS is `block` or `selected-path`; the latter requires an explicit public
-`dns_resolver` IP. OpenRHP never silently chooses an external DNS provider.
+`dns_resolver` IP. RouteHarbor never silently chooses an external DNS provider.
 
 Normal API reads remove **all source settings**, rather than guessing which fields
 may contain a secret. Use source PATCH and the dedicated policy/targets/network
@@ -102,7 +102,7 @@ management keep the kernel's existing local routing rule. Selected-path DNS uses
 its separately prepared interception path. Legacy protected routing removes the DNS guard only on explicit decommission.
 A selective profile also authorizes its watchdog to remove that owned guard when
 restoring ordinary DNS during classifier failure. A changed DNS identity prevents reapply and retains prior protection.
-Changing the router's DNS service outside OpenRHP requires another preflight.
+Changing the router's DNS service outside RouteHarbor requires another preflight.
 
 The helper also records the selected LAN bridges' verified ingress members. It
 protects both the bridge and those ports, so netifd cannot expose a still-running

@@ -11,7 +11,7 @@ import (
 	"slices"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 // These envelopes belong to the gateway service. Gateway configuration never

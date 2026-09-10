@@ -1,9 +1,9 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "OpenRHP API",
+    "title": "RouteHarbor API",
     "version": "0.1.0-dev",
-    "description": "OpenReverseHomeProxy. Authenticated API shared by the UI, CLI and agents. Development status is exposed by capabilities; unavailable network features fail preflight."
+    "description": "RouteHarbor. Authenticated API shared by the UI, CLI and agents. Development status is exposed by capabilities; unavailable network features fail preflight."
   },
   "servers": [
     {
@@ -4328,7 +4328,7 @@
           "break_existing": {
             "type": "boolean",
             "default": false,
-            "description": "Opt in to deleting tracked connections belonging to the previous OpenRHP path after a path switch. Off by default; must remain false for selective routing or continuity. May interrupt active applications. Requires privileged conntrack support and a newly confirmed routing plan. Foreign connection entries are not flushed, and connections are not migrated between external IPs."
+            "description": "Opt in to deleting tracked connections belonging to the previous RouteHarbor path after a path switch. Off by default; must remain false for selective routing or continuity. May interrupt active applications. Requires privileged conntrack support and a newly confirmed routing plan. Foreign connection entries are not flushed, and connections are not migrated between external IPs."
           }
         }
       },
@@ -4762,11 +4762,11 @@
             "items": {
               "type": "string",
               "enum": [
-                "openrhp",
-                "openrhp-sing-box",
-                "openrhp-xray",
-                "openrhp-conntrack",
-                "openrhp-continuity"
+                "routeharbor",
+                "routeharbor-sing-box",
+                "routeharbor-xray",
+                "routeharbor-conntrack",
+                "routeharbor-continuity"
               ]
             }
           },

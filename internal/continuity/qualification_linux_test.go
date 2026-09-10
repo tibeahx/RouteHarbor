@@ -26,7 +26,7 @@ import (
 // This opt-in lab requires a disposable Linux network namespace with NET_ADMIN.
 // scripts/lab-continuity.sh supplies one with Docker network=none. The firewall
 // rules match only this test's carrier sockets, never a physical router or WAN.
-const labTable = "openrhp_continuity_test"
+const labTable = "routeharbor_continuity_test"
 
 type distribution struct {
 	P50 float64 `json:"p50_ms"`
@@ -185,11 +185,11 @@ func udpEcho(t *testing.T) string {
 }
 
 func TestLinuxContinuityQualification(t *testing.T) {
-	if os.Getenv("OPENRHP_CONTINUITY_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_CONTINUITY_LAB") != "1" {
 		t.Skip("opt-in isolated Linux qualification; run scripts/lab-continuity.sh")
 	}
 	count := 1000
-	if value := os.Getenv("OPENRHP_CONTINUITY_SWITCHES"); value != "" {
+	if value := os.Getenv("ROUTEHARBOR_CONTINUITY_SWITCHES"); value != "" {
 		n, err := strconv.Atoi(value)
 		if err != nil || n < 1 || n > 10000 {
 			t.Fatal("invalid switch count")

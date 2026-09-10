@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
 )
 
 func testBridge(t *testing.T) (dispatch.Bridge, string, <-chan string) {

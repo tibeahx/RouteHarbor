@@ -1,0 +1,48 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="800"
+  height="168"
+  viewBox="0 0 800 168"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">RouteHarbor</title>
+  <desc id="desc">An open harbor shelters the end of a route. Original RouteHarbor wordmark.</desc>
+  <g transform="translate(18 25)">
+    <path
+      d="M22 20V74C22 91 34 102 51 102H77C94 102 106 91 106 74V20"
+      fill="none"
+      stroke="#153E4A"
+      stroke-width="12"
+      stroke-linecap="round"
+    />
+    <path
+      d="M64 2V40C64 53 82 53 82 66C82 76 74 82 64 82"
+      fill="none"
+      stroke="#007F7B"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+    <circle cx="64" cy="82" r="8" fill="#007F7B" />
+  </g>
+  <g
+    transform="translate(188 50) scale(1.13)"
+    fill="none"
+    stroke="#153E4A"
+    stroke-width="5.3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="M5 50V0H23C44 0 44 25 23 25H5M23 25L43 50" transform="translate(0 0)" />
+    <path d="M35 32C35 56 2 56 2 32C2 8 35 8 35 32Z" transform="translate(54 0)" />
+    <path d="M3 14V35C3 56 34 56 34 35V14" transform="translate(102 0)" />
+    <path d="M14 3V37Q14 49 28 49M2 15H28" transform="translate(150 0)" />
+    <path d="M35 42C27 57 2 52 2 33C2 8 36 9 36 31H2" transform="translate(190 0)" />
+    <path d="M5 0V50M39 0V50M5 25H39" transform="translate(239 0)" />
+    <path d="M33 15V50M33 25C25 7 2 11 2 33C2 56 25 58 33 40" transform="translate(294 0)" />
+    <path d="M4 50V15M4 29C10 15 20 12 28 17" transform="translate(341 0)" />
+    <path d="M4 0V50M4 25C15 7 36 11 36 33C36 56 15 58 4 40" transform="translate(380 0)" />
+    <path d="M35 32C35 56 2 56 2 32C2 8 35 8 35 32Z" transform="translate(429 0)" />
+    <path d="M4 50V15M4 29C10 15 20 12 28 17" transform="translate(477 0)" />
+  </g>
+</svg>

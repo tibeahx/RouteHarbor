@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/maintenance"
+	"github.com/tibeahx/RouteHarbor/internal/maintenance"
 )
 
 // This backend proves detached-process/journal behavior. It never runs opkg or
@@ -23,7 +23,7 @@ type maintenanceFileBackend struct{ dir string }
 func (maintenanceFileBackend) Inventory(context.Context) (maintenance.Inventory, error) {
 	return maintenance.Inventory{
 		Architecture:   "x86_64",
-		Packages:       map[string]string{"openrhp-guard": "0.1.0-r1"},
+		Packages:       map[string]string{"routeharbor-guard": "0.1.0-r1"},
 		AvailableBytes: 1 << 30,
 	}, nil
 }
@@ -137,10 +137,10 @@ func maintenanceWorkerFixture(args []string) error {
 }
 
 func TestLinuxMaintenanceParentChild(t *testing.T) {
-	if os.Getenv("OPENRHP_MAINTENANCE_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_MAINTENANCE_CHILD") != "1" {
 		t.Skip("subprocess fixture only")
 	}
-	dir := os.Getenv("OPENRHP_MAINTENANCE_DIR")
+	dir := os.Getenv("ROUTEHARBOR_MAINTENANCE_DIR")
 	binary, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -157,7 +157,7 @@ func TestLinuxMaintenanceParentChild(t *testing.T) {
 		context.Background(),
 		maintenance.Request{
 			Action:        "remove",
-			Components:    []string{"openrhp"},
+			Components:    []string{"routeharbor"},
 			RemovalPolicy: "preserve-closed",
 		},
 	)
@@ -186,7 +186,7 @@ func TestLinuxMaintenanceParentChild(t *testing.T) {
 }
 
 func TestLinuxMaintenanceWorkerSurvivesControllerKill(t *testing.T) {
-	if os.Getenv("OPENRHP_MAINTENANCE_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_MAINTENANCE_LAB") != "1" {
 		t.Skip("requires dedicated isolated root worker lab")
 	}
 	if _, err := os.Stat("/.dockerenv"); err != nil || os.Geteuid() != 0 {
@@ -202,7 +202,11 @@ func TestLinuxMaintenanceWorkerSurvivesControllerKill(t *testing.T) {
 		"-test.run=^TestLinuxMaintenanceParentChild$",
 		"-test.timeout=20s",
 	)
-	child.Env = append(os.Environ(), "OPENRHP_MAINTENANCE_CHILD=1", "OPENRHP_MAINTENANCE_DIR="+dir)
+	child.Env = append(
+		os.Environ(),
+		"ROUTEHARBOR_MAINTENANCE_CHILD=1",
+		"ROUTEHARBOR_MAINTENANCE_DIR="+dir,
+	)
 	if err = child.Start(); err != nil {
 		t.Fatal(err)
 	}

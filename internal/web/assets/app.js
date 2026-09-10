@@ -1,6 +1,6 @@
 'use strict';
 (() => {
-  const S = window.OpenRHPStrings,
+  const S = window.RouteHarborStrings,
     $ = (id) => document.getElementById(id);
   let token = '',
     cfg = null,
@@ -626,11 +626,11 @@
   }
 
   const maintenanceComponents = [
-    'openrhp',
-    'openrhp-sing-box',
-    'openrhp-xray',
-    'openrhp-conntrack',
-    'openrhp-continuity',
+    'routeharbor',
+    'routeharbor-sing-box',
+    'routeharbor-xray',
+    'routeharbor-conntrack',
+    'routeharbor-continuity',
   ];
   const maintenanceID = /^[0-9a-f]{32}$/;
   const maintenanceActive = ['prepared', 'running', 'verifying'];
@@ -700,7 +700,7 @@
       !removing || $('maintenance-removal-policy').value !== 'restore-direct';
     $('maintenance-self-removal').hidden =
       !removing ||
-      !document.querySelector('#maintenance-components input[value="openrhp"]').checked;
+      !document.querySelector('#maintenance-components input[value="routeharbor"]').checked;
   }
 
   function invalidateMaintenanceReview(message = '') {
@@ -875,7 +875,7 @@
       throw Error('The service did not return a valid maintenance operation ID.');
     $('maintenance-operation-id').value = operationID;
     $('maintenance-local-command').textContent =
-      '/usr/libexec/openrhp-helper maintenance-status --operation ' + operationID;
+      '/usr/libexec/routeharbor-helper maintenance-status --operation ' + operationID;
     $('maintenance-local-command').hidden = false;
     history.replaceState(null, '', '#overview/maintenance/' + operationID);
     return operationID;
@@ -1355,7 +1355,7 @@
     $('coverage-compatibility').textContent = wifi
       ? 'The cable uplink will be removed from the bridge before encrypted Wi-Fi backhaul starts. This radio shares airtime with client devices.'
       : coverage.modes.some((m) => m !== 'ethernet')
-        ? 'Ethernet keeps one cable uplink and disables any OpenRHP wireless backhaul.'
+        ? 'Ethernet keeps one cable uplink and disables any RouteHarbor wireless backhaul.'
         : 'Wi-Fi setup is unavailable: both routers must prove encrypted bridge compatibility and the main router must support managed setup. Ethernet remains available when detected.';
   }
 
@@ -1545,7 +1545,7 @@
       bridge_section: bridge.section,
       bridge_device: bridge.device,
       lan_ports: [...bridge.ports],
-      uplink: wifi ? 'orhp-backhaul' : $('coverage-port').value,
+      uplink: wifi ? 'rh-backhaul' : $('coverage-port').value,
       management_address: bridge.address,
       gateway_address: $('coverage-gateway').value.trim(),
       share_radio: wifi,
@@ -1928,7 +1928,7 @@
         u = URL.createObjectURL(blob),
         a = el('a');
       a.href = u;
-      a.download = 'openrhp-diagnostics.json';
+      a.download = 'routeharbor-diagnostics.json';
       a.click();
       setTimeout(() => URL.revokeObjectURL(u), 1000);
     }),

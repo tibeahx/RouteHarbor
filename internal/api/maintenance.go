@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/control"
-	"github.com/tibeahx/OpenRHP/internal/maintenance"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/control"
+	"github.com/tibeahx/RouteHarbor/internal/maintenance"
 )
 
 const maintenanceOperationsPath = "/api/v1/maintenance/operations"

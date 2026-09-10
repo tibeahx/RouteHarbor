@@ -11,8 +11,8 @@ import sys
 import threading
 import time
 
-CERT = "/tmp/openrhp-lab/cert.pem"
-KEY = "/tmp/openrhp-lab/key.pem"
+CERT = "/tmp/routeharbor-lab/cert.pem"
+KEY = "/tmp/routeharbor-lab/key.pem"
 TARGET = "10.210.0.4"
 MARKS = {"direct": 0x4F010000, "dpi-a": 0x4F020000, "dpi-b": 0x4F030000, "proxy": 0x4F040000}
 
@@ -79,7 +79,7 @@ def request(kind):
     return kind
 
 def counters():
-    data = json.loads(subprocess.check_output(["nft", "-j", "list", "table", "inet", "openrhp_probe_lab"]))
+    data = json.loads(subprocess.check_output(["nft", "-j", "list", "table", "inet", "routeharbor_probe_lab"]))
     result = {}
     for entry in data["nftables"]:
         counter = entry.get("counter")
@@ -101,7 +101,7 @@ def checks():
     with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
         completed = list(pool.map(request, list(MARKS) * 8))
     print(json.dumps({"phase": "parallel_paths", "requests": len(completed), "queues": counters(), "proxy_exit": "10.210.0.3", "direct_and_dpi_exit": "10.210.0.2"}), flush=True)
-    pid = int(open("/tmp/openrhp-lab/dpi-a.pid").read())
+    pid = int(open("/tmp/routeharbor-lab/dpi-a.pid").read())
     os.kill(pid, 15)
     time.sleep(0.3)
     failed = False

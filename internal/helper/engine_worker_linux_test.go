@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func testEngineRequest(t *testing.T, kind string) EngineRequest {
@@ -74,7 +74,7 @@ func engineChildPID(worker int, kind string) string {
 
 func TestLinuxManagedEngineWorkerPrivilegesAndCleanup(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_ENGINE_WORKER_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_WORKER_LAB") != "1" {
 		t.Skip("requires pinned native sing-box and Xray lab image")
 	}
 	for _, kind := range []string{"sing-box", "xray"} {
@@ -157,7 +157,7 @@ func TestEngineWorkerRefusesRootIdentity(t *testing.T) {
 }
 
 func TestLinuxManagedEngineHelperCrashFixture(t *testing.T) {
-	if os.Getenv("OPENRHP_ENGINE_HELPER_CRASH") != "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_HELPER_CRASH") != "1" {
 		t.Skip("subprocess fixture only")
 	}
 	requireNetLab(t)
@@ -171,7 +171,11 @@ func TestLinuxManagedEngineHelperCrashFixture(t *testing.T) {
 	if child == "" {
 		t.Fatal("native engine missing")
 	}
-	if err = os.WriteFile(os.Getenv("OPENRHP_ENGINE_CHILD_PID"), []byte(child), 0o600); err != nil {
+	if err = os.WriteFile(
+		os.Getenv("ROUTEHARBOR_ENGINE_CHILD_PID"),
+		[]byte(child),
+		0o600,
+	); err != nil {
 		t.Fatal(err)
 	}
 	for {
@@ -181,7 +185,7 @@ func TestLinuxManagedEngineHelperCrashFixture(t *testing.T) {
 
 func TestLinuxManagedEngineAfterHelperSIGKILL(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_ENGINE_WORKER_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_WORKER_LAB") != "1" {
 		t.Skip("requires pinned native engine lab")
 	}
 	pidFile := filepath.Join(t.TempDir(), "child.pid")
@@ -192,8 +196,8 @@ func TestLinuxManagedEngineAfterHelperSIGKILL(t *testing.T) {
 	)
 	parent.Env = append(
 		os.Environ(),
-		"OPENRHP_ENGINE_HELPER_CRASH=1",
-		"OPENRHP_ENGINE_CHILD_PID="+pidFile,
+		"ROUTEHARBOR_ENGINE_HELPER_CRASH=1",
+		"ROUTEHARBOR_ENGINE_CHILD_PID="+pidFile,
 	)
 	parent.Stdout = os.Stderr
 	parent.Stderr = os.Stderr

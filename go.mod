@@ -1,3 +1,3 @@
-module github.com/tibeahx/OpenRHP
+module github.com/tibeahx/RouteHarbor
 
 go 1.27.1

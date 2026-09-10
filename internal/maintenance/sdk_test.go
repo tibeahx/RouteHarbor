@@ -9,11 +9,11 @@ import (
 // Optional read-only check against actual SDK outputs. Ordinary unit tests do
 // not manufacture an SDK success from generated package fixtures.
 func TestActualSDKPackageFormatAndGuardBoundary(t *testing.T) {
-	dir := os.Getenv("OPENRHP_SDK_IPK_DIR")
+	dir := os.Getenv("ROUTEHARBOR_SDK_IPK_DIR")
 	if dir == "" {
 		t.Skip("requires independently built SDK package directory")
 	}
-	paths, err := filepath.Glob(filepath.Join(dir, "openrhp*.ipk"))
+	paths, err := filepath.Glob(filepath.Join(dir, "routeharbor*.ipk"))
 	if err != nil || len(paths) != 7 {
 		t.Fatal("expected seven actual SDK packages", err, len(paths))
 	}

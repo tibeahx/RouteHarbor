@@ -58,7 +58,7 @@ class Serial:
         raise RuntimeError('Serial deadline expired: ' + self.buffer[-2000:].decode(errors='replace'))
 
     def execute(self, script):
-        marker = 'OPENRHP_' + uuid.uuid4().hex
+        marker = 'ROUTEHARBOR_' + uuid.uuid4().hex
         self.process.stdin.write((script + '\necho ' + marker + '\n').encode())
         self.process.stdin.flush()
         return self.wait(rb'\n' + marker.encode() + rb'\r?\n')
@@ -132,7 +132,7 @@ def main():
         print('BOOTED ' + profile + ' actual OpenWrt kernel and procd', flush=True)
         for suite in ['stdlib', 'selection', 'config', 'release']:
             binary = pathlib.Path('/tests') / profile / (suite + '.test')
-            remote = '/tmp/openrhp-abi-' + suite
+            remote = '/tmp/routeharbor-abi-' + suite
             command(['scp', '-O', *common, '-P', '10022', str(binary), 'root@127.0.0.1:' + remote], timeout=60)
             arguments = '' if suite == 'stdlib' else ' -test.timeout 120s -test.v'
             try:

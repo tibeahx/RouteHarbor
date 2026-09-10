@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func TestLinuxDNSGuardSurvivesNFTFlushAndPreservesOtherUID(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_DNS_GUARD_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_DNS_GUARD_CHILD") != "1" {
 		binary, err := os.Executable()
 		if err != nil {
 			t.Fatal(err)
@@ -26,7 +26,7 @@ func TestLinuxDNSGuardSurvivesNFTFlushAndPreservesOtherUID(t *testing.T) {
 			"-test.run=^TestLinuxDNSGuardSurvivesNFTFlushAndPreservesOtherUID$",
 			"-test.v",
 		)
-		cmd.Env = append(os.Environ(), "OPENRHP_DNS_GUARD_CHILD=1")
+		cmd.Env = append(os.Environ(), "ROUTEHARBOR_DNS_GUARD_CHILD=1")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("namespace: %v\n%s", err, out)
@@ -140,7 +140,7 @@ func TestDNSAccountAndProcessIdentity(t *testing.T) {
 }
 
 func TestOpenWrtDNSIdentityIsolated(t *testing.T) {
-	if os.Getenv("OPENRHP_OPENWRT_DNS_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_OPENWRT_DNS_LAB") != "1" {
 		t.Skip("actual isolated OpenWrt VM only")
 	}
 	identity, err := inspectDNSIdentity(context.Background())

@@ -12,9 +12,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 // EmergencyDirect honors only the explicit selective failure policy. It removes
@@ -219,10 +219,10 @@ func SelectiveHealth(ctx context.Context, d dataplane.Desired) error {
 	}
 	query[2] = 1
 	binary.BigEndian.PutUint16(query[4:6], 1)
-	query = append(query, 14)
-	query = append(query, []byte("openrhp-health")...)
-	query = append(query, 7)
-	query = append(query, []byte("invalid")...)
+	for _, label := range strings.Split(routing.DNSHealthName, ".") {
+		query = append(query, byte(len(label)))
+		query = append(query, label...)
+	}
 	query = append(query, 0, 0, 1, 0, 1)
 	if _, err = conn.Write(query); err != nil {
 		return errors.New("selective_dns_unavailable")

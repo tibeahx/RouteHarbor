@@ -5,7 +5,7 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // WithIngressDevices widens only generated LAN ingress selectors using private

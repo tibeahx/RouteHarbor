@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type Capabilities struct {

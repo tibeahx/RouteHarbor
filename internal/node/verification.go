@@ -7,9 +7,9 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/platform"
-	"github.com/tibeahx/OpenRHP/internal/wireless"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/wireless"
 )
 
 // VerifiedCapabilities is evaluated inside the root helper. A receipt adds

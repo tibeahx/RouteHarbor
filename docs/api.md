@@ -9,7 +9,7 @@ allowed only on loopback. Non-loopback management requires trusted TLS plus exac
 Host allowlisting. An Origin, when present, must match the request's scheme and
 host. The read credential can inspect state and plans; writes, credential management
 and secret export require admin. Tokens can be issued/revoked through trusted
-local access with `openrhp token`; revocation also terminates subsequent event reads.
+local access with `routeharbor token`; revocation also terminates subsequent event reads.
 
 For a configuration write, read `/config` and send the quoted `If-Match` revision.
 Every mutation sends an `Idempotency-Key` (8–128 visible ASCII characters). Retain
@@ -49,9 +49,9 @@ The CLI reads credentials from private files and accepts request bodies from fil
 or stdin. For example, with the service already bootstrapped:
 
 ```sh
-openrhp api --token-file /private/path/admin.token --path /api/v1/capabilities
-openrhp api --token-file /private/path/admin.token --path /api/v1/config
-openrhp api --token-file /private/path/admin.token --method POST \
+routeharbor api --token-file /private/path/admin.token --path /api/v1/capabilities
+routeharbor api --token-file /private/path/admin.token --path /api/v1/config
+routeharbor api --token-file /private/path/admin.token --method POST \
   --path /api/v1/sources --data source.json --revision 1 \
   --idempotency-key add-direct-20260908
 ```
@@ -71,7 +71,7 @@ The API manages private snapshots on this device without accepting filesystem
 paths or uploaded archives. Up to eight snapshots may occupy at most 2 MiB total.
 They retain source credentials inside the same private, mode-0600 configuration
 store. These local recovery snapshots are not portable encrypted backups; use the
-existing trusted-local `openrhp backup` command with an age recipient for that.
+existing trusted-local `routeharbor backup` command with an age recipient for that.
 
 | Operation | Behavior |
 | --- | --- |
@@ -102,10 +102,10 @@ normal removal and transaction workflow while preserving management access.
 For example, after reading the current revision:
 
 ```sh
-printf '{}\n' | openrhp api --token-file /private/path/admin.token \
+printf '{}\n' | routeharbor api --token-file /private/path/admin.token \
   --method POST --path /api/v1/config/backups --data - \
   --revision 3 --idempotency-key snapshot-before-edit
-openrhp api --token-file /private/path/read.token --path /api/v1/config/backups
+routeharbor api --token-file /private/path/read.token --path /api/v1/config/backups
 ```
 
 Use the returned backup ID for preview and restore. Keep separate encrypted
@@ -116,8 +116,8 @@ required; an on-device snapshot cannot survive loss of its own storage.
 ## Software maintenance
 
 Open **Overview → Gateway setup and diagnostics → Software maintenance** to inspect
-availability and staged signed bundles. The supported components are `openrhp`,
-`openrhp-sing-box`, `openrhp-xray`, `openrhp-conntrack` and `openrhp-continuity`. Bundle staging requires
+availability and staged signed bundles. The supported components are `routeharbor`,
+`routeharbor-sing-box`, `routeharbor-xray`, `routeharbor-conntrack` and `routeharbor-continuity`. Bundle staging requires
 trusted local administration; the browser accepts no package URLs, filesystem
 paths or verification-key uploads.
 
@@ -145,7 +145,7 @@ operation ID; the browser includes it in the page URL for status recovery after
 sign-in and displays this trusted local command:
 
 ```sh
-/usr/libexec/openrhp-helper maintenance-status --operation OPERATION_ID
+/usr/libexec/routeharbor-helper maintenance-status --operation OPERATION_ID
 ```
 
 Keep the page open until an ID is known if the dispatch response is uncertain.

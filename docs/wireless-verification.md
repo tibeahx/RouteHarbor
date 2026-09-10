@@ -5,7 +5,7 @@ with **no pre-certified router profiles**. Driver advertisements alone never
 enable WDS or mesh. Use [home-lab.md](home-lab.md) to prepare a separate, recoverable
 lab; do not use a working household WAN as the first test target.
 
-OpenRHP records a short-lived, root-owned receipt after trusted local verification.
+RouteHarbor records a short-lived, root-owned receipt after trusted local verification.
 It binds the exact OpenWrt build, kernel, board, radio path, PHY/driver capability
 digest, both TLS identities and one tested mode. It expires after 24 hours by
 default (at most seven days). Software, driver, radio or identity changes invalidate
@@ -22,8 +22,8 @@ it. It is operator evidence for that pair, **not a product or hardware certifica
    pair using its OpenWrt/driver setup instructions. The gateway must retain one
    enabled home AP with a fixed channel and WPA2-CCMP settings. Existing unowned
    WDS/mesh configurations are not silently taken over by the managed backend.
-   The node's managed profile uses `wireless.openrhp_ap` and
-   `wireless.openrhp_backhaul`, both with `openrhp_owner=1`; inspect the complete
+   The node's managed profile uses `wireless.routeharbor_ap` and
+   `wireless.routeharbor_backhaul`, both with `routeharbor_owner=1`; inspect the complete
    profile before explicitly adopting it. Ethernet setup with optional Wi-Fi can
    create the managed client AP before this qualification. Never mark an unrelated
    existing interface as owned merely to bypass a conflict.
@@ -45,7 +45,7 @@ only after completing that check. There is no HTTP/helper-socket operation that
 creates or edits a receipt.
 
 ```sh
-/usr/libexec/openrhp-helper verify-wireless \
+/usr/libexec/routeharbor-helper verify-wireless \
   --radio GATEWAY_RADIO --interface GATEWAY_PEER_INTERFACE --mode wds \
   --peer-fingerprint NODE_TLS_SHA256 --peer-mac NODE_WIRELESS_MAC \
   --valid-for 24h \
@@ -56,7 +56,7 @@ creates or edits a receipt.
 Then run the equivalent on the **node**, with the gateway as the peer:
 
 ```sh
-/usr/bin/openrhp-node verify-wireless \
+/usr/bin/routeharbor-node verify-wireless \
   --radio NODE_RADIO --interface NODE_PEER_INTERFACE --mode wds \
   --peer-fingerprint GATEWAY_TLS_SHA256 --peer-mac GATEWAY_WIRELESS_MAC \
   --valid-for 24h \

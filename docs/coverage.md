@@ -1,6 +1,6 @@
 # Coverage nodes
 
-OpenRHP keeps one gateway responsible for routing and path selection. A coverage
+RouteHarbor keeps one gateway responsible for routing and path selection. A coverage
 node bridges clients into that gateway's LAN. Node link quality is separate from
 WAN measurements: a slow wireless uplink must not trigger a VPN/DPI switch.
 
@@ -44,7 +44,7 @@ another established administrator channel. The agent does not enroll the first
 LAN caller, scan for credentials, disable TLS verification, or trust an arbitrary
 discovered AP.
 
-The same `openrhp-node` binary runs in two separate processes:
+The same `routeharbor-node` binary runs in two separate processes:
 
 - `serve` runs as an unprivileged service user, owns its unique Ed25519 identity,
   and exposes the authenticated TLS 1.3 node protocol.
@@ -59,19 +59,19 @@ address; the following flags describe the installed commands, not fixed network
 interface names:
 
 ```text
-openrhp-node helper --state-dir /etc/openrhp-node-helper \
-  --helper-socket /var/run/openrhp-node-helper.sock --uid NODE_SERVICE_UID
+routeharbor-node helper --state-dir /etc/routeharbor-node-helper \
+  --helper-socket /var/run/routeharbor-node-helper.sock --uid NODE_SERVICE_UID
 
-openrhp-node serve --state-dir /etc/openrhp-node \
-  --helper-socket /var/run/openrhp-node-helper.sock --listen NODE_LAN_IP:9844
+routeharbor-node serve --state-dir /etc/routeharbor-node \
+  --helper-socket /var/run/routeharbor-node-helper.sock --listen NODE_LAN_IP:9844
 ```
 
 Run bootstrap through existing administrator access **as the node service user**
 so the private identity belongs to the TLS agent:
 
 ```text
-openrhp-node bootstrap --state-dir /etc/openrhp-node \
-  --enrollment-file /etc/openrhp-node/enrollment-code
+routeharbor-node bootstrap --state-dir /etc/routeharbor-node \
+  --enrollment-file /etc/routeharbor-node/enrollment-code
 ```
 
 Bootstrap writes the code to a new 0600 file and prints only the public device ID,
@@ -153,7 +153,7 @@ except the explicitly identified inactive uplink.
 An Ethernet plan specifies `mode: "ethernet"`, one `uplink` from `lan_ports`, the
 existing `management_address` as an IPv4 CIDR, and the main `gateway_address` in
 that LAN. It disables DHCPv4, DHCPv6, RA, and NDP relay on the adopted scope and
-removes any OpenRHP-owned wireless backhaul. It rejects unrelated active DHCP
+removes any RouteHarbor-owned wireless backhaul. It rejects unrelated active DHCP
 scopes, any node masquerading, and conflicting foreign radio configurations.
 Those conflicts must be resolved explicitly during preflight; unrelated WAN,
 PPPoE, and Wi-Fi configuration is not silently taken over.
@@ -199,14 +199,14 @@ guarantee client roaming, and 802.11s backhaul does not imply 802.11r support.
 
 Revoking node management leaves the Wi-Fi key unchanged. Credential changes use
 the existing node `Plan` fields and a new preparation, separately from unpairing.
-OpenRHP does not provide a privileged operation that writes a new main-AP password.
+RouteHarbor does not provide a privileged operation that writes a new main-AP password.
 
 1. Finish any pending transaction. Preserve independent wired management to both
    routers and a private backup of the old main-AP settings. Do not create a second
    active bridged uplink as a recovery shortcut.
 2. Explicitly change the main AP's key through trusted OpenWrt administration.
    This can disconnect Wi-Fi clients and backhaul immediately. This administrator
-   action is outside OpenRHP's paired transaction and is not silently performed by
+   action is outside RouteHarbor's paired transaction and is not silently performed by
    discovery, unpairing, or an ordinary retry.
 3. For managed Wi-Fi, review the same adopted AP through **Set up connection** and
    create a fresh preparation. API users supply a **new** prepare `key` with the

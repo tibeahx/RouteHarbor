@@ -16,7 +16,7 @@ import (
 // Gated kernel socket evidence: real original-destination control messages and
 // datagram boundaries on isolated loopback. This is not a TPROXY or hardware test.
 func TestLinuxOriginalDestinationAndUDPDatagramBoundaries(t *testing.T) {
-	if os.Getenv("OPENRHP_CONTINUITY_NET_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_CONTINUITY_NET_LAB") != "1" {
 		t.Skip("requires isolated Linux continuity socket lab")
 	}
 	for _, network := range []string{"udp4", "udp6"} {

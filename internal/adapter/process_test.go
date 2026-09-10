@@ -15,14 +15,14 @@ import (
 // The only substituted executable is this test binary. Production command
 // construction remains fixed to verified /usr/bin/sing-box and /usr/bin/xray.
 func TestEngineProcessFixture(t *testing.T) {
-	if os.Getenv("OPENRHP_ENGINE_TEST_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_TEST_CHILD") != "1" {
 		return
 	}
-	if os.Getenv("OPENRHP_ENGINE_TEST_EXIT") == "1" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_TEST_EXIT") == "1" {
 		os.Exit(3)
 	}
 	var ports []int
-	if json.Unmarshal([]byte(os.Getenv("OPENRHP_ENGINE_TEST_PORTS")), &ports) != nil {
+	if json.Unmarshal([]byte(os.Getenv("ROUTEHARBOR_ENGINE_TEST_PORTS")), &ports) != nil {
 		os.Exit(4)
 	}
 	for _, port := range ports {
@@ -70,11 +70,11 @@ func fixtureBuilder(exit bool) func(context.Context, string, string) (*exec.Cmd,
 		cmd := exec.Command(exe, "-test.run=^TestEngineProcessFixture$")
 		cmd.Env = append(
 			os.Environ(),
-			"OPENRHP_ENGINE_TEST_CHILD=1",
-			"OPENRHP_ENGINE_TEST_PORTS="+string(encoded),
+			"ROUTEHARBOR_ENGINE_TEST_CHILD=1",
+			"ROUTEHARBOR_ENGINE_TEST_PORTS="+string(encoded),
 		)
 		if exit {
-			cmd.Env = append(cmd.Env, "OPENRHP_ENGINE_TEST_EXIT=1")
+			cmd.Env = append(cmd.Env, "ROUTEHARBOR_ENGINE_TEST_EXIT=1")
 		}
 		return cmd, nil
 	}

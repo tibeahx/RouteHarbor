@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // Platform reads the root helper's bounded, nonsecret OpenWrt capability report.

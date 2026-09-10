@@ -48,21 +48,21 @@ def make_bundle(directory, version, key, release_tool, base_commit, output):
         assert fields["Version"].split("-", 1)[0] == version
         artifacts.append({"name": source.name, "architecture": fields["Architecture"], "sha256": hashlib.sha256(data).hexdigest(), "bytes": len(data)})
     assert artifacts, "No SDK package fixtures"
-    manifest = {"schema_version": 1, "project": "OpenRHP", "version": version, "commit": base_commit, "artifacts": artifacts}
+    manifest = {"schema_version": 1, "project": "RouteHarbor", "version": version, "commit": base_commit, "artifacts": artifacts}
     (output / "manifest.json").write_text(json.dumps(manifest, indent=2))
     command([str(release_tool), "sign", "--manifest", str(output / "manifest.json"), "--signature", str(output / "manifest.sig"), "--key", str(key)])
     return artifacts
 
 
 def api(lab, path, method="GET", body=None, revision=None, key=None, check=True):
-    argv = ["/usr/bin/openrhp", "api", "--token-file", "/root/openrhp-lab/admin.token", "--path", path, "--method", method]
+    argv = ["/usr/bin/routeharbor", "api", "--token-file", "/root/routeharbor-lab/admin.token", "--path", path, "--method", method]
     if body is not None:
         argv += ["--data", "-", "--idempotency-key", key or uuid.uuid4().hex]
     if revision is not None:
         argv += ["--revision", str(revision)]
     script = shlex.join(argv)
     if body is not None:
-        marker = "OPENRHP_LAB_" + uuid.uuid4().hex
+        marker = "ROUTEHARBOR_LAB_" + uuid.uuid4().hex
         script += " <<'" + marker + "'\n" + json.dumps(body) + "\n" + marker
     result = lab.guest(script + "\n", check=check)
     if not check:
@@ -72,7 +72,7 @@ def api(lab, path, method="GET", body=None, revision=None, key=None, check=True)
 
 def root_status(lab, identifier):
     assert len(identifier) == 32 and all(c in "0123456789abcdef" for c in identifier)
-    result = lab.guest("/usr/libexec/openrhp-helper maintenance-status --operation " + identifier + "\n", check=False)
+    result = lab.guest("/usr/libexec/routeharbor-helper maintenance-status --operation " + identifier + "\n", check=False)
     if result.returncode and result.stderr.strip() in {"maintenance state busy", "maintenance_state_busy"}:
         return None
     assert result.returncode == 0, "Root maintenance status inspection failed: " + result.stderr
@@ -80,7 +80,7 @@ def root_status(lab, identifier):
 
 
 def jobs(lab):
-    names = lab.guest("for path in /etc/openrhp-maintenance/job-*.json; do [ -f \"$path\" ] && basename \"$path\"; done; true\n").stdout.splitlines()
+    names = lab.guest("for path in /etc/routeharbor-maintenance/job-*.json; do [ -f \"$path\" ] && basename \"$path\"; done; true\n").stdout.splitlines()
     return {name[4:-5] for name in names if name.startswith("job-") and name.endswith(".json")}
 
 
@@ -99,7 +99,7 @@ def wait_job(lab, identifier):
 
 
 def routing_state(lab):
-    return json.loads(lab.guest("cat /etc/openrhp-helper/transaction.json\n").stdout)
+    return json.loads(lab.guest("cat /etc/routeharbor-helper/transaction.json\n").stdout)
 
 
 def confirm_closed(lab):
@@ -117,8 +117,8 @@ def confirm_closed(lab):
 # checked at the external WAN namespace; failed client replies alone prove nothing.
 FLOOD = r'''
 import json,pathlib,socket,time
-stop=pathlib.Path('/tmp/openrhp-maintenance-flood.stop')
-report=pathlib.Path('/tmp/openrhp-maintenance-flood.json')
+stop=pathlib.Path('/tmp/routeharbor-maintenance-flood.stop')
+report=pathlib.Path('/tmp/routeharbor-maintenance-flood.json')
 count=0
 while not stop.exists():
  for family,address in [(socket.AF_INET,'8.8.8.8'),(socket.AF_INET6,'2001:4860:4860::8888')]:
@@ -126,7 +126,7 @@ while not stop.exists():
    with socket.socket(family,transport) as connection:
     connection.setblocking(False)
     try:
-     if transport==socket.SOCK_DGRAM: connection.sendto(b'OpenRHP-maintenance-probe',(address,port))
+     if transport==socket.SOCK_DGRAM: connection.sendto(b'RouteHarbor-maintenance-probe',(address,port))
      else: connection.connect_ex((address,port))
     except OSError: pass
  count+=1
@@ -138,19 +138,19 @@ while not stop.exists():
 
 
 def progress(lab):
-    result = json.loads(lab.container_command(["cat", "/tmp/openrhp-maintenance-flood.json"]).stdout)
+    result = json.loads(lab.container_command(["cat", "/tmp/routeharbor-maintenance-flood.json"]).stdout)
     assert time.time() - result["updated"] < 5, "WAN probe generator stopped"
     return result["iterations"]
 
 
 def management(lab):
     source = "import socket; s=socket.create_connection(('10.44.0.1',22),3); assert s.recv(64).startswith(b'SSH-'); s.close()"
-    lab.container_command(["ip", "netns", "exec", "openrhp-client", "python3", "-c", source])
+    lab.container_command(["ip", "netns", "exec", "routeharbor-client", "python3", "-c", source])
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--container", default="openrhp-openwrt-boot-lab")
+    parser.add_argument("--container", default="routeharbor-openwrt-boot-lab")
     parser.add_argument("--baseline", type=pathlib.Path, required=True)
     parser.add_argument("--candidate", type=pathlib.Path, required=True)
     parser.add_argument("--reuse-staged", action="store_true", help="Reuse already authenticated fixture bundles only when every package hash matches these exact SDK inputs")
@@ -158,26 +158,26 @@ def main():
     args = parser.parse_args()
     if not args.execute:
         parser.error("This mutates only the isolated VM; pass --execute after its owner releases it")
-    assert args.container.startswith("openrhp-"), "Unexpected lab container"
+    assert args.container.startswith("routeharbor-"), "Unexpected lab container"
     baseline, candidate = args.baseline.resolve(strict=True), args.candidate.resolve(strict=True)
     lab = boot.Lab(args.container)
     environment = lab.guest("cat /etc/openwrt_release; uname -r; cat /proc/1/comm\n").stdout
     assert "24.10.7" in environment and "6.6.141" in environment and "procd" in environment
-    installed = lab.guest("opkg status openrhp | sed -n 's/^Version: //p'\n").stdout.strip()
+    installed = lab.guest("opkg status routeharbor | sed -n 's/^Version: //p'\n").stdout.strip()
     assert installed.split("-", 1)[0] == "0.1.0", "Provision a current feature-capable baseline first"
     lab.wait_api()
     assert api(lab, "/api/v1/maintenance/capabilities")["available"]
     config = api(lab, "/api/v1/config")
     assert config["network"]["enabled"] and config["policy"]["fallback"] == "closed"
     assert not routing_state(lab).get("maintenance_job"), "Another maintenance operation is active"
-    helper_before = lab.guest("sha256sum /usr/libexec/openrhp-helper\n").stdout.split()[0]
+    helper_before = lab.guest("sha256sum /usr/libexec/routeharbor-helper\n").stdout.split()[0]
     report = {"environment": environment, "scope": "isolated SDK fixtures on emulated OpenWrt; no physical acceptance", "checks": []}
     results = pathlib.Path("test-results/maintenance-boot")
     results.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix="openrhp-maintenance-signing-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="routeharbor-maintenance-signing-") as temporary:
         private = pathlib.Path(temporary)
-        release_tool = private / "openrhp-release"
-        command([os.environ.get("GO", "go"), "build", "-buildvcs=false", "-o", str(release_tool), "./cmd/openrhp-release"])
+        release_tool = private / "routeharbor-release"
+        command([os.environ.get("GO", "go"), "build", "-buildvcs=false", "-o", str(release_tool), "./cmd/routeharbor-release"])
         key, public = private / "fixture.key", private / "fixture.pub"
         command([str(release_tool), "keygen", "--key", str(key), "--public-out", str(public)])
         base_commit = command(["git", "rev-parse", "HEAD"]).stdout.strip()
@@ -193,9 +193,9 @@ def main():
         # its full package hash set must match the exact caller-selected inputs.
         existing = api(lab, "/api/v1/maintenance/bundles") if args.reuse_staged else []
         if not args.reuse_staged:
-            lab.guest("mkdir -p /etc/openrhp-maintenance; chmod 0700 /etc/openrhp-maintenance; test ! -e /etc/openrhp-maintenance/trust.pub\n")
-            lab.put_host_file(public, "/etc/openrhp-maintenance/trust.pub")
-            lab.guest("chmod 0600 /etc/openrhp-maintenance/trust.pub\n")
+            lab.guest("mkdir -p /etc/routeharbor-maintenance; chmod 0700 /etc/routeharbor-maintenance; test ! -e /etc/routeharbor-maintenance/trust.pub\n")
+            lab.put_host_file(public, "/etc/routeharbor-maintenance/trust.pub")
+            lab.guest("chmod 0600 /etc/routeharbor-maintenance/trust.pub\n")
         staged = []
         for index, (source, artifacts) in enumerate(bundles):
             if args.reuse_staged:
@@ -204,11 +204,11 @@ def main():
                 assert len(matches) == 1, "Previously authenticated bundle does not exactly match the selected SDK files"
                 staged.append(matches[0])
                 continue
-            target = "/root/openrhp-maintenance-bundle-" + str(index)
+            target = "/root/routeharbor-maintenance-bundle-" + str(index)
             lab.guest("mkdir -p " + target + "; chmod 0700 " + target + "\n")
             for path in source.iterdir():
                 lab.put_host_file(path, target + "/" + path.name)
-            summary = json.loads(lab.guest("chmod 0600 " + target + "/*; /usr/libexec/openrhp-helper maintenance-stage --source " + target + "\n").stdout)
+            summary = json.loads(lab.guest("chmod 0600 " + target + "/*; /usr/libexec/routeharbor-helper maintenance-stage --source " + target + "\n").stdout)
             staged.append(summary)
             lab.guest("rm -f " + target + "/*; rmdir " + target + "\n")
         report["reused_authenticated_staging"] = args.reuse_staged
@@ -218,14 +218,14 @@ def main():
         report["checks"].append("independent lab trust anchor and authenticated old/new actual SDK staging")
         print("PASS authenticated baseline and candidate SDK fixtures are available", flush=True)
         capture_filter = "(dst host 8.8.8.8 or dst host 2001:4860:4860::8888) and (port 28080 or port 28081 or port 53)"
-        lab.container_command(["rm", "-f", "/tmp/openrhp-maintenance-flood.stop"])
-        flood = boot.start_background(lab, "maintenance-traffic", "openrhp-client", FLOOD)
+        lab.container_command(["rm", "-f", "/tmp/routeharbor-maintenance-flood.stop"])
+        flood = boot.start_background(lab, "maintenance-traffic", "routeharbor-client", FLOOD)
         atexit.register(lab.signal, flood, signal.SIGTERM, check=False)
         time.sleep(.3)
         first_progress = progress(lab)
-        capture_path = "/tmp/openrhp-boot-maintenance-closed.pcap"
+        capture_path = "/tmp/routeharbor-boot-maintenance-closed.pcap"
         capture = boot.start_capture(lab, capture_path, expression=capture_filter)
-        plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "upgrade", "bundle_id": staged[1]["id"], "components": ["openrhp"], "expected_installed_digest": ""})
+        plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "upgrade", "bundle_id": staged[1]["id"], "components": ["routeharbor"], "expected_installed_digest": ""})
         revision = api(lab, "/api/v1/config")["revision"]
         key_id = uuid.uuid4().hex
         # Deliberately discard the initial reply; retry exactly the same body/key.
@@ -236,13 +236,13 @@ def main():
         lab.wait_api()
         assert api(lab, "/api/v1/maintenance/operations/" + operation["id"])["state"] == "completed"
         assert routing_state(lab).get("maintenance_hold")
-        assert lab.guest("sha256sum /usr/libexec/openrhp-helper\n").stdout.split()[0] == helper_before
-        assert lab.guest("opkg status openrhp | sed -n 's/^Version: //p'\n").stdout.strip().split("-", 1)[0] == "0.1.1"
+        assert lab.guest("sha256sum /usr/libexec/routeharbor-helper\n").stdout.split()[0] == helper_before
+        assert lab.guest("opkg status routeharbor | sed -n 's/^Version: //p'\n").stdout.strip().split("-", 1)[0] == "0.1.1"
         management(lab)
         report["checks"].append("public API upgrade, discarded response and same-key replay, authoritative root completion, immutable guard retained")
         confirm_closed(lab)
         report["checks"].append("fresh confirmed network transaction clears maintenance hold")
-        plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "remove", "components": ["openrhp"], "removal_policy": "preserve-closed", "expected_installed_digest": ""})
+        plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "remove", "components": ["routeharbor"], "removal_policy": "preserve-closed", "expected_installed_digest": ""})
         before = jobs(lab)
         revision = api(lab, "/api/v1/config")["revision"]
         api(lab, "/api/v1/maintenance/operations", "POST", plan["request"], revision, check=False)
@@ -252,7 +252,7 @@ def main():
         created = jobs(lab) - before
         assert len(created) == 1, "Expected one durable removal job"
         wait_job(lab, created.pop())
-        lab.guest("test ! -e /usr/bin/openrhp; test -x /usr/libexec/openrhp-helper\n")
+        lab.guest("test ! -e /usr/bin/routeharbor; test -x /usr/libexec/routeharbor-helper\n")
         management(lab)
         assert progress(lab) > first_progress
         observed = boot.stop_capture(lab, capture, capture_path)
@@ -262,14 +262,14 @@ def main():
         report["checks"].append("controller removal preserves closed routing and LAN management; trusted CLI reports completion after API removal; zero WAN packets throughout")
         # Restore only the already authenticated controller fixture for the second
         # policy case. This root fixture setup is not a public API operation.
-        controller = next(p for p in staged[1]["packages"] if p["name"] == "openrhp")
-        artifact = "/etc/openrhp-maintenance/artifact-" + controller["sha256"] + ".ipk"
-        lab.guest("OPKG_CONF_DIR=/etc/openrhp-maintenance/empty-feeds opkg --conf /etc/openrhp-maintenance/opkg.conf install " + artifact + "\n/usr/libexec/openrhp-setup /root/openrhp-lab/admin.token\n")
+        controller = next(p for p in staged[1]["packages"] if p["name"] == "routeharbor")
+        artifact = "/etc/routeharbor-maintenance/artifact-" + controller["sha256"] + ".ipk"
+        lab.guest("OPKG_CONF_DIR=/etc/routeharbor-maintenance/empty-feeds opkg --conf /etc/routeharbor-maintenance/opkg.conf install " + artifact + "\n/usr/libexec/routeharbor-setup /root/routeharbor-lab/admin.token\n")
         lab.wait_api()
         confirm_closed(lab)
-        direct_path = "/tmp/openrhp-boot-maintenance-direct.pcap"
+        direct_path = "/tmp/routeharbor-boot-maintenance-direct.pcap"
         direct_capture = boot.start_capture(lab, direct_path, expression=capture_filter)
-        plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "remove", "components": ["openrhp"], "removal_policy": "restore-direct", "expected_installed_digest": ""})
+        plan = api(lab, "/api/v1/maintenance/plan", "POST", {"action": "remove", "components": ["routeharbor"], "removal_policy": "restore-direct", "expected_installed_digest": ""})
         before = jobs(lab)
         revision = api(lab, "/api/v1/config")["revision"]
         api(lab, "/api/v1/maintenance/operations", "POST", plan["request"], revision, check=False)
@@ -287,9 +287,9 @@ def main():
             for port, tcp in [(28080, True), (28081, False), (53, True), (53, False)]:
                 assert any(f"> {address}.{port}:" in line and ("Flags [" in line) == tcp for line in observed.splitlines()), ("Explicit direct policy did not restore expected traffic", address, port, tcp)
         management(lab)
-        assert lab.guest("sha256sum /usr/libexec/openrhp-helper\n").stdout.split()[0] == helper_before
+        assert lab.guest("sha256sum /usr/libexec/routeharbor-helper\n").stdout.split()[0] == helper_before
         report["checks"].append("separate explicit restore-direct removal restores IPv4/IPv6 TCP/UDP/DNS traffic while retaining guard package and LAN management")
-        lab.container_command(["touch", "/tmp/openrhp-maintenance-flood.stop"])
+        lab.container_command(["touch", "/tmp/routeharbor-maintenance-flood.stop"])
         lab.signal(flood, signal.SIGTERM, check=False)
         (results / "results.json").write_text(json.dumps(report, indent=2) + "\n")
         for check in report["checks"]:

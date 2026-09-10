@@ -1,0 +1,2 @@
+# RouteHarbor fresh install: routing is off and existing traffic is unchanged.
+# The root helper atomically replaces this file before protected routing starts.

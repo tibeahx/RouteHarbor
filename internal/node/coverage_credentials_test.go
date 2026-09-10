@@ -8,12 +8,12 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/coverage"
+	"github.com/tibeahx/RouteHarbor/internal/coverage"
 )
 
 // The real gateway and node transaction managers are used; only the gateway's
 // OpenWrt configuration effects are injected. The separate administrator key
-// change is outside OpenRHP's gateway snapshot and compensation scope.
+// change is outside RouteHarbor's gateway snapshot and compensation scope.
 type credentialsBackend struct {
 	mu   sync.Mutex
 	wifi coverage.WiFi

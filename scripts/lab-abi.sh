@@ -20,16 +20,16 @@ if [ "$#" -gt 0 ]; then
 fi
 mkdir -p "$output"
 chmod 0755 "$output"
-if ! docker image inspect openrhp-path-lab:local >/dev/null 2>&1; then
- docker build -t openrhp-path-lab:local docker/lab-paths
+if ! docker image inspect routeharbor-path-lab:local >/dev/null 2>&1; then
+ docker build -t routeharbor-path-lab:local docker/lab-paths
 fi
-docker build -t openrhp-abi-lab:local docker/lab-abi
+docker build -t routeharbor-abi-lab:local docker/lab-abi
 {
  "$GO" version
  git rev-parse HEAD
  git status --short
- docker image inspect openrhp-abi-lab:local --format '{{.Id}}'
- docker run --rm --network none --read-only --cap-drop ALL openrhp-abi-lab:local \
+ docker image inspect routeharbor-abi-lab:local --format '{{.Id}}'
+ docker run --rm --network none --read-only --cap-drop ALL routeharbor-abi-lab:local \
   /bin/sh -c 'uname -sm; dpkg-query -W qemu-user-static; qemu-mips64-static --version'
 } > "$output/environment.txt"
 failed=0
@@ -51,7 +51,7 @@ for target in $targets; do
  esac
  for suite in selection config release; do
   package=./internal/$suite
-  if [ "$suite" = release ]; then package=./cmd/openrhp-release; fi
+  if [ "$suite" = release ]; then package=./cmd/routeharbor-release; fi
   binary="$target-$suite.test"
   CGO_ENABLED=0 GOOS=linux GOARCH="$arch" GOARM="$arm" GOMIPS=softfloat GOMIPS64=softfloat \
    "$GO" test -c -o "$output/$binary" "$package"
@@ -60,7 +60,7 @@ for target in $targets; do
   if docker run --rm --network none --read-only --cap-drop ALL \
    --tmpfs /tmp:rw,nosuid,nodev,size=64m \
    -v "$PWD/$output:/work:ro" \
-   openrhp-abi-lab:local /usr/bin/timeout -k 5s 180s "/usr/bin/$emulator" -cpu "$cpu" "/work/$binary" \
+   routeharbor-abi-lab:local /usr/bin/timeout -k 5s 180s "/usr/bin/$emulator" -cpu "$cpu" "/work/$binary" \
    -test.timeout 120s > "$output/$target-$suite.log" 2>&1; then
    printf '%s,%s,%s,%s,PASS\n' "$target" "$suite" "$emulator" "$cpu" >> "$output/results.csv"
   else
@@ -87,7 +87,7 @@ for variant in $controls; do
  chmod 0755 "$output/stdlib-$arch"
  if docker run --rm --network none --read-only --cap-drop ALL \
   --tmpfs /tmp:rw,nosuid,nodev,size=16m -v "$PWD/$output:/work:ro" \
-  openrhp-abi-lab:local /usr/bin/timeout -k 2s 30s "/usr/bin/$emulator" \
+  routeharbor-abi-lab:local /usr/bin/timeout -k 2s 30s "/usr/bin/$emulator" \
   -cpu "$cpu" "/work/stdlib-$arch" > "$output/stdlib-$variant.log" 2>&1; then
   printf '%s,%s,%s,PASS\n' "$arch" "$emulator" "$cpu" >> "$output/stdlib-results.csv"
  else

@@ -12,8 +12,8 @@ import (
 )
 
 const (
-	packetTable     = "openrhp_probe"
-	packetOwnership = "OpenRHP service-owned v1"
+	packetTable     = "routeharbor_probe"
+	packetOwnership = "RouteHarbor service-owned v1"
 )
 
 // refreshPacketRules is called with the lifecycle mutex held. It replaces only the owned output probe table atomically.
@@ -71,7 +71,7 @@ func (m *PacketManager) refreshPacketRules(ctx context.Context) error {
 			}
 		}
 		if !owned {
-			return errors.New("packet_rules_conflict: probe table is not owned by OpenRHP")
+			return errors.New("packet_rules_conflict: probe table is not owned by RouteHarbor")
 		}
 	}
 	var script strings.Builder

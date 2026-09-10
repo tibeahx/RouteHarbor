@@ -15,9 +15,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type PathProvider interface {
@@ -319,7 +319,7 @@ func (r *Runner) resource(
 		result.ErrorCode = "target_invalid"
 		return result
 	}
-	req.Header.Set("User-Agent", "OpenRHP-Probe/1")
+	req.Header.Set("User-Agent", "RouteHarbor-Probe/1")
 	req.Header.Set("Accept-Encoding", "identity")
 	budget := t.MaxBytes
 	if !speed && budget > 32<<10 {

@@ -1,13 +1,13 @@
 # Stop, recover and remove
 
 Use the router's existing trusted administrator access. Keep LAN management
-available throughout. OpenRHP never needs a firmware flash or router factory reset
+available throughout. RouteHarbor never needs a firmware flash or router factory reset
 for its own removal.
 
 Stopping the controller follows the confirmed failure policy:
 
 ```sh
-/etc/init.d/openrhp stop
+/etc/init.d/routeharbor stop
 ```
 
 For legacy profiles, the root helper installs the persistent closed guard before
@@ -21,12 +21,12 @@ root-owned journal.
 ## Remove the controller while keeping protection
 
 ```sh
-/usr/libexec/openrhp-helper decommission --state-dir /etc/openrhp-helper --policy preserve-closed
-/etc/init.d/openrhp stop
-opkg remove openrhp
+/usr/libexec/routeharbor-helper decommission --state-dir /etc/routeharbor-helper --policy preserve-closed
+/etc/init.d/routeharbor stop
+opkg remove routeharbor
 ```
 
-On an apk-based release, use `apk del openrhp` instead. Keep `openrhp-guard`
+On an apk-based release, use `apk del routeharbor` instead. Keep `routeharbor-guard`
 installed. Its root helper, persistent nft include and policy-routing blackhole
 continue to block protected external traffic while preserving LAN management.
 Configuration and credentials remain available for a later reinstall. Do not use
@@ -43,17 +43,17 @@ This operation authorizes previously protected clients to use the router's norma
 WAN. Choose it deliberately when that is the desired removal policy:
 
 ```sh
-/etc/init.d/openrhp stop
-/usr/libexec/openrhp-helper decommission --state-dir /etc/openrhp-helper --policy restore-direct
-/usr/libexec/openrhp-helper can-remove --state-dir /etc/openrhp-helper
-opkg remove openrhp openrhp-guard
+/etc/init.d/routeharbor stop
+/usr/libexec/routeharbor-helper decommission --state-dir /etc/routeharbor-helper --policy restore-direct
+/usr/libexec/routeharbor-helper can-remove --state-dir /etc/routeharbor-helper
+opkg remove routeharbor routeharbor-guard
 ```
 
-On apk systems, the final command is `apk del openrhp openrhp-guard`. The helper
+On apk systems, the final command is `apk del routeharbor routeharbor-guard`. The helper
 removes only its own policy rules, routes and firewall processing. It never rewrites
 WAN/LAN, DHCP, PPPoE or SSID configuration. The guard package refuses removal while
 a protected configuration or pending transaction remains. This check also covers
-an unresolved gateway backhaul transaction in `/etc/openrhp-helper/gateway`.
+an unresolved gateway backhaul transaction in `/etc/routeharbor-helper/gateway`.
 Complete or roll back the paired coverage transaction before removing the
 controller needed to coordinate its two participants.
 
@@ -80,15 +80,15 @@ Removing the node agent does not automatically undo a confirmed access-point
 configuration or change the shared Wi-Fi key. First revoke its management identity
 through the gateway, then decide whether the access point should keep providing
 coverage. A pending node change must be confirmed or rolled back while its
-independent helper is still installed. Stop and remove `openrhp-node` only after
+independent helper is still installed. Stop and remove `routeharbor-node` only after
 that transaction is resolved.
 
 Package removal retains configuration directories. Back up or explicitly erase
-`/etc/openrhp`, `/etc/openrhp-helper`, `/etc/openrhp-node` and
-`/etc/openrhp-node-helper` only after the corresponding services are decommissioned.
-Selective snapshots reside in `/etc/openrhp/routing` and
-`/etc/openrhp-helper/routing`; persistent FakeIP mapping caches reside separately
-in `/etc/openrhp-dispatcher-cache`. The mapping cache can contain recently resolved
+`/etc/routeharbor`, `/etc/routeharbor-helper`, `/etc/routeharbor-node` and
+`/etc/routeharbor-node-helper` only after the corresponding services are decommissioned.
+Selective snapshots reside in `/etc/routeharbor/routing` and
+`/etc/routeharbor-helper/routing`; persistent FakeIP mapping caches reside separately
+in `/etc/routeharbor-dispatcher-cache`. The mapping cache can contain recently resolved
 domain names even though detector observations and queues are memory-only. Erase
 it explicitly after decommission if the mapping data should not survive reinstall.
 These configuration directories also contain credentials and private identity keys. Removing an

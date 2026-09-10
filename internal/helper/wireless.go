@@ -3,8 +3,8 @@ package helper
 import (
 	"context"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
-	"github.com/tibeahx/OpenRHP/internal/wireless"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/wireless"
 )
 
 // VerifiedPlatform projects only a current root-owned, device-bound authorization.

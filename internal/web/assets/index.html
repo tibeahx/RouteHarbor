@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="color-scheme" content="light" />
-    <title>OpenRHP · Your home network</title>
+    <title>RouteHarbor · Your home network</title>
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="stylesheet" href="/style.css" />
     <script src="/strings.js" defer></script>
@@ -13,11 +13,26 @@
   <body>
     <a class="skip" href="#main">Skip to content</a>
     <header class="masthead">
-      <a class="brand" href="#overview" aria-label="OpenRHP home"
-        ><svg viewBox="0 0 40 40" width="38" height="38" aria-hidden="true">
-          <path d="M6 21 20 8l14 13v13H6Z" fill="none" stroke="currentColor" stroke-width="2.5" />
-          <path d="M13 24h14m-7-6v12" fill="none" stroke="currentColor" stroke-width="2.5" /></svg
-        ><span>OpenRHP<small>OpenReverseHomeProxy</small></span></a
+      <a class="brand" href="#overview" aria-label="RouteHarbor home"
+        ><svg viewBox="0 0 128 128" width="38" height="38" aria-hidden="true">
+          <g transform="translate(0 9)">
+            <path
+              d="M22 20V74C22 91 34 102 51 102H77C94 102 106 91 106 74V20"
+              fill="none"
+              stroke="#153e4a"
+              stroke-width="12"
+              stroke-linecap="round"
+            />
+            <path
+              d="M64 2V40C64 53 82 53 82 66C82 76 74 82 64 82"
+              fill="none"
+              stroke="#007f7b"
+              stroke-width="10"
+              stroke-linecap="round"
+            />
+            <circle cx="64" cy="82" r="8" fill="#007f7b" />
+          </g></svg
+        ><span>RouteHarbor<small>Adaptive routing gateway</small></span></a
       >
       <div class="header-right">
         <span id="connection" class="status-label">Local management</span
@@ -419,20 +434,20 @@
                 <fieldset id="maintenance-components">
                   <legend>Software components</legend>
                   <label class="check"
-                    ><input type="checkbox" value="openrhp" />OpenRHP controller</label
+                    ><input type="checkbox" value="routeharbor" />RouteHarbor controller</label
                   >
                   <label class="check"
-                    ><input type="checkbox" value="openrhp-sing-box" />sing-box adapter</label
+                    ><input type="checkbox" value="routeharbor-sing-box" />sing-box adapter</label
                   >
                   <label class="check"
-                    ><input type="checkbox" value="openrhp-xray" />Xray adapter</label
+                    ><input type="checkbox" value="routeharbor-xray" />Xray adapter</label
                   >
                   <label class="check"
-                    ><input type="checkbox" value="openrhp-conntrack" />Connection tracking
+                    ><input type="checkbox" value="routeharbor-conntrack" />Connection tracking
                     tools</label
                   >
                   <label class="check"
-                    ><input type="checkbox" value="openrhp-continuity" />Private relay
+                    ><input type="checkbox" value="routeharbor-continuity" />Private relay
                     continuity</label
                   >
                 </fieldset>
@@ -634,9 +649,9 @@
                   <select id="coverage-main-ap"></select>
                   <p id="coverage-main-ap-detail" class="hint"></p>
                   <label class="check"
-                    ><input id="coverage-adopt-main-ap" type="checkbox" /> Allow OpenRHP to connect
-                    this access point to the selected home Wi-Fi network. The main router keeps its
-                    LAN addresses, DHCP and routing settings.</label
+                    ><input id="coverage-adopt-main-ap" type="checkbox" /> Allow RouteHarbor to
+                    connect this access point to the selected home Wi-Fi network. The main router
+                    keeps its LAN addresses, DHCP and routing settings.</label
                   >
                   <p class="hint">
                     The existing Wi-Fi password is transferred privately to your paired access
@@ -744,7 +759,7 @@
           </section>
         </section>
         <footer>
-          <span>OpenRHP <span id="version">development</span></span
+          <span>RouteHarbor <span id="version">development</span></span
           ><span id="footer-state">Local control · No cloud account</span>
         </footer>
       </div>

@@ -33,7 +33,7 @@ Build the native QEMU tool container and start the lab with already verified inp
 packages/dependencies (the start script downloads nothing):
 
 ```sh
-docker build -t openrhp-openwrt-vm:24.10.7 docker/lab-openwrt-vm
+docker build -t routeharbor-openwrt-vm:24.10.7 docker/lab-openwrt-vm
 mkdir -p /absolute/private-vm-state
 chmod 0700 /absolute/private-vm-state
 scripts/lab-openwrt-vm.sh /absolute/verified-image-inputs /absolute/private-vm-state /absolute/sdk-ipks /absolute/verified-dependencies
@@ -51,18 +51,18 @@ The fixed transport contract is:
 
 ```sh
 # A script supplied on stdin runs through pinned SSH as guest root.
-printf '%s\n' 'uname -a' 'cat /proc/1/comm' | docker exec -i openrhp-openwrt-boot-lab python3 /lab/vmctl.py exec
+printf '%s\n' 'uname -a' 'cat /proc/1/comm' | docker exec -i routeharbor-openwrt-boot-lab python3 /lab/vmctl.py exec
 # Transfer a package from a read-only input mount.
-docker exec openrhp-openwrt-boot-lab python3 /lab/vmctl.py put /packages/openrhp_0.1.0-r1_x86_64.ipk /tmp/openrhp.ipk
+docker exec routeharbor-openwrt-boot-lab python3 /lab/vmctl.py put /packages/routeharbor_0.1.0-r1_x86_64.ipk /tmp/routeharbor.ipk
 # Trusted serial recovery; use SSH stdin for credentials and ordinary operations.
-printf '%s\n' 'ubus call system board' | docker exec -i openrhp-openwrt-boot-lab python3 /lab/vmctl.py serial
+printf '%s\n' 'ubus call system board' | docker exec -i routeharbor-openwrt-boot-lab python3 /lab/vmctl.py serial
 # Both wait for a changed guest boot ID and pinned SSH readiness. Graceful reboot
 # requires a guest-requested QEMU exit; it never kills a guest to force success.
-docker exec openrhp-openwrt-boot-lab python3 /lab/vmctl.py reboot
-docker exec openrhp-openwrt-boot-lab python3 /lab/vmctl.py powercut
+docker exec routeharbor-openwrt-boot-lab python3 /lab/vmctl.py reboot
+docker exec routeharbor-openwrt-boot-lab python3 /lab/vmctl.py powercut
 # Capture a clean checkpoint once, before installation; restore it for a fresh run.
-docker exec openrhp-openwrt-boot-lab python3 /lab/vmctl.py snapshot
-docker exec openrhp-openwrt-boot-lab python3 /lab/vmctl.py restore-pristine
+docker exec routeharbor-openwrt-boot-lab python3 /lab/vmctl.py snapshot
+docker exec routeharbor-openwrt-boot-lab python3 /lab/vmctl.py restore-pristine
 ```
 
 `powercut` kills only the checked QEMU process for this private disk and starts it
@@ -83,13 +83,13 @@ with SHA-256 `394014a15bfb1efd0cd47242897d72493f6a2b3be81b7099a340490384457b82`,
 into a distinct input directory and use a distinct private state directory:
 
 ```sh
-OPENRHP_VM_PROFILE=x86-generic scripts/lab-openwrt-vm.sh /absolute/verified-i386-inputs /absolute/private-i386-state /absolute/sdk-ipks /absolute/verified-dependencies
-printf '%s\n' 'uname -a' | docker exec -i openrhp-openwrt-i386-lab python3 /lab/vmctl-i386.py exec
+ROUTEHARBOR_VM_PROFILE=x86-generic scripts/lab-openwrt-vm.sh /absolute/verified-i386-inputs /absolute/private-i386-state /absolute/sdk-ipks /absolute/verified-dependencies
+printf '%s\n' 'uname -a' | docker exec -i routeharbor-openwrt-i386-lab python3 /lab/vmctl-i386.py exec
 # Build and execute the stdlib control plus selection, config and release suites.
 GO=/absolute/pinned-go-1.27.1/bin/go python3 scripts/lab-openwrt-i386.py
 ```
 
-This profile uses `qemu32` and the separate `openrhp-openwrt-i386-lab` container.
+This profile uses `qemu32` and the separate `routeharbor-openwrt-i386-lab` container.
 Its identically named private interfaces and addresses exist in that container's
 own namespace; it cannot reach or modify the x86_64 acceptance VM. Do not install
 x86_64 SDK packages into the 32-bit guest merely because they are mounted read-only.
@@ -101,15 +101,15 @@ suites, including the stdlib diagnostic that failed under QEMU user-mode i386.
 | --- | --- | --- |
 | Guest LAN (`br-lan`) | `10.44.0.1/24` | `fd44:1::1/64` |
 | Container management bridge | `10.44.0.2/24` | `fd44:1::2/64` |
-| Client namespace `openrhp-client` | `10.44.0.20/24` | `fd44:1::20/64` |
+| Client namespace `routeharbor-client` | `10.44.0.20/24` | `fd44:1::20/64` |
 | Guest WAN (`eth1`) | `198.18.0.2/24` | `fd44:2::2/64` |
-| WAN namespace `openrhp-wan` | `198.18.0.1/24` | `fd44:2::1/64` |
+| WAN namespace `routeharbor-wan` | `198.18.0.1/24` | `fd44:2::1/64` |
 | Isolated WAN test target aliases | `8.8.8.8/32` | `2001:4860:4860::8888/128` |
 
 The public-looking target addresses exist only as local aliases in the WAN
 namespace; the container cannot reach the actual Internet. Run client or target
-commands with `docker exec ... ip netns exec openrhp-client ...` or
-`openrhp-wan`. `/state/ready.json` describes the active topology and image digest.
+commands with `docker exec ... ip netns exec routeharbor-client ...` or
+`routeharbor-wan`. `/state/ready.json` describes the active topology and image digest.
 
 The QEMU [system invocation documentation](https://www.qemu.org/docs/master/system/invocation.html)
 describes the TCG, TAP and serial socket options used here. This is full guest-kernel
@@ -117,5 +117,5 @@ and boot evidence, separate from earlier OpenWrt-userland-only container tests.
 It remains virtual-machine evidence; it does not prove physical radios, device
 flash resilience, hardware offload, or other CPU/firmware combinations.
 
-Stop the disposable lab with `docker stop openrhp-openwrt-boot-lab`. Its private
+Stop the disposable lab with `docker stop routeharbor-openwrt-boot-lab`. Its private
 state directory is retained for inspection or another controlled start.

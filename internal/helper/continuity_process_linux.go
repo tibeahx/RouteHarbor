@@ -19,7 +19,7 @@ import (
 	"time"
 )
 
-const continuityWorkerBinary = "/usr/libexec/openrhp-continuity"
+const continuityWorkerBinary = "/usr/libexec/routeharbor-continuity"
 
 // Liveness closure also closes the status descriptor, which otherwise remains
 // hidden behind bufio.Reader and leaks until a future garbage collection.

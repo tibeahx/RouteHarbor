@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 // switchSelection holds the durable journal lock from snapshot through commit.

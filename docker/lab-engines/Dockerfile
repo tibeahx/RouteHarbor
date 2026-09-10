@@ -1,4 +1,4 @@
-FROM openrhp-path-lab:local
+FROM routeharbor-path-lab:local
 ARG TARGETARCH
 RUN case "$TARGETARCH" in \
       arm64) sing_arch=arm64; sing_sha=04d9b40bc98dc55b6f509ce3292145c65478f65866bea64826ebb2f382385088 ;; \

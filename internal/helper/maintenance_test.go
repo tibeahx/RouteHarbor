@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/maintenance"
+	"github.com/tibeahx/RouteHarbor/internal/maintenance"
 )
 
 func TestPrivateMaintenanceEnvelopeIsTypedAndLocalOnly(t *testing.T) {
@@ -23,7 +23,7 @@ func TestPrivateMaintenanceEnvelopeIsTypedAndLocalOnly(t *testing.T) {
 		{Operation: "maintenance", Maintenance: &maintenance.WireRequest{Action: "recover"}},
 		{Operation: "maintenance", Maintenance: &maintenance.WireRequest{Action: "exec"}},
 		{Operation: "maintenance", Maintenance: &maintenance.WireRequest{Action: "status", ID: "../../etc/passwd"}},
-		{Operation: "maintenance", Maintenance: &maintenance.WireRequest{Action: "plan", Request: &maintenance.Request{Action: "upgrade", BundleID: strings.Repeat("a", 32), Components: []string{"openrhp-guard"}}}},
+		{Operation: "maintenance", Maintenance: &maintenance.WireRequest{Action: "plan", Request: &maintenance.Request{Action: "upgrade", BundleID: strings.Repeat("a", 32), Components: []string{"routeharbor-guard"}}}},
 	} {
 		if err := validateRequest(req); err == nil {
 			t.Fatalf("unsafe maintenance envelope accepted: %+v", req)
