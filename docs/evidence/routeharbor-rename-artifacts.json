@@ -1,0 +1,285 @@
+{
+  "source": {
+    "base_commit": "c12c14e8d828a96c39ce158a254617f8f5b635e5",
+    "source_sha256": "e91ccde8d5199cd4522cd6cf0102372c2c3489ea27cf39c2229aea59aab3b71d",
+    "checked_inputs": 308,
+    "changed_inputs": []
+  },
+  "sdk": {
+    "target": "x86-64",
+    "toolchain": "go version go1.27.1 linux/amd64",
+    "sdk_config_sha256": "ac42b9226c1f7a93a1d7632352801dbb6c5e6e220148503665381aa6ad41ab18",
+    "elapsed_seconds": 79.2,
+    "packages": [
+      {
+        "ipk": "routeharbor-conntrack_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor-conntrack",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [],
+        "sha256": "c6775c2e5cd27b3a10735ecc7cd77b1f5d08ce2486d543225a4ef36e0c8a9194",
+        "bytes": 845
+      },
+      {
+        "ipk": "routeharbor-continuity_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor-continuity",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [
+          {
+            "path": "usr/libexec/routeharbor-continuity",
+            "bytes": 7213180,
+            "sha256": "54f60f404d990890945b34f4cc5f76c37b50884bb72718e5128e10775bd81283",
+            "go_version": "go1.27.1",
+            "elf_class": 64,
+            "byte_order": "little",
+            "goarch": "amd64"
+          }
+        ],
+        "sha256": "2522dbff10b096e755b2eb2d87eb1f0a51744d6fd22692908b012df896756e40",
+        "bytes": 2975194
+      },
+      {
+        "ipk": "routeharbor-guard_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor-guard",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [
+          {
+            "path": "usr/libexec/routeharbor-helper",
+            "bytes": 8970364,
+            "sha256": "a02ed0d7912dae4e49247018cd56b4c5bfa3e8336a383e2b9b79bb923433b078",
+            "go_version": "go1.27.1",
+            "elf_class": 64,
+            "byte_order": "little",
+            "goarch": "amd64"
+          }
+        ],
+        "sha256": "2d244c1639b705cead690fe3cf7c9f59879b1ef796031df3d6d70b6d3d0b6d99",
+        "bytes": 3684188
+      },
+      {
+        "ipk": "routeharbor-node_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor-node",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [
+          {
+            "path": "usr/bin/routeharbor-node",
+            "bytes": 7962748,
+            "sha256": "94906ccf7e10fd3f0eb53b4e28f9f687753745bc76ef72dd62348506017404ab",
+            "go_version": "go1.27.1",
+            "elf_class": 64,
+            "byte_order": "little",
+            "goarch": "amd64"
+          }
+        ],
+        "sha256": "212a2426ddf27137de162731bfce22eafa96a21a42efc083dec0edd883cc43a8",
+        "bytes": 3296435
+      },
+      {
+        "ipk": "routeharbor-sing-box_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor-sing-box",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [],
+        "sha256": "357633b2634a0ca6f31e68274af8473447cead9b39f6bad52d21aae123b412ff",
+        "bytes": 844
+      },
+      {
+        "ipk": "routeharbor-xray_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor-xray",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [],
+        "sha256": "dc8e467ffaa0af73761b83c73070949da193773e2e9c313614696a5b06dcf395",
+        "bytes": 848
+      },
+      {
+        "ipk": "routeharbor_0.1.0-r1_x86_64.ipk",
+        "package": "routeharbor",
+        "version": "0.1.0-r1",
+        "architecture": "x86_64",
+        "binaries": [
+          {
+            "path": "usr/bin/routeharbor",
+            "bytes": 9879676,
+            "sha256": "a6ba60c8d29f2093c8ab1382583e2807fa7723e324c6dcfba5b9226d21bfb640",
+            "go_version": "go1.27.1",
+            "elf_class": 64,
+            "byte_order": "little",
+            "goarch": "amd64"
+          }
+        ],
+        "sha256": "d1c25d0686375fdb5dfa334cd6347174c6707221a7098f9e7fe5b5fe93a7e678",
+        "bytes": 3989299
+      }
+    ],
+    "evidence_tier": "OpenWrt SDK build and package inspection; no boot or physical installation"
+  },
+  "boot": {
+    "source_sha256": "e91ccde8d5199cd4522cd6cf0102372c2c3489ea27cf39c2229aea59aab3b71d",
+    "engine_version": "1.14.0",
+    "engine_sha256": "ce3ed8667dd99ff40c85a8b236075e856ea9cb80731b304cedd2a47187828120",
+    "engine_abi": "official static linux-amd64-musl",
+    "image_sha256": "3caea69f186b2bce80938d265e5e2a3dfd0f8713aed101df35d60b88d7270d1f",
+    "evidence_tier": "OpenWrt SDK package running on booted OpenWrt 24.10.7 QEMU VM; no physical qualification",
+    "checks": [
+      {
+        "phase": "selective",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "198.18.0.2",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "198.18.0.3",
+            "egress": "8.8.8.8"
+          }
+        }
+      },
+      {
+        "phase": "selective",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "198.19.0.2",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "198.19.0.3",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "phase": "selective",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "198.18.0.2",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "198.18.0.3",
+            "egress": "8.8.8.8"
+          }
+        }
+      },
+      {
+        "applied_transaction_rollback_restored_previous_classifier": true
+      },
+      {
+        "phase": "emergency",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "phase": "selective",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "198.18.0.2",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "198.18.0.3",
+            "egress": "8.8.8.8"
+          }
+        }
+      },
+      {
+        "phase": "engine-hang",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "phase": "reboot",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "phase": "fw4-reload",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "phase": "fw4-flush",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "10.44.0.20"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "10.44.0.20"
+          }
+        }
+      },
+      {
+        "phase": "fw4-restored",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "virtual_address_quarantine": true,
+        "persistent_emergency_after_reboot": true
+      },
+      {
+        "phase": "decommissioned",
+        "traffic": {
+          "allowed.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          },
+          "blocked.example": {
+            "resolved": "8.8.8.8",
+            "egress": "11.0.0.2"
+          }
+        }
+      },
+      {
+        "explicit_restore_direct_decommission": true,
+        "foreign_fw4_preserved": true
+      }
+    ]
+  },
+  "execution_note": "The first final-artifact attempt passed package installation and binary hash checks but stalled during EXT4 journal recovery before userspace on reboot. An explicit power cycle recovered the isolated test VM. The completed rerun rechecked installed binary hashes and passed all 14 scenario checks, including another graceful reboot."
+}

@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func TestLinuxSelectiveCompletedEmergencyRepairsPolicyReset(t *testing.T) {
@@ -39,7 +39,7 @@ func TestLinuxSelectiveCompletedEmergencyRepairsPolicyReset(t *testing.T) {
 		t.Fatal(err)
 	}
 	restarted, err := NewManager(dir, b, ProcessWatchdog{
-		Binary: "/usr/libexec/openrhp-helper", StateDir: dir,
+		Binary: "/usr/libexec/routeharbor-helper", StateDir: dir,
 	})
 	if err != nil {
 		t.Fatal(err)

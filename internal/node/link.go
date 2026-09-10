@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // LinkHealth describes the local node-to-gateway link only. Kernel counters are
@@ -73,7 +73,7 @@ func ResolveWirelessInterface(data []byte) (string, error) {
 	found := ""
 	for _, radio := range radios {
 		for _, iface := range radio.Interfaces {
-			if iface.Section == "openrhp_backhaul" {
+			if iface.Section == "routeharbor_backhaul" {
 				if !platform.ValidInterfaceName(iface.Name) || found != "" {
 					return "", errors.New("wireless backhaul identity is absent or ambiguous")
 				}

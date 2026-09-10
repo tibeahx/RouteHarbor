@@ -3,7 +3,7 @@ const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 
 async function connect(page) {
-  const token = fs.readFileSync(process.env.OPENRHP_TEST_TOKEN_FILE, 'utf8').trim();
+  const token = fs.readFileSync(process.env.ROUTEHARBOR_TEST_TOKEN_FILE, 'utf8').trim();
   await page.goto('/');
   await page.getByLabel('Access key', { exact: true }).fill(token);
   await page.getByRole('button', { name: 'Connect', exact: true }).click();

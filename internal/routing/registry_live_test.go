@@ -10,7 +10,7 @@ import (
 // Read-only provider evidence is separate from deterministic unit tests. It
 // never creates routing rules, writes a router or touches a physical device.
 func TestLiveRegistryProvider(t *testing.T) {
-	if os.Getenv("OPENRHP_REGISTRY_LIVE") != "1" {
+	if os.Getenv("ROUTEHARBOR_REGISTRY_LIVE") != "1" {
 		t.Skip("requires explicit live registry download")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)

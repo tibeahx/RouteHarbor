@@ -15,17 +15,22 @@ func TestManifestTamperArchitectureDowngradeAndSymlink(t *testing.T) {
 	data := []byte("test package")
 	hash := sha256.Sum256(data)
 	dir := t.TempDir()
-	path := filepath.Join(dir, "openrhp.ipk")
+	path := filepath.Join(dir, "routeharbor.ipk")
 	if err := os.WriteFile(path, data, 0o600); err != nil {
 		t.Fatal(err)
 	}
 	m := Manifest{
 		1,
-		"OpenRHP",
+		"RouteHarbor",
 		"1.2.3",
 		"0123456789012345678901234567890123456789",
 		[]Artifact{
-			{"openrhp.ipk", "aarch64_cortex-a53", hex.EncodeToString(hash[:]), int64(len(data))},
+			{
+				"routeharbor.ipk",
+				"aarch64_cortex-a53",
+				hex.EncodeToString(hash[:]),
+				int64(len(data)),
+			},
 		},
 	}
 	raw, sig, e := Sign(m, key)

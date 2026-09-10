@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 // DNS children receive no engine API token, source credentials or routing rules.

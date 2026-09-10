@@ -1,4 +1,4 @@
-# Install and operate OpenRHP through the API
+# Install and operate RouteHarbor through the API
 
 This is the operational guide for an agent administering the user's own devices.
 Repository development instructions are in [AGENTS.md](AGENTS.md). Read
@@ -26,7 +26,7 @@ OpenWrt preparation procedure. Bootloader changes/flashing are outside this proj
 On OpenWrt collect release/package architecture, package manager, free RAM/flash,
 kernel/modules, init/firewall, ubus/netifd interfaces, current management path and
 existing VPN/DNS/firewall services. After placing a verified matching controller,
-`openrhp doctor --require-openwrt` provides a machine-readable report without changes.
+`routeharbor doctor --require-openwrt` provides a machine-readable report without changes.
 Do not infer package architecture from `uname -m` alone.
 
 ## 2. Preflight, recovery and package trust
@@ -45,7 +45,7 @@ Verify the detached signed manifest against a trust key obtained independently
 through trusted administrator access. The manifest binds exact artifact name,
 OpenWrt package architecture, size, SHA-256, project version and source commit.
 Reject downgrade, mismatched architecture and unsupported dependency versions.
-`openrhp-release verify` implements this check; [updates](docs/updates.md) describes
+`routeharbor-release verify` implements this check; [updates](docs/updates.md) describes
 its inputs. A checksum from the same untrusted archive is not a trust root. Never
 run a downloaded installation script with `curl | sh`.
 
@@ -55,20 +55,20 @@ Use the target's package manager on the verified local artifact. Keep routing of
 The API/scheduler and engines run as an unprivileged service user; the small local
 helper and node UCI helper have distinct root-owned private state. The package's
 procd integration supplies the correct directories and identities. Use durable
-`/etc/openrhp*` state on OpenWrt: `/var` is normally RAM-backed.
+`/etc/routeharbor*` state on OpenWrt: `/var` is normally RAM-backed.
 
 Bootstrap using existing trusted administrator access **as the service user**, or
 through the package's documented bootstrap wrapper. The generic command is:
 
 ```sh
-openrhp bootstrap --state /etc/openrhp --token-file /etc/openrhp/admin.token
+routeharbor bootstrap --state /etc/routeharbor --token-file /etc/routeharbor/admin.token
 ```
 
 The token goes to a 0600 file, not stdout. Repeating bootstrap with the same valid
 file keeps the existing credential. On an installed router, issue a read-only
 token through existing root administrator access with
-`openrhp as-service token --state /etc/openrhp --role read --out /etc/openrhp/admin/NEW_READ_TOKEN`.
-Revoke it with `openrhp as-service token --state /etc/openrhp --revoke CREDENTIAL_ID`.
+`routeharbor as-service token --state /etc/routeharbor --role read --out /etc/routeharbor/admin/NEW_READ_TOKEN`.
+Revoke it with `routeharbor as-service token --state /etc/routeharbor --revoke CREDENTIAL_ID`.
 The installed command drops to the actual service UID/GID before accessing state;
 it clears supplementary groups, retains strict file ownership checks, and never
 passes a token in process arguments. Output files belong to the service user and
@@ -86,9 +86,9 @@ verification. The normal UI and all agent operations use the same `/api/v1`.
 The examples below use a private credential file, not the token value:
 
 ```sh
-openrhp api --token-file /etc/openrhp/admin.token --path /api/v1/capabilities
-openrhp api --token-file /etc/openrhp/admin.token --path /api/v1/preflight
-openrhp api --token-file /etc/openrhp/admin.token --path /api/v1/config
+routeharbor api --token-file /etc/routeharbor/admin.token --path /api/v1/capabilities
+routeharbor api --token-file /etc/routeharbor/admin.token --path /api/v1/preflight
+routeharbor api --token-file /etc/routeharbor/admin.token --path /api/v1/config
 ```
 
 Use [api/openapi.yaml](api/openapi.yaml) or authenticated `/api/v1/openapi` for exact
@@ -197,7 +197,7 @@ changes as an explicit separate administrator operation across all affected APs.
 After a trusted OpenWrt main-AP key change, a new paired prepare key synchronizes
 its current password privately through the existing plan model. Read the
 [key synchronization workflow](docs/coverage.md#synchronize-a-separately-changed-home-wi-fi-key):
-OpenRHP rollback does not restore the separately edited main-AP password, so retain
+RouteHarbor rollback does not restore the separately edited main-AP password, so retain
 wired administration and its private backup. Replaying an old preparation or
 unpairing is never a request to rotate credentials.
 
@@ -206,7 +206,7 @@ unpairing is never a request to rotate credentials.
 - For supported controller and engine-package maintenance, follow
   [verified offline maintenance](docs/maintenance.md). Through trusted local root
   access, stage signed installed and replacement bundles with
-  `openrhp-helper maintenance-stage --source /root/private-bundle-dir`. The trust
+  `routeharbor-helper maintenance-stage --source /root/private-bundle-dir`. The trust
   key must already have been independently supplied; the API cannot install one.
   Read `/maintenance/capabilities` and `/maintenance/bundles`, then submit the
   selected action, bundle ID and component identities to `POST /maintenance/plan`.

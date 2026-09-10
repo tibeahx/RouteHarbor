@@ -1,0 +1,28 @@
+[Unit]
+Description=RouteHarbor private session relay
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=routeharbor-relay
+Group=routeharbor-relay
+StateDirectory=routeharbor-relay
+StateDirectoryMode=0700
+UMask=0077
+ExecStart=/usr/local/bin/routeharbor-relay serve --state /var/lib/routeharbor-relay --config /etc/routeharbor-relay/config.json
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/routeharbor-relay
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+CapabilityBoundingSet=
+LockPersonality=true
+LimitCORE=0
+LimitNOFILE=4096
+
+[Install]
+WantedBy=multi-user.target

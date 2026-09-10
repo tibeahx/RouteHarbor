@@ -15,7 +15,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 type Artifact struct {
@@ -54,7 +54,7 @@ func versionParts(v string) ([3]uint64, error) {
 }
 
 func Validate(m Manifest) error {
-	if m.SchemaVersion != 1 || m.Project != "OpenRHP" || !hex40.MatchString(m.Commit) ||
+	if m.SchemaVersion != 1 || m.Project != "RouteHarbor" || !hex40.MatchString(m.Commit) ||
 		len(m.Artifacts) == 0 ||
 		len(m.Artifacts) > 256 {
 		return errors.New("invalid manifest metadata")

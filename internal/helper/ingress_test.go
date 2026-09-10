@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func TestEmptyIngressBindingSurvivesRestart(t *testing.T) {

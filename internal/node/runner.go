@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // nodeRunner adds only the service reload operations required after a typed UCI

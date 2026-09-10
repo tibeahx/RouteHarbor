@@ -1,6 +1,6 @@
 # The parser is built from exact upstream OpenWrt commits. This test image is
 # separate from the router package and installs no code on a physical device.
-FROM openrhp-path-lab:local
+FROM routeharbor-path-lab:local
 ARG LIBUBOX_COMMIT=e7608b69283d919d031d13cc8e21692503f5dbea
 ARG UCI_COMMIT=74f6277aabffc943d026f406df57c22595134c42
 RUN mkdir -p /build/libubox /build/uci && \
@@ -12,7 +12,7 @@ RUN mkdir -p /build/libubox /build/uci && \
       /build/uci/delta.c /build/uci/parse.c -o /usr/local/bin/uci
 # This links the unchanged upstream CLI/configuration parser directly. Lua and
 # blob interoperability are unrelated to stdin parsing and are not linked.
-ENV OPENRHP_UCI_TEST_BINARY=/usr/local/bin/uci
+ENV ROUTEHARBOR_UCI_TEST_BINARY=/usr/local/bin/uci
 WORKDIR /work
 ENTRYPOINT []
 CMD ["/work/test-results/node-uci.test", "-test.run", "TestUCISecretEncodingRoundTripsThroughRealParser", "-test.v"]

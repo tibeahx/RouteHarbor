@@ -7,7 +7,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 // Selection backends never install routes, guards or restart retained engines.
@@ -107,7 +107,7 @@ func (b *NetworkBackend) selectionChainReady(ctx context.Context) error {
 		}
 		if c := item.Chain; c != nil && c.Family == "inet" && c.Table == dataplane.Table &&
 			c.Name == "select_flow" {
-			ready = c.Comment == "OpenRHP classifier v1"
+			ready = c.Comment == "RouteHarbor classifier v1"
 			if c.Comment == "" {
 				// nft 1.0.6 also omits chain comments from JSON.
 				plain, e := b.Runner.Run(
@@ -143,7 +143,7 @@ func selectionChainOwnedText(raw []byte) bool {
 		lines = lines[1:]
 	}
 	return len(lines) >= 2 && lines[0] == "chain select_flow {" &&
-		lines[1] == "comment \"OpenRHP classifier v1\""
+		lines[1] == "comment \"RouteHarbor classifier v1\""
 }
 
 func (b *NetworkBackend) ApplySelection(ctx context.Context, next, previous dataplane.Plan) error {

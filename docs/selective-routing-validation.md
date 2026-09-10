@@ -47,7 +47,7 @@ and are not promoted to selective-routing results.
 | API and English UI | ETag/CAS, access/idempotency, redaction and operation contracts; final browser 22 passes, including migration, route reasons, managed DNS, stale/emergency states | One existing browser prerequisite requires a separately paired device and is outside the requested physical scope; ordinary diagnostics contain no DNS query history |
 | Migration and explicit holds | Legacy absent-routing imports/journals, prepare/apply/confirm, applied-candidate/rollback and restore unit tests; actual Linux preserve-closed hold through boot/watchdog/firewall recovery | New settings do not activate network changes; explicit maintenance holds override automatic emergency direct |
 | Atomic rule publication | Hash-bound last-good snapshots, staged pools and publication retry units; actual full-feed helper hot publication followed by native traffic observation, unchanged engine PID and held direct TCP | File publication and native application are distinct; status does not invent a synchronous engine acknowledgement |
-| Fault isolation and recovery | Separate loader/detector state tests; actual native SIGSTOP health check, detached watchdog in confirmed/prepared/rolled-back states, Linux quarantine/foreign-rule preservation; final VM result below | Classifier/DNS outage permits connection loss and client DNS refresh; OpenRHP restores only its own rules, not foreign fw4 NAT |
+| Fault isolation and recovery | Separate loader/detector state tests; actual native SIGSTOP health check, detached watchdog in confirmed/prepared/rolled-back states, Linux quarantine/foreign-rule preservation; final VM result below | Classifier/DNS outage permits connection loss and client DNS refresh; RouteHarbor restores only its own rules, not foreign fw4 NAT |
 | Packaging and independent evidence tiers | Full Go race/static checks, 66 binary builds/11 targets, three real SDK package sets; separate Linux namespace and booted-VM evidence below | SDK ARM64/MIPS are compile/package evidence; VM is x86; no physical devices or active WAN used |
 | Capacity | 1.63-million-domain fixture, two helper-owned workers, real hot reload and direct flow survival within 1 GiB without swap | Component/RPC-fixture measurement; no 256/512 MiB router or complete production-daemon memory qualification |
 
@@ -113,7 +113,7 @@ sh scripts/test-browser.sh
 ```
 
 The recorded browser run used the pinned Playwright 1.63.0 Chromium cache at
-`/private/tmp/openrhp-playwright`. Screenshots and Playwright output are generated
+`/private/tmp/routeharbor-playwright`. Screenshots and Playwright output are generated
 under `test-results/`; response fixtures verify UI behavior, not packet paths.
 
 ## Native Linux paths and failures
@@ -149,7 +149,7 @@ blackhole migration is exercised separately. The deliberately missing nft chain
 during the flush test emits a diagnostic; the expected health failure is asserted.
 
 The booted guest exposed a real ordering bug: netifd removed the early synthetic-
-address policy rules after OpenRHP's boot guard had completed. A subsequent full
+address policy rules after RouteHarbor's boot guard had completed. A subsequent full
 firewall flush could then expose cached FakeIP destinations to WAN. The independent
 monitor now remains active in completed emergency mode and resumes the confirmed
 journal after boot. It repairs only owned IPv4/IPv6 synthetic-address rules,
@@ -313,15 +313,15 @@ also does not qualify total memory of a complete production control daemon.
 The live provider check is explicitly opt-in and only downloads the public lists:
 
 ```sh
-OPENRHP_REGISTRY_LIVE=1 go test -v ./internal/routing -run '^TestLiveRegistryProvider$'
+ROUTEHARBOR_REGISTRY_LIVE=1 go test -v ./internal/routing -run '^TestLiveRegistryProvider$'
 ```
 
 For a repeatable offline scale run, retain the validated provider domain-list
 fixture and supply its absolute path:
 
 ```sh
-OPENRHP_DISPATCHER_SCALE_DOMAINS=/absolute/domains.lst \
-  OPENRHP_DISPATCHER_LAB_MEMORY=1g OPENRHP_DISPATCHER_SCALE_WORKERS=2 \
+ROUTEHARBOR_DISPATCHER_SCALE_DOMAINS=/absolute/domains.lst \
+  ROUTEHARBOR_DISPATCHER_LAB_MEMORY=1g ROUTEHARBOR_DISPATCHER_SCALE_WORKERS=2 \
   sh scripts/lab-dispatcher-worker.sh
 ```
 
@@ -368,7 +368,7 @@ The selective guest test then established the following:
 - A graceful reboot and fw4 reload preserved emergency direct. Both IPv4 and IPv6
   FakeIP policy quarantine remained effective after late boot and full fw4 flush.
   Full flush also removes fw4's foreign NAT, so the routed direct source was the
-  client address `10.44.0.20`; OpenRHP did not recreate foreign masquerade. Explicit
+  client address `10.44.0.20`; RouteHarbor did not recreate foreign masquerade. Explicit
   firewall restart restored WAN source `11.0.0.2`.
 - Explicit `restore-direct` decommission cleared committed/pending intent, guard
   and maintenance hold, retained foreign fw4 rules, and left real DNS and normal
@@ -393,7 +393,7 @@ Reproduce with separately verified OpenWrt SDK/image inputs and Go toolchain:
 
 ```sh
 sh scripts/sdk-build.sh /absolute/openwrt-sdk /absolute/go1.27.1/bin/go
-OPENRHP_VM_PROFILE=selective sh scripts/lab-openwrt-vm.sh /absolute/verified-image-directory \
+ROUTEHARBOR_VM_PROFILE=selective sh scripts/lab-openwrt-vm.sh /absolute/verified-image-directory \
   /absolute/private-vm-state /absolute/current-sdk-packages \
   /absolute/verified-dependencies
 python3 scripts/lab-selective-boot.py --packages /absolute/current-sdk-packages \

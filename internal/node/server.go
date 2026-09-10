@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 type Agent struct {

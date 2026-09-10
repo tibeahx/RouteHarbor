@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
 )
 
 func TestContinuityBridgeOpensOnlyPrivateInheritedListener(t *testing.T) {
@@ -37,7 +37,7 @@ func TestContinuityBridgeOpensOnlyPrivateInheritedListener(t *testing.T) {
 }
 
 func TestContinuityBridgeAndLegacyDescriptorsCoexist(t *testing.T) {
-	if os.Getenv("OPENRHP_CONTINUITY_NET_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_CONTINUITY_NET_LAB") != "1" {
 		t.Skip("requires isolated Linux transparent socket lab")
 	}
 	l, e := net.Listen("tcp4", "127.0.0.1:0")

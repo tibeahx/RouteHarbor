@@ -16,7 +16,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func TestLinuxContinuityReplyBridgeConfinementAndBoundaries(t *testing.T) {
@@ -215,7 +215,7 @@ func TestLinuxContinuityReplyRequiresObservedOwnedTuple(t *testing.T) {
 func TestLinuxContinuitySupervisorDropsPrivilegesAndStopsWithOwner(t *testing.T) {
 	requireNetLab(t)
 	worker := continuityFixture(t)
-	worker.HelperSocket = "/tmp/absent-openrhp-helper.sock"
+	worker.HelperSocket = "/tmp/absent-routeharbor-helper.sock"
 	if _, _, _, _, err := startContinuityProcess(
 		context.Background(),
 		worker,

@@ -10,11 +10,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func TestPinnedNativeEngineValidators(t *testing.T) {
-	if os.Getenv("OPENRHP_ENGINE_LAB") != "1" || runtime.GOOS != "linux" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_LAB") != "1" || runtime.GOOS != "linux" {
 		t.Skip("requires the isolated pinned native engine lab")
 	}
 	fixtures := []struct{ kind, raw string }{
@@ -76,7 +76,7 @@ func TestPinnedNativeEngineValidators(t *testing.T) {
 }
 
 func TestPinnedNativeEnginesStartAndRecoverManagedInputs(t *testing.T) {
-	if os.Getenv("OPENRHP_ENGINE_LAB") != "1" || runtime.GOOS != "linux" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_LAB") != "1" || runtime.GOOS != "linux" {
 		t.Skip("requires the isolated pinned native engine lab")
 	}
 	for _, fixture := range []struct{ kind, raw string }{
@@ -125,10 +125,10 @@ func TestPinnedNativeEnginesStartAndRecoverManagedInputs(t *testing.T) {
 }
 
 func TestPinnedNativeEngineControllerFixture(t *testing.T) {
-	if os.Getenv("OPENRHP_NATIVE_CONTROLLER_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_NATIVE_CONTROLLER_CHILD") != "1" {
 		return
 	}
-	m := NewManager(os.Getenv("OPENRHP_NATIVE_CONTROLLER_RUNTIME"))
+	m := NewManager(os.Getenv("ROUTEHARBOR_NATIVE_CONTROLLER_RUNTIME"))
 	m.DNSResolver = "8.8.8.8"
 	s := source("sing-box", `{"type":"http","server":"1.1.1.1","server_port":8080}`)
 	if e := m.Start(context.Background(), s); e != nil {
@@ -139,14 +139,14 @@ func TestPinnedNativeEngineControllerFixture(t *testing.T) {
 		os.Exit(5)
 	}
 	raw, _ := json.Marshal(p)
-	if os.WriteFile(os.Getenv("OPENRHP_NATIVE_CONTROLLER_READY"), raw, 0o600) != nil {
+	if os.WriteFile(os.Getenv("ROUTEHARBOR_NATIVE_CONTROLLER_READY"), raw, 0o600) != nil {
 		os.Exit(6)
 	}
 	select {}
 }
 
 func TestPinnedNativeEngineControllerDeathReleasesCommittedInputs(t *testing.T) {
-	if os.Getenv("OPENRHP_ENGINE_LAB") != "1" || runtime.GOOS != "linux" {
+	if os.Getenv("ROUTEHARBOR_ENGINE_LAB") != "1" || runtime.GOOS != "linux" {
 		t.Skip("requires the isolated pinned native engine lab")
 	}
 	root := t.TempDir()
@@ -159,9 +159,9 @@ func TestPinnedNativeEngineControllerDeathReleasesCommittedInputs(t *testing.T) 
 	cmd := exec.Command(exe, "-test.run=^TestPinnedNativeEngineControllerFixture$")
 	cmd.Env = append(
 		os.Environ(),
-		"OPENRHP_NATIVE_CONTROLLER_CHILD=1",
-		"OPENRHP_NATIVE_CONTROLLER_RUNTIME="+runtimeDir,
-		"OPENRHP_NATIVE_CONTROLLER_READY="+ready,
+		"ROUTEHARBOR_NATIVE_CONTROLLER_CHILD=1",
+		"ROUTEHARBOR_NATIVE_CONTROLLER_RUNTIME="+runtimeDir,
+		"ROUTEHARBOR_NATIVE_CONTROLLER_READY="+ready,
 	)
 	if e = cmd.Start(); e != nil {
 		t.Fatal(e)

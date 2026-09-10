@@ -6,10 +6,10 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/config"
-	"github.com/tibeahx/OpenRHP/internal/control"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/config"
+	"github.com/tibeahx/RouteHarbor/internal/control"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 var errBackupBody = errors.New("backup operations accept only an empty JSON object")

@@ -1,9 +1,9 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const { randomUUID } = require('node:crypto');
-const tokenFile = process.env.OPENRHP_TEST_TOKEN_FILE;
+const tokenFile = process.env.ROUTEHARBOR_TEST_TOKEN_FILE;
 if (!tokenFile)
-  throw new Error('OPENRHP_TEST_TOKEN_FILE must identify the private local test credential.');
+  throw new Error('ROUTEHARBOR_TEST_TOKEN_FILE must identify the private local test credential.');
 const token = fs.readFileSync(tokenFile, 'utf8').trim();
 const headers = { Authorization: 'Bearer ' + token };
 const canary = 'BROWSER-BACKUP-PRIVATE-CANARY';

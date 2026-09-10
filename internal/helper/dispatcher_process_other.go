@@ -8,7 +8,7 @@ import (
 	"io"
 	"os/exec"
 
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
 )
 
 func StartDispatcherWorker(

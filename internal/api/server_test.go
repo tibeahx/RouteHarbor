@@ -14,13 +14,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/auth"
-	"github.com/tibeahx/OpenRHP/internal/config"
-	"github.com/tibeahx/OpenRHP/internal/control"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
-	"github.com/tibeahx/OpenRHP/internal/web"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/auth"
+	"github.com/tibeahx/RouteHarbor/internal/config"
+	"github.com/tibeahx/RouteHarbor/internal/control"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/web"
 )
 
 type harness struct {

@@ -7,7 +7,7 @@ import (
 	"errors"
 	"net"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func dialMarked(context.Context, dataplane.Path, string) (*net.TCPConn, error) {

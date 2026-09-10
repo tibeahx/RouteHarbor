@@ -6,8 +6,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/release"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/release"
 )
 
 // Existing versions must remain available as authenticated offline recovery files.
@@ -26,8 +26,8 @@ func (m *Manager) previousPayloads(ctx context.Context, plan Plan) ([]PackagePay
 			if version := inventory.Packages[p.Name]; version != "" {
 				desired[p.Name] = version
 			}
-			if p.Name == "openrhp" {
-				for _, wrapper := range []string{"openrhp-sing-box", "openrhp-xray", "openrhp-conntrack", "openrhp-continuity"} {
+			if p.Name == "routeharbor" {
+				for _, wrapper := range []string{"routeharbor-sing-box", "routeharbor-xray", "routeharbor-conntrack", "routeharbor-continuity"} {
 					if version := inventory.Packages[wrapper]; version != "" {
 						desired[wrapper] = version
 					}

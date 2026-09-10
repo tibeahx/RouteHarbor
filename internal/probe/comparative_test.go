@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 type comparativeDial func(context.Context, string, string) (net.Conn, error)

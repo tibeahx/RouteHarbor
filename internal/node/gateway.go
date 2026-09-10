@@ -1,6 +1,6 @@
 package node
 
-import "github.com/tibeahx/OpenRHP/internal/coverage"
+import "github.com/tibeahx/RouteHarbor/internal/coverage"
 
 type (
 	GatewayPlan        = coverage.Plan

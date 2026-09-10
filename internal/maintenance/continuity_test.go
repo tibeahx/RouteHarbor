@@ -11,34 +11,34 @@ func TestContinuityPackageAdmissionAndControllerRemoval(t *testing.T) {
 	request := Request{
 		Action:     "install",
 		BundleID:   strings.Repeat("a", 32),
-		Components: []string{"openrhp-continuity"},
+		Components: []string{"routeharbor-continuity"},
 	}
 	if err := ValidateRequest(request, false); err != nil {
 		t.Fatal(err)
 	}
 	payload := packageBytes(
 		t,
-		"openrhp-continuity",
+		"routeharbor-continuity",
 		"0.1.0-r1",
-		[]member{{"usr/libexec/openrhp-continuity", []byte("worker"), 0, ""}},
+		[]member{{"usr/libexec/routeharbor-continuity", []byte("worker"), 0, ""}},
 	)
 	if metadata, err := InspectIPK(
 		bytes.NewReader(payload),
 	); err != nil ||
-		metadata.Name != "openrhp-continuity" {
+		metadata.Name != "routeharbor-continuity" {
 		t.Fatal("continuity package rejected", err)
 	}
-	if configurationPayload("usr/libexec/openrhp-continuity", []string{"usr/libexec"}) {
+	if configurationPayload("usr/libexec/routeharbor-continuity", []string{"usr/libexec"}) {
 		t.Fatal("critical continuity executable can bypass payload verification as conffile")
 	}
-	if !recoverablePackage("openrhp-continuity") {
+	if !recoverablePackage("routeharbor-continuity") {
 		t.Fatal("continuity package cannot participate in offline recovery")
 	}
 	backend := &fakeBackend{
 		packages: map[string]string{
-			"openrhp":            "0.1.0-r1",
-			"openrhp-guard":      "0.1.0-r1",
-			"openrhp-continuity": "0.1.0-r1",
+			"routeharbor":            "0.1.0-r1",
+			"routeharbor-guard":      "0.1.0-r1",
+			"routeharbor-continuity": "0.1.0-r1",
 		},
 	}
 	plan, err := makePlan(
@@ -46,7 +46,7 @@ func TestContinuityPackageAdmissionAndControllerRemoval(t *testing.T) {
 		backend,
 		Request{
 			Action:        "remove",
-			Components:    []string{"openrhp"},
+			Components:    []string{"routeharbor"},
 			RemovalPolicy: "preserve-closed",
 		},
 		bundleRecord{},
@@ -58,7 +58,7 @@ func TestContinuityPackageAdmissionAndControllerRemoval(t *testing.T) {
 	for _, p := range plan.Packages {
 		names[p.Name] = true
 	}
-	if !names["openrhp-continuity"] || names["openrhp-guard"] || len(names) != 2 {
+	if !names["routeharbor-continuity"] || names["routeharbor-guard"] || len(names) != 2 {
 		t.Fatal("controller removal loses continuity dependency or guard boundary", names)
 	}
 }

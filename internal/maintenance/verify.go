@@ -14,10 +14,10 @@ import (
 
 func criticalPayload(name string) bool {
 	switch name {
-	case "usr/bin/openrhp",
-		"usr/libexec/openrhp-continuity",
-		"usr/libexec/openrhp-setup",
-		"etc/init.d/openrhp",
+	case "usr/bin/routeharbor",
+		"usr/libexec/routeharbor-continuity",
+		"usr/libexec/routeharbor-setup",
+		"etc/init.d/routeharbor",
 		"usr/bin/sing-box",
 		"usr/bin/xray",
 		"usr/sbin/conntrack":
@@ -118,7 +118,7 @@ func (b *OpkgBackend) Verify(ctx context.Context, plan Plan, packages []PackageP
 	if err != nil {
 		return err
 	}
-	if inventory.Packages["openrhp-guard"] == "" {
+	if inventory.Packages["routeharbor-guard"] == "" {
 		return errors.New("maintenance_guard_missing")
 	}
 	for _, p := range plan.Packages {

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/config"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/config"
 )
 
 const routingOperationTimeout = 2 * time.Minute

@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/helper"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/helper"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func TestStartupRestoresConfirmedAllocationAndStagedRemovedSource(t *testing.T) {

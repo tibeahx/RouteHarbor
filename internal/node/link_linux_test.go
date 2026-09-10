@@ -11,7 +11,7 @@ import (
 )
 
 func TestLinuxVethNodeLinkTelemetry(t *testing.T) {
-	if os.Getenv("OPENRHP_NODE_LINK_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_NODE_LINK_LAB") != "1" {
 		t.Skip("requires the explicitly isolated Linux veth lab")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -22,16 +22,16 @@ func TestLinuxVethNodeLinkTelemetry(t *testing.T) {
 			t.Fatalf("lab command failed: %v %s", err, output)
 		}
 	}
-	run("ip", "link", "add", "orhp-link0", "type", "veth", "peer", "name", "orhp-link1")
+	run("ip", "link", "add", "rh-link0", "type", "veth", "peer", "name", "rh-link1")
 	defer func() {
-		if err := exec.Command("ip", "link", "del", "orhp-link0").Run(); err != nil {
+		if err := exec.Command("ip", "link", "del", "rh-link0").Run(); err != nil {
 			t.Errorf("veth cleanup failed: %v", err)
 		}
 	}()
-	run("ip", "link", "set", "orhp-link0", "up")
-	run("ip", "link", "set", "orhp-link1", "up")
+	run("ip", "link", "set", "rh-link0", "up")
+	run("ip", "link", "set", "rh-link1", "up")
 	b := &UCIBackend{}
-	p := Plan{Mode: "ethernet", Uplink: "orhp-link0"}
+	p := Plan{Mode: "ethernet", Uplink: "rh-link0"}
 	before, err := b.ReadLink(ctx, p)
 	if err != nil || !before.Available || before.Carrier == nil || !*before.Carrier ||
 		before.TXBytes == nil ||
@@ -44,13 +44,13 @@ func TestLinuxVethNodeLinkTelemetry(t *testing.T) {
 	run(
 		"python3",
 		"-c",
-		"import socket; s=socket.socket(socket.AF_PACKET,socket.SOCK_RAW); s.bind(('orhp-link0',0)); s.send(bytes.fromhex('ffffffffffff02000000000188b5') + b'OpenRHP isolated link telemetry frame'.ljust(64,b' ')); s.close()",
+		"import socket; s=socket.socket(socket.AF_PACKET,socket.SOCK_RAW); s.bind(('rh-link0',0)); s.send(bytes.fromhex('ffffffffffff02000000000188b5') + b'RouteHarbor isolated link telemetry frame'.ljust(64,b' ')); s.close()",
 	)
 	after, err := b.ReadLink(ctx, p)
 	if err != nil || after.TXBytes == nil || *after.TXBytes <= *before.TXBytes {
 		t.Fatal("real transmitted Ethernet frame did not increase observed TX bytes")
 	}
-	run("ip", "link", "set", "orhp-link1", "down")
+	run("ip", "link", "set", "rh-link1", "down")
 	down, err := b.ReadLink(ctx, p)
 	if err != nil || down.Carrier == nil || *down.Carrier {
 		t.Fatal("real peer link-down did not appear as carrier false")

@@ -9,7 +9,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 const (
@@ -106,7 +106,7 @@ func (f RegistryFetcher) fetchList(
 		return nil, 0, errors.New("invalid registry request")
 	}
 	req.Header.Set("Accept-Encoding", "identity")
-	req.Header.Set("User-Agent", "OpenRHP registry updater")
+	req.Header.Set("User-Agent", "RouteHarbor registry updater")
 	resp, e := client.Do(req)
 	if e != nil {
 		return nil, 0, errors.New("registry download failed")

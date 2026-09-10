@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 type Identity struct {
@@ -57,7 +57,7 @@ func LoadIdentity(dir string) (Identity, error) {
 		now := time.Now()
 		template := &x509.Certificate{
 			SerialNumber: serial,
-			Subject:      pkix.Name{CommonName: "openrhp-" + id},
+			Subject:      pkix.Name{CommonName: "routeharbor-" + id},
 			NotBefore:    now.Add(-5 * time.Minute),
 			NotAfter:     now.Add(365 * 24 * time.Hour),
 			KeyUsage:     x509.KeyUsageDigitalSignature,

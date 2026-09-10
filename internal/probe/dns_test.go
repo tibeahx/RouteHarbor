@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
 )
 
 // This is a DNS wire-format server behind distinct source-specific TCP sockets.

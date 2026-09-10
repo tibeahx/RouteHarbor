@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 type selectionMemoryBackend struct {
@@ -187,14 +187,14 @@ func TestSelectionRPCRefusesUnownedManagedTargetButNotFailedRetainedEngine(t *te
 }
 
 func TestSelectionChainOwnershipUsesOnlyStructuralComment(t *testing.T) {
-	good := "table inet openrhp {\n chain select_flow {\n comment \"OpenRHP classifier v1\"\n ct mark set 1\n }\n}\n"
+	good := "table inet routeharbor {\n chain select_flow {\n comment \"RouteHarbor classifier v1\"\n ct mark set 1\n }\n}\n"
 	if !selectionChainOwnedText([]byte(good)) {
 		t.Fatal("owned chain rejected")
 	}
 	for _, bad := range []string{
 		strings.Replace(good, "chain select_flow", "chain other", 1),
-		strings.Replace(good, "comment \"OpenRHP", "counter comment \"OpenRHP", 1),
-		strings.Replace(good, "table inet openrhp", "table inet foreign", 1),
+		strings.Replace(good, "comment \"RouteHarbor", "counter comment \"RouteHarbor", 1),
+		strings.Replace(good, "table inet routeharbor", "table inet foreign", 1),
 		strings.Replace(good, "classifier v1", "classifier v2", 1),
 	} {
 		if selectionChainOwnedText([]byte(bad)) {

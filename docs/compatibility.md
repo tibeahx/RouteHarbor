@@ -1,6 +1,6 @@
 # Compatibility and resource evidence
 
-OpenRHP targets OpenWrt interfaces, not a router brand. **No physical device is
+RouteHarbor targets OpenWrt interfaces, not a router brand. **No physical device is
 certified yet.** Xiaomi AX3200 is a planned household test device, not the product's
 platform definition. The second household router has not been identified.
 

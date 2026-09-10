@@ -11,7 +11,7 @@ case "$system/$machine" in
   Linux/aarch64|Linux/arm64) release=linux-arm64; digest=a2a4e0065aa41be71f7c5ac90f271b61751331e5d04314e62afe4027855f0893 ;;
   *) echo "No verified golangci-lint archive is pinned for $system/$machine" >&2; exit 1 ;;
 esac
-tool_root=${OPENRHP_TOOLS_DIR:-"$(pwd)/.local/tools"}
+tool_root=${ROUTEHARBOR_TOOLS_DIR:-"$(pwd)/.local/tools"}
 mkdir -p "$tool_root/golangci-lint-$version-$release"
 tool_dir=$(cd "$tool_root/golangci-lint-$version-$release" && pwd)
 archive="$tool_dir/archive.tar.gz"

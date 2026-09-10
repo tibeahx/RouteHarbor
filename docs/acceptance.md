@@ -11,11 +11,11 @@ below are an acceptance ledger, not an instruction to keep expanding this PR.
 
 ## Explicit user requests
 
-- [x] Project name: **OpenRHP**, expanded as **OpenReverseHomeProxy**.
+- [x] Project name: **RouteHarbor**, an adaptive routing gateway.
 - [x] English UI, following the user's clarification over the original plan's
   initial Russian-language default.
 - [x] A public repository under the current `tibeahx` account was created and
-  published: [tibeahx/OpenRHP](https://github.com/tibeahx/OpenRHP).
+  published: [tibeahx/RouteHarbor](https://github.com/tibeahx/RouteHarbor).
 - [x] Go **1.27.1**, verified as the latest stable version during implementation,
   is pinned and used by the build and CI.
 - [x] golangci-lint **2.13.2**, verified as the latest stable version during
@@ -24,9 +24,9 @@ below are an acceptance ledger, not an instruction to keep expanding this PR.
 - [x] Built-in Go formatters and pinned Prettier format Go and the embedded web UI.
   Local formatter/check commands and CI checks are present and were executed.
 - [x] The observed CI failure was fixed. The published
-  [b314ebf](https://github.com/tibeahx/OpenRHP/commit/b314ebfe2e9463d752799b95ca44e0400838c718)
+  [b314ebf](https://github.com/tibeahx/RouteHarbor/commit/b314ebfe2e9463d752799b95ca44e0400838c718)
   checkpoint passed all five CI jobs. The additional implementation in
-  [PR #1](https://github.com/tibeahx/OpenRHP/pull/1) also passed all five required
+  [PR #1](https://github.com/tibeahx/RouteHarbor/pull/1) also passed all five required
   checks at `d59dcc4`. The user merged that PR as `88d5b71` on 2026-09-09.
   Later corrections and acceptance additions are on a separate branch and require
   their own PR and CI run; the user retains responsibility for merging it.

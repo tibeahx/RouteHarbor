@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
-const PersistentGuardPath = "/etc/openrhp-helper/guard.nft"
+const PersistentGuardPath = "/etc/routeharbor-helper/guard.nft"
 
 func (b *NetworkBackend) saveGuard(p dataplane.Plan) error {
 	return writePrivateAtomic(PersistentGuardPath, []byte(p.GuardNFT))
@@ -184,7 +184,7 @@ func (b *NetworkBackend) Remove(ctx context.Context, p dataplane.Plan) error {
 	}
 	if err := writePrivateAtomic(
 		PersistentGuardPath,
-		[]byte("# OpenRHP routing explicitly decommissioned; direct access was authorized.\n"),
+		[]byte("# RouteHarbor routing explicitly decommissioned; direct access was authorized.\n"),
 	); err != nil {
 		return err
 	}

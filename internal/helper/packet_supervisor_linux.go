@@ -15,7 +15,7 @@ import (
 	"time"
 )
 
-const packetWorkerBinary = "/usr/libexec/openrhp-helper"
+const packetWorkerBinary = "/usr/libexec/routeharbor-helper"
 
 // startPacketWorker keeps the liveness writer exclusively in the manager. Kernel
 // descriptor cleanup on manager SIGKILL wakes the independent root supervisor,

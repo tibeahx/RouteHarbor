@@ -10,10 +10,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const container = 'openrhp-openwrt-boot-lab';
+const container = 'routeharbor-openwrt-boot-lab';
 const port = 8787; // Exact guest Host/Origin policy; no header rewriting or extra allowed hosts.
 const origin = `http://127.0.0.1:${port}`;
-const tokenFile = '/root/openrhp-lab/admin.token';
+const tokenFile = '/root/routeharbor-lab/admin.token';
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const digest = (value) => createHash('sha256').update(value).digest('hex');
 
@@ -51,7 +51,7 @@ const guest = (script) => docker(['python3', '/lab/vmctl.py', 'exec'], `set -eu\
 const apiRead = async (resource) => {
   assert.match(resource, /^\/api\/v1\/(config|status|capabilities)$/);
   return JSON.parse(
-    await guest(`/usr/bin/openrhp api --token-file ${tokenFile} --path ${resource}`),
+    await guest(`/usr/bin/routeharbor api --token-file ${tokenFile} --path ${resource}`),
   );
 };
 
@@ -109,7 +109,7 @@ function connectSSH(id) {
       'exec',
       '-i',
       '-e',
-      'OPENRHP_QUICK_SETUP_RELAY=' + id,
+      'ROUTEHARBOR_QUICK_SETUP_RELAY=' + id,
       container,
       'ssh',
       '-i',
@@ -159,8 +159,8 @@ async function selfTest() {
 
 async function main() {
   const id = randomUUID().replaceAll('-', '');
-  const directory = `/tmp/openrhp-quick-setup-${id}`;
-  const guestCA = `/etc/ssl/certs/openrhp-quick-setup-${id}.pem`;
+  const directory = `/tmp/routeharbor-quick-setup-${id}`;
+  const guestCA = `/etc/ssl/certs/routeharbor-quick-setup-${id}.pem`;
   const output = path.join(root, 'test-results', `openwrt-quick-setup-${id}`);
   const evidence = {
     schema: 1,
@@ -204,7 +204,7 @@ async function main() {
         'ip',
         'netns',
         'exec',
-        'openrhp-client',
+        'routeharbor-client',
         'python3',
         directory + '/network.py',
         'client',
@@ -215,7 +215,7 @@ async function main() {
   try {
     await fs.mkdir(output, { recursive: true, mode: 0o700 });
     const inspect = JSON.parse(await command('docker', ['inspect', container]))[0];
-    assert.equal(inspect.Config.Labels?.['org.openrhp.lab'], 'full-boot');
+    assert.equal(inspect.Config.Labels?.['org.routeharbor.lab'], 'full-boot');
     assert.equal(inspect.HostConfig.NetworkMode, 'none');
     assert.equal(Object.keys(inspect.HostConfig.PortBindings || {}).length, 0);
     assert.equal((inspect.HostConfig.Devices || []).length, 0);
@@ -236,7 +236,7 @@ async function main() {
     const wan = interfaces.find((item) => item.name === 'wan')?.device;
     assert.equal(lan, 'br-lan');
     assert.equal(wan, 'eth1');
-    evidence.build = (await guest('sha256sum /usr/bin/openrhp /usr/libexec/openrhp-helper')).trim();
+    evidence.build = (await guest('sha256sum /usr/bin/routeharbor /usr/libexec/routeharbor-helper')).trim();
     evidence.platform = {
       os: capabilities.platform.os,
       version: capabilities.platform.version,
@@ -273,7 +273,7 @@ async function main() {
       }
     });
     // Refuse occupied fixture ports; never kill another task's WAN responder.
-    const listeners = await docker(['ip', 'netns', 'exec', 'openrhp-wan', 'ss', '-H', '-lntup']);
+    const listeners = await docker(['ip', 'netns', 'exec', 'routeharbor-wan', 'ss', '-H', '-lntup']);
     assert(!/:(443|53|18081)\s/.test(listeners), 'Synthetic WAN fixture ports are occupied');
     relay = await startRelay(port, () => connectSSH(id)); // Fail on occupied port before any guest write.
     await step('verified isolated guest and pinned SSH loopback relay', async () => {
@@ -304,7 +304,7 @@ async function main() {
         '-days',
         '1',
         '-subj',
-        '/CN=OpenRHP isolated browser lab CA',
+        '/CN=RouteHarbor isolated browser lab CA',
         '-keyout',
         directory + '/ca.key',
         '-out',
@@ -319,7 +319,7 @@ async function main() {
         'rsa:2048',
         '-nodes',
         '-subj',
-        '/CN=OpenRHP isolated browser lab',
+        '/CN=RouteHarbor isolated browser lab',
         '-keyout',
         directory + '/server.key',
         '-out',
@@ -356,7 +356,7 @@ async function main() {
       // Unique new file only. The system bundle and existing roots are untouched.
       caInstalled = true;
       await docker(['python3', '/lab/vmctl.py', 'put', directory + '/ca.pem', guestCA]);
-      await guest(`chmod 0644 ${guestCA}\n/etc/init.d/openrhp restart`);
+      await guest(`chmod 0644 ${guestCA}\n/etc/init.d/routeharbor restart`);
       server = spawn(
         'docker',
         [
@@ -366,7 +366,7 @@ async function main() {
           'ip',
           'netns',
           'exec',
-          'openrhp-wan',
+          'routeharbor-wan',
           'python3',
           directory + '/network.py',
           'server',
@@ -592,7 +592,7 @@ async function main() {
           '-c',
           String.raw`
 import os,pathlib,signal,sys,time
-marker=('OPENRHP_QUICK_SETUP_RELAY='+sys.argv[1]).encode()
+marker=('ROUTEHARBOR_QUICK_SETUP_RELAY='+sys.argv[1]).encode()
 def matches():
     result=[]
     for p in pathlib.Path('/proc').iterdir():
@@ -620,7 +620,7 @@ assert not matches(),'Tagged SSH relay did not exit'
         'remove only new lab CA and restart controller to discard cached trust',
         async () => {
           await guest(
-            `/etc/init.d/openrhp stop\nrm -f ${guestCA}\n/etc/init.d/openrhp start\ntest ! -e ${guestCA}`,
+            `/etc/init.d/routeharbor stop\nrm -f ${guestCA}\n/etc/init.d/routeharbor start\ntest ! -e ${guestCA}`,
           );
         },
       );

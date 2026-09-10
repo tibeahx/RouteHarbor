@@ -33,14 +33,14 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/continuity"
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/node"
-	"github.com/tibeahx/OpenRHP/internal/probe"
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/continuity"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/node"
+	"github.com/tibeahx/RouteHarbor/internal/probe"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 // The test composes the production classifier, comparative probe, detector and
@@ -102,7 +102,7 @@ func selectiveAcceptanceCommand(t *testing.T, name string, args ...string) []byt
 
 func newSelectiveAcceptanceLab(t *testing.T) *selectiveAcceptanceLab {
 	t.Helper()
-	if os.Getenv("OPENRHP_SELECTIVE_ACCEPTANCE_LAB") != "1" {
+	if os.Getenv("ROUTEHARBOR_SELECTIVE_ACCEPTANCE_LAB") != "1" {
 		t.Skip("requires disconnected native selective acceptance lab")
 	}
 	if _, err := os.Stat("/.dockerenv"); err != nil || os.Geteuid() != 0 {
@@ -287,8 +287,8 @@ func (f *selectiveAcceptanceLab) child(namespace, role string) *selectiveAccepta
 	)
 	c.Env = append(
 		os.Environ(),
-		"OPENRHP_SELECTIVE_ACCEPTANCE_ROLE="+role,
-		"OPENRHP_SELECTIVE_ACCEPTANCE_DIR="+f.dir,
+		"ROUTEHARBOR_SELECTIVE_ACCEPTANCE_ROLE="+role,
+		"ROUTEHARBOR_SELECTIVE_ACCEPTANCE_DIR="+f.dir,
 	)
 	in, err := c.StdinPipe()
 	if err != nil {
@@ -490,7 +490,7 @@ func (f *selectiveAcceptanceLab) startEngine() {
 }
 
 func TestSelectiveAcceptanceChild(t *testing.T) {
-	role := os.Getenv("OPENRHP_SELECTIVE_ACCEPTANCE_ROLE")
+	role := os.Getenv("ROUTEHARBOR_SELECTIVE_ACCEPTANCE_ROLE")
 	if role == "" {
 		t.Skip("private namespace subprocess")
 	}
@@ -600,7 +600,7 @@ func selectiveAcceptanceFrame(c io.ReadWriter, payload []byte, read bool) ([]byt
 }
 
 func selectiveAcceptanceServer(t *testing.T, in *json.Decoder, out *json.Encoder) {
-	dir := os.Getenv("OPENRHP_SELECTIVE_ACCEPTANCE_DIR")
+	dir := os.Getenv("ROUTEHARBOR_SELECTIVE_ACCEPTANCE_DIR")
 	cert, err := tls.LoadX509KeyPair(filepath.Join(dir, "tls.crt"), filepath.Join(dir, "tls.key"))
 	if err != nil {
 		t.Fatal(err)
@@ -703,7 +703,7 @@ func selectiveAcceptanceServer(t *testing.T, in *json.Decoder, out *json.Encoder
 }
 
 func selectiveAcceptanceRelay(t *testing.T, in *json.Decoder, out *json.Encoder) {
-	dir := os.Getenv("OPENRHP_SELECTIVE_ACCEPTANCE_DIR")
+	dir := os.Getenv("ROUTEHARBOR_SELECTIVE_ACCEPTANCE_DIR")
 	relayID, err := node.LoadIdentity(filepath.Join(dir, "relay"))
 	if err != nil {
 		t.Fatal(err)
@@ -765,7 +765,7 @@ func selectiveAcceptanceResolve(domain string) (string, uint32, error) {
 
 func selectiveAcceptanceClient(t *testing.T, in *json.Decoder, out *json.Encoder) {
 	cert, err := os.ReadFile(
-		filepath.Join(os.Getenv("OPENRHP_SELECTIVE_ACCEPTANCE_DIR"), "tls.crt"),
+		filepath.Join(os.Getenv("ROUTEHARBOR_SELECTIVE_ACCEPTANCE_DIR"), "tls.crt"),
 	)
 	if err != nil {
 		t.Fatal(err)

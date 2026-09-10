@@ -76,7 +76,7 @@ func (r *realUCI) value(t *testing.T, key string) string {
 
 func realBackend(t *testing.T, secret string) (*UCIBackend, *realUCI) {
 	t.Helper()
-	binary := os.Getenv("OPENRHP_UCI_TEST_BINARY")
+	binary := os.Getenv("ROUTEHARBOR_UCI_TEST_BINARY")
 	if binary == "" {
 		t.Skip("scripts/lab-uci.sh runs the actual upstream UCI parser")
 	}
@@ -179,7 +179,7 @@ func TestGatewayPreservesForeignStateThroughRealUCI(t *testing.T) {
 						t.Fatal("gateway modified unrelated network service", name)
 					}
 				}
-				for _, key := range []string{"wireless.main_ap.wds", "wireless.main_ap.openrhp_wds_owner", "wireless." + meshSection, "wireless.injected"} {
+				for _, key := range []string{"wireless.main_ap.wds", "wireless.main_ap.routeharbor_wds_owner", "wireless." + meshSection, "wireless.injected"} {
 					if _, err := r.Run(
 						ctx,
 						"/sbin/uci",
@@ -207,7 +207,7 @@ func TestGatewayRealUCIRejectsForeignOrChangedScope(t *testing.T) {
 	ctx := context.Background()
 	p := validPlan()
 	for _, statement := range []string{
-		"set wireless.orhp_gw_mesh='wifi-iface'\n",
+		"set wireless.rh_gw_mesh='wifi-iface'\n",
 		"set wireless.main_ap.wds='1'\n",
 		"set network.lan.gateway='192.168.50.2'\n",
 		"set wireless.radio0.channel='auto'\n",

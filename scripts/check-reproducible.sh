@@ -11,7 +11,7 @@ cp -R "$root/go.mod" "$root/api" "$root/cmd" "$root/internal" "$check_tmp/source
 cp -R "$check_tmp/source-first/." "$check_tmp/source-second/"
 for pass in first second; do
   source_dir="$check_tmp/source-$pass"
-  (cd "$source_dir" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOTOOLCHAIN=local GOCACHE="$check_tmp/cache-$pass" "$GO" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$check_tmp/$pass" ./cmd/openrhp)
+  (cd "$source_dir" && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GOTOOLCHAIN=local GOCACHE="$check_tmp/cache-$pass" "$GO" build -trimpath -buildvcs=false -ldflags='-s -w -buildid=' -o "$check_tmp/$pass" ./cmd/routeharbor)
 done
 cmp "$check_tmp/first" "$check_tmp/second"
 printf '%s\n' 'PASS: Linux amd64 controller is byte-identical across source paths and empty build caches.'

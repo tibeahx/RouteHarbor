@@ -1,8 +1,8 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
-const tokenFile = process.env.OPENRHP_TEST_TOKEN_FILE;
+const tokenFile = process.env.ROUTEHARBOR_TEST_TOKEN_FILE;
 if (!tokenFile)
-  throw new Error('OPENRHP_TEST_TOKEN_FILE must point to a private local test credential.');
+  throw new Error('ROUTEHARBOR_TEST_TOKEN_FILE must point to a private local test credential.');
 const token = fs.readFileSync(tokenFile, 'utf8').trim();
 test.beforeEach(async ({ request }) => {
   const headers = { Authorization: 'Bearer ' + token };

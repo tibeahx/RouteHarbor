@@ -12,7 +12,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type Snapshot map[string][]byte
@@ -30,7 +30,7 @@ type UCIBackend struct {
 	Eligibility func(context.Context, Plan) error
 }
 
-const meshSection = "orhp_gw_mesh"
+const meshSection = "rh_gw_mesh"
 
 func NewUCIBackend(eligibility func(context.Context, Plan) error) *UCIBackend {
 	if eligibility == nil {
@@ -207,17 +207,17 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) (WiFi, error) {
 	}
 	w := parseUCI(data)
 	if w["wireless."+p.APSection+".wds"] == "1" &&
-		w["wireless."+p.APSection+".openrhp_wds_owner"] != "1" {
+		w["wireless."+p.APSection+".routeharbor_wds_owner"] != "1" {
 		return out, errors.New("gateway_existing_wds_requires_separate_adoption")
 	}
 	a, err := b.accessPoint(ctx, p.APSection, w)
 	if err != nil || a.Network != p.Network || len(a.CandidateModes) == 0 {
 		return out, errors.New("gateway_ap_configuration_incompatible")
 	}
-	if w["wireless."+meshSection] != "" && w["wireless."+meshSection+".openrhp_owner"] != "1" {
+	if w["wireless."+meshSection] != "" && w["wireless."+meshSection+".routeharbor_owner"] != "1" {
 		return out, errors.New("gateway_wireless_ownership_conflict")
 	}
-	if w["wireless."+meshSection+".openrhp_owner"] == "1" &&
+	if w["wireless."+meshSection+".routeharbor_owner"] == "1" &&
 		(w["wireless."+meshSection+".device"] != a.Radio || w["wireless."+meshSection+".network"] != p.Network) {
 		return out, errors.New("gateway_backhaul_scope_conflict")
 	}
@@ -281,7 +281,7 @@ func (b *UCIBackend) Apply(ctx context.Context, p Plan) error {
 				return errors.New("gateway_previous_backhaul_disable_failed")
 			}
 		}
-		if err := set("wireless."+p.APSection+".openrhp_wds_owner", "1", false); err != nil {
+		if err := set("wireless."+p.APSection+".routeharbor_wds_owner", "1", false); err != nil {
 			return err
 		}
 		if err := set("wireless."+p.APSection+".wds", "1", false); err != nil {
@@ -298,7 +298,7 @@ func (b *UCIBackend) Apply(ctx context.Context, p Plan) error {
 		key := "wireless." + meshSection
 		values := [][2]string{
 			{key, "wifi-iface"},
-			{key + ".openrhp_owner", "1"},
+			{key + ".routeharbor_owner", "1"},
 			{key + ".device", radio},
 			{key + ".mode", "mesh"},
 			{key + ".network", p.Network},

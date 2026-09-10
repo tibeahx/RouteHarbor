@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 const (

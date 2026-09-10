@@ -13,7 +13,7 @@ import (
 // scripts/lab-uci.sh builds the pinned official implementation in an isolated
 // container; no physical router or host network settings are touched.
 func TestUCISecretEncodingRoundTripsThroughRealParser(t *testing.T) {
-	binary := os.Getenv("OPENRHP_UCI_TEST_BINARY")
+	binary := os.Getenv("ROUTEHARBOR_UCI_TEST_BINARY")
 	if binary == "" {
 		t.Skip("run scripts/lab-uci.sh to exercise the pinned upstream UCI parser")
 	}
@@ -21,7 +21,7 @@ func TestUCISecretEncodingRoundTripsThroughRealParser(t *testing.T) {
 	delta := t.TempDir()
 	if e := os.WriteFile(
 		filepath.Join(dir, "wireless"),
-		[]byte("config wifi-iface 'openrhp_ap'\nconfig wifi-iface 'openrhp_backhaul'\n"),
+		[]byte("config wifi-iface 'routeharbor_ap'\nconfig wifi-iface 'routeharbor_backhaul'\n"),
 		0o600,
 	); e != nil {
 		t.Fatal(e)
@@ -35,7 +35,7 @@ func TestUCISecretEncodingRoundTripsThroughRealParser(t *testing.T) {
 		`';set wireless.injected=evil;'`,
 	}
 	for i, value := range values {
-		for _, name := range []string{"wireless.openrhp_ap.key", "wireless.openrhp_backhaul.key"} {
+		for _, name := range []string{"wireless.routeharbor_ap.key", "wireless.routeharbor_backhaul.key"} {
 			cmd := exec.Command(binary, "-c", dir, "-t", delta, "-q", "batch")
 			cmd.Stdin = strings.NewReader("set " + name + "=" + uciQuote(value) + "\n")
 			output, e := cmd.CombinedOutput()

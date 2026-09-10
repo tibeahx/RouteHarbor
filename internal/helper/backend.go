@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // NetworkBackend invokes only fixed nft/ip operations built from validated intent.
@@ -86,7 +86,7 @@ func (b *NetworkBackend) checkEnvironment(
 	}
 	if !report.Capabilities["lifecycle_guard"].Available {
 		return errors.New(
-			"lifecycle_guard_unavailable: install the OpenRHP guard package and enable fw4 automatic includes",
+			"lifecycle_guard_unavailable: install the RouteHarbor guard package and enable fw4 automatic includes",
 		)
 	}
 	if !report.Capabilities["flow_offload_safe"].Available {

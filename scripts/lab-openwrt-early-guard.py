@@ -18,7 +18,7 @@ spec.loader.exec_module(boot)
 
 FLOOD_CLOSED = r'''
 import json, pathlib, socket, time
-status = pathlib.Path('/tmp/openrhp-boot-traffic.json')
+status = pathlib.Path('/tmp/routeharbor-boot-traffic.json')
 sockets = []
 for family, address in [(socket.AF_INET,'8.8.8.8'),(socket.AF_INET6,'2001:4860:4860::8888')]:
     for port in [53,18081]:
@@ -27,7 +27,7 @@ iterations = 0
 deadline = time.monotonic()+900
 while time.monotonic()<deadline:
     for connection,address in sockets:
-        try: connection.sendto(b'OpenRHP-boot-recovery',address)
+        try: connection.sendto(b'RouteHarbor-boot-recovery',address)
         except OSError: pass
     for family,address in [(socket.AF_INET,'8.8.8.8'),(socket.AF_INET6,'2001:4860:4860::8888')]:
         for port in [18080,53]:
@@ -48,7 +48,7 @@ def wait_helper(lab):
         try:
             lab.wait_api()
             if lab.api('/api/v1/capabilities')['platform']['supported']:
-                lab.guest('test -S /var/run/openrhp/helper.sock\n')
+                lab.guest('test -S /var/run/routeharbor/helper.sock\n')
                 return
         except (RuntimeError, AssertionError):
             pass
@@ -57,7 +57,7 @@ def wait_helper(lab):
 
 
 def check_traffic(lab, phase):
-    result = lab.container_command(['ip', 'netns', 'exec', 'openrhp-client', 'python3', '-c', boot.CLIENT, phase], timeout=30)
+    result = lab.container_command(['ip', 'netns', 'exec', 'routeharbor-client', 'python3', '-c', boot.CLIENT, phase], timeout=30)
     values = json.loads(result.stdout)
     assert values.pop('management'), (phase, 'management unavailable')
     local_dns = {key:value for key,value in values.items() if '-router-dns-' in key}
@@ -67,16 +67,16 @@ def check_traffic(lab, phase):
 
 
 def main():
-    lab = boot.Lab('openrhp-openwrt-boot-lab')
+    lab = boot.Lab('routeharbor-openwrt-boot-lab')
     wait_helper(lab)
-    server = boot.start_background(lab, 'server', 'openrhp-wan', boot.SERVER)
+    server = boot.start_background(lab, 'server', 'routeharbor-wan', boot.SERVER)
     atexit.register(lab.signal, server, signal.SIGTERM, check=False)
-    lab.container_command(['rm','-f','/tmp/openrhp-boot-traffic.stop','/tmp/openrhp-boot-traffic.json'])
-    traffic = boot.start_background(lab, 'traffic', 'openrhp-client', FLOOD_CLOSED)
+    lab.container_command(['rm','-f','/tmp/routeharbor-boot-traffic.stop','/tmp/routeharbor-boot-traffic.json'])
+    traffic = boot.start_background(lab, 'traffic', 'routeharbor-client', FLOOD_CLOSED)
     atexit.register(lab.signal, traffic, signal.SIGTERM, check=False)
     time.sleep(0.3)
     iterations = boot.check_flood(lab,traffic)
-    path = '/tmp/openrhp-boot-early-guard-'+str(time.time_ns())+'.pcap'
+    path = '/tmp/routeharbor-boot-early-guard-'+str(time.time_ns())+'.pcap'
     print('CAPTURE '+path,flush=True)
     capture = boot.start_capture(lab,path)
     check_traffic(lab,'before-reboot')

@@ -109,7 +109,7 @@ func makePlan(
 	if request.Action == "remove" && request.RemovalPolicy == "restore-direct" {
 		plan.Warnings[0] = "Explicit removal policy restores ordinary direct routing; the guard package remains installed."
 	}
-	if inventory.Packages["openrhp-guard"] == "" {
+	if inventory.Packages["routeharbor-guard"] == "" {
 		return plan, errors.New("maintenance_guard_required")
 	}
 	if request.Action == "remove" {
@@ -117,8 +117,8 @@ func makePlan(
 		for _, name := range request.Components {
 			selected[name] = true
 		}
-		if selected["openrhp"] {
-			for _, name := range []string{"openrhp-sing-box", "openrhp-xray", "openrhp-conntrack", "openrhp-continuity"} {
+		if selected["routeharbor"] {
+			for _, name := range []string{"routeharbor-sing-box", "routeharbor-xray", "routeharbor-conntrack", "routeharbor-continuity"} {
 				if inventory.Packages[name] != "" {
 					selected[name] = true
 				}
@@ -154,10 +154,10 @@ func makePlan(
 			if !ok {
 				return errors.New("maintenance_dependency_not_staged")
 			}
-			if name == "openrhp-guard" || name == "openrhp-node" {
+			if name == "routeharbor-guard" || name == "routeharbor-node" {
 				return errors.New("maintenance_guard_or_node_replacement_unsupported")
 			}
-			if name == "openrhp" &&
+			if name == "routeharbor" &&
 				strings.SplitN(candidate.Version, "-", 2)[0] != record.Summary.Version {
 				return errors.New("maintenance_source_version_mismatch")
 			}

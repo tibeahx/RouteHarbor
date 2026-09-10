@@ -10,7 +10,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func dialMarked(ctx context.Context, p dataplane.Path, address string) (*net.TCPConn, error) {
@@ -110,7 +110,7 @@ func (c *Client) DialProbe(ctx context.Context, sourceID, address string) (net.C
 		return nil, errors.New("invalid_helper_response")
 	}
 	syscall.CloseOnExec(fds[0])
-	f := os.NewFile(uintptr(fds[0]), "openrhp-probe")
+	f := os.NewFile(uintptr(fds[0]), "routeharbor-probe")
 	defer func() { _ = f.Close() }()
 	return net.FileConn(f)
 }

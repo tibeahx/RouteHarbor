@@ -9,6 +9,6 @@ case "$arch" in aarch64|arm64) go_arch=arm64;; x86_64|amd64) go_arch=amd64;; *) 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT INT TERM
 (cd "$root" && CGO_ENABLED=0 GOOS=linux GOARCH="$go_arch" "$GO" test -c -o "$tmp/adapter.test" ./internal/adapter)
-docker build -t openrhp-path-lab:local -f "$root/docker/lab-paths/Dockerfile" "$root/docker/lab-paths"
-docker build -t openrhp-engine-lab:local -f "$root/docker/lab-engines/Dockerfile" "$root/docker/lab-engines"
-docker run --rm --network none --entrypoint /tests/adapter.test -e OPENRHP_ENGINE_LAB=1 --mount "type=bind,src=$tmp,dst=/tests,readonly" openrhp-engine-lab:local -test.v -test.run TestPinnedNativeEngine
+docker build -t routeharbor-path-lab:local -f "$root/docker/lab-paths/Dockerfile" "$root/docker/lab-paths"
+docker build -t routeharbor-engine-lab:local -f "$root/docker/lab-engines/Dockerfile" "$root/docker/lab-engines"
+docker run --rm --network none --entrypoint /tests/adapter.test -e ROUTEHARBOR_ENGINE_LAB=1 --mount "type=bind,src=$tmp,dst=/tests,readonly" routeharbor-engine-lab:local -test.v -test.run TestPinnedNativeEngine

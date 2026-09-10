@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func TestDNSGuardOwnershipRejectsExtraSelectors(t *testing.T) {

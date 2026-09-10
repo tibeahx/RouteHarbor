@@ -1,9 +1,9 @@
-# Developing OpenRHP
+# Developing RouteHarbor
 
 This file applies to repository development. FOR_AGENTS.md is the separate
 operational guide for agents administering routers.
 
-- Product name: OpenRHP, expansion OpenReverseHomeProxy; English UI.
+- Product name: RouteHarbor; descriptor: adaptive routing gateway; English UI.
 - Go standard library; embed offline HTML/CSS/JS. No cloud/CDN/runtime Node dependency.
 - Read docs/architecture.md and docs/threat-model.md before changing network/import code.
 - Preserve separate unprivileged control and typed privileged helper boundaries.

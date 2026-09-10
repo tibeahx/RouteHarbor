@@ -13,9 +13,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/continuity"
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/continuity"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 var bridgeAssociation atomic.Uint64

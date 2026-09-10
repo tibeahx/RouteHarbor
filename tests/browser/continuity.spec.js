@@ -3,6 +3,12 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 
+// Saving settings starts a status refresh. Drain its response transformer before
+// Playwright disposes the page's request context, including after a failed test.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: 'wait' });
+});
+
 const profile = {
   enabled: true,
   relay_address: '8.8.8.8:8443',
@@ -13,7 +19,7 @@ const profile = {
 };
 
 async function connect(page) {
-  const token = fs.readFileSync(process.env.OPENRHP_TEST_TOKEN_FILE, 'utf8').trim();
+  const token = fs.readFileSync(process.env.ROUTEHARBOR_TEST_TOKEN_FILE, 'utf8').trim();
   await page.goto('/');
   await page.getByLabel('Access key', { exact: true }).fill(token);
   await page.getByRole('button', { name: 'Connect', exact: true }).click();

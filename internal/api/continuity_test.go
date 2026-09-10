@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/config"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/config"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func TestContinuityAPIAuthCASPreservesSecretsAndRejectsIdentity(t *testing.T) {

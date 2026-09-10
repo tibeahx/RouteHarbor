@@ -14,8 +14,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/release"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/release"
 )
 
 const maxBundleBytes int64 = 128 << 20

@@ -9,11 +9,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/config"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/probe"
-	"github.com/tibeahx/OpenRHP/internal/selection"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/config"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/probe"
+	"github.com/tibeahx/RouteHarbor/internal/selection"
 )
 
 type Prober interface {
@@ -337,7 +337,7 @@ func (r *Runtime) Status() map[string]any {
 	return map[string]any{
 		"continuity":                continuityStatus,
 		"version":                   "0.1.0-dev",
-		"project":                   "OpenRHP",
+		"project":                   "RouteHarbor",
 		"revision":                  c.Revision,
 		"role":                      c.Role,
 		"policy":                    c.Policy,

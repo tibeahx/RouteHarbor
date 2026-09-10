@@ -4,7 +4,7 @@
 set -eu
 cd "$(dirname "$0")/.."
 GO=${GO:-go}
-image=openrhp-maintenance-lab:24.10.7
+image=routeharbor-maintenance-lab:24.10.7
 mkdir -p test-results/maintenance
 chmod 0755 test-results/maintenance
 if ! docker image inspect "$image" >/dev/null 2>&1; then
@@ -30,16 +30,16 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 "$GO" test -c -o test-results/maintenance/
 chmod 0755 test-results/maintenance/opkg.test test-results/maintenance/helper.test
 for suite in opkg worker; do
  log="test-results/maintenance/$suite.log"
- if docker run --rm --name "openrhp-maintenance-$suite-$$" --platform linux/amd64 --network none \
-  -e OPENRHP_OPKG_LAB=1 -e OPENRHP_MAINTENANCE_LAB=1 \
+ if docker run --rm --name "routeharbor-maintenance-$suite-$$" --platform linux/amd64 --network none \
+  -e ROUTEHARBOR_OPKG_LAB=1 -e ROUTEHARBOR_MAINTENANCE_LAB=1 \
   -v "$PWD/test-results/maintenance:/tests:ro" "$image" -eu -c '
    mkdir -p /usr/libexec
-   cp /tests/helper.test /usr/libexec/openrhp-maintenance.test
-   chmod 0755 /usr/libexec/openrhp-maintenance.test
+   cp /tests/helper.test /usr/libexec/routeharbor-maintenance.test
+   chmod 0755 /usr/libexec/routeharbor-maintenance.test
    if [ "$1" = opkg ]; then
     /tests/opkg.test -test.run "^TestOpenWrtOpkgOffline$" -test.v -test.timeout 120s
    else
-    /usr/libexec/openrhp-maintenance.test -test.run "^TestLinuxMaintenanceWorkerSurvivesControllerKill$" -test.v -test.timeout 30s
+    /usr/libexec/routeharbor-maintenance.test -test.run "^TestLinuxMaintenanceWorkerSurvivesControllerKill$" -test.v -test.timeout 30s
    fi
   ' lab "$suite" >"$log" 2>&1; then
   cat "$log"

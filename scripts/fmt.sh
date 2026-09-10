@@ -13,7 +13,7 @@ formatter=$(sh scripts/install-golangci-lint.sh)
 if [ "$#" -eq 0 ]; then
   "$formatter" fmt --config .golangci.yml ./...
 else
-  report=$(mktemp "${TMPDIR:-/tmp}/openrhp-format.XXXXXX")
+  report=$(mktemp "${TMPDIR:-/tmp}/routeharbor-format.XXXXXX")
   trap 'rm -f "$report"' EXIT HUP INT TERM
   "$formatter" fmt --config .golangci.yml --diff ./... > "$report"
   if [ -s "$report" ]; then

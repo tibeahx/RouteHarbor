@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func selectiveDesired() dataplane.Desired {
@@ -190,7 +190,7 @@ func TestSelectiveHealthUsesLocalReservedDNS(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-accepted
-	if q := <-queried; !strings.Contains(q, "openrhp-health") {
+	if q := <-queried; !strings.Contains(q, "routeharbor-health") {
 		t.Fatal("health query could depend on external WAN", q)
 	}
 	_ = udp.Close()

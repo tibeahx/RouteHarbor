@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type Plan struct {

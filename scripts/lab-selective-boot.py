@@ -51,7 +51,7 @@ def handle(c,role):
  try:
   with c:
    if role=='https':
-    context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain('/tmp/openrhp-selective-tls/cert.pem','/tmp/openrhp-selective-tls/key.pem')
+    context=ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER);context.load_cert_chain('/tmp/routeharbor-selective-tls/cert.pem','/tmp/routeharbor-selective-tls/key.pem')
     with context.wrap_socket(c,server_side=True) as tls:
      tls.recv(8192);tls.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK')
    elif role=='echo':
@@ -112,7 +112,7 @@ print(json.dumps(results))
 def wait_emergency(lab):
     deadline = time.monotonic() + 40
     while time.monotonic() < deadline:
-        s = json.loads(lab.guest('cat /etc/openrhp-helper/transaction.json\n').stdout)
+        s = json.loads(lab.guest('cat /etc/routeharbor-helper/transaction.json\n').stdout)
         if s.get('selective_emergency') and not s.get('selective_emergency_pending'):
             return s
         time.sleep(.3)
@@ -121,7 +121,7 @@ def wait_emergency(lab):
 
 def check_rollback(lab, traffic, confirm):
     """Apply a different prepared pool, then prove the prior classifier returns."""
-    previous=json.loads(lab.guest('cat /etc/openrhp-helper/transaction.json\n').stdout)['committed']['selective']
+    previous=json.loads(lab.guest('cat /etc/routeharbor-helper/transaction.json\n').stdout)['committed']['selective']
     original=lab.api('/api/v1/routing')
     candidate=json.loads(json.dumps(original))
     candidate['exceptions']=[{'action':'direct','domain':'blocked.example'}]
@@ -137,7 +137,7 @@ def check_rollback(lab, traffic, confirm):
     traffic('selective','11.0.0.2')
     result=lab.api('/api/v1/transactions/'+transaction+'/rollback','POST',{})
     assert result['state']=='succeeded',result
-    restored=json.loads(lab.guest('cat /etc/openrhp-helper/transaction.json\n').stdout)['committed']['selective']
+    restored=json.loads(lab.guest('cat /etc/routeharbor-helper/transaction.json\n').stdout)['committed']['selective']
     assert restored==previous, 'Rollback must restore the previous exact classifier intent'
     traffic('selective','8.8.8.8')
     # Save the original requested settings again after the runtime rollback.
@@ -148,15 +148,15 @@ def check_rollback(lab, traffic, confirm):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--container', default='openrhp-selective-boot-lab')
+    parser.add_argument('--container', default='routeharbor-selective-boot-lab')
     parser.add_argument('--packages', type=pathlib.Path, required=True)
     parser.add_argument('--dependencies', type=pathlib.Path, required=True)
     parser.add_argument('--engine', type=pathlib.Path, required=True)
     parser.add_argument('--installed', action='store_true', help='Retry the same installed SDK snapshot only')
     args = parser.parse_args()
-    assert args.container == 'openrhp-selective-boot-lab'
+    assert args.container == 'routeharbor-selective-boot-lab'
     meta = json.loads(subprocess.check_output(['docker','inspect',args.container]))[0]
-    assert meta['HostConfig']['NetworkMode']=='none' and meta['Config']['Labels']['openrhp.task']=='selective-routing'
+    assert meta['HostConfig']['NetworkMode']=='none' and meta['Config']['Labels']['routeharbor.task']=='selective-routing'
     assert hashlib.sha256(args.engine.read_bytes()).hexdigest()==ENGINE_SHA256
     lab = SelectiveLab(args.container)
     if not args.installed:
@@ -178,22 +178,22 @@ def main():
     package_evidence = json.loads((args.packages/'package-results.json').read_text())
     source = package_evidence['source']['source_sha256']
     for package in package_evidence['packages']:
-        if package['package'] not in ['openrhp', 'openrhp-guard', 'openrhp-node']:
+        if package['package'] not in ['routeharbor', 'routeharbor-guard', 'routeharbor-node']:
             continue
         for binary in package['binaries']:
             actual = lab.guest('sha256sum /' + binary['path'].lstrip('./') + '\n').stdout.split()[0]
             assert actual == binary['sha256'], 'Installed binary differs from selected SDK snapshot'
     # The private namespace CA is trusted only by this disposable VM.
-    with tempfile.TemporaryDirectory(prefix='openrhp-selective-tls-') as private:
+    with tempfile.TemporaryDirectory(prefix='routeharbor-selective-tls-') as private:
         cert,key=[pathlib.Path(private)/name for name in ['cert.pem','key.pem']]
-        subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(key),'-out',str(cert),'-days','2','-subj','/CN=OpenRHP isolated VM fixture','-addext','subjectAltName=IP:8.8.8.8','-addext','basicConstraints=critical,CA:TRUE'],check=True,capture_output=True)
-        lab.container_command(['mkdir','-p','/tmp/openrhp-selective-tls'])
+        subprocess.run(['openssl','req','-x509','-newkey','rsa:2048','-nodes','-keyout',str(key),'-out',str(cert),'-days','2','-subj','/CN=RouteHarbor isolated VM fixture','-addext','subjectAltName=IP:8.8.8.8','-addext','basicConstraints=critical,CA:TRUE'],check=True,capture_output=True)
+        lab.container_command(['mkdir','-p','/tmp/routeharbor-selective-tls'])
         for path in [cert,key]:
-            subprocess.run(['docker','cp',str(path),args.container+':/tmp/openrhp-selective-tls/'+path.name],check=True,capture_output=True)
-        lab.put_host_file(cert,'/tmp/openrhp-selective-ca.pem')
-        lab.guest('cat /tmp/openrhp-selective-ca.pem >> /etc/ssl/certs/ca-certificates.crt\n/etc/init.d/openrhp restart\n')
+            subprocess.run(['docker','cp',str(path),args.container+':/tmp/routeharbor-selective-tls/'+path.name],check=True,capture_output=True)
+        lab.put_host_file(cert,'/tmp/routeharbor-selective-ca.pem')
+        lab.guest('cat /tmp/routeharbor-selective-ca.pem >> /etc/ssl/certs/ca-certificates.crt\n/etc/init.d/routeharbor restart\n')
     lab.wait_api()
-    server = boot.start_background(lab,'selective-server','openrhp-wan',SERVER)
+    server = boot.start_background(lab,'selective-server','routeharbor-wan',SERVER)
     atexit.register(lab.signal,server,signal.SIGTERM,check=False)
     time.sleep(.3)
     lab.signal(server,0)
@@ -217,7 +217,7 @@ def main():
             result=lab.api('/api/v1/transactions/'+identifier+'/'+action,'POST',{})
             assert result['state']=='succeeded',result
     def traffic(phase,bypass,direct='11.0.0.2'):
-        value=json.loads(lab.container_command(['ip','netns','exec','openrhp-client','python3','-c',CLIENT,phase,bypass,direct]).stdout)
+        value=json.loads(lab.container_command(['ip','netns','exec','routeharbor-client','python3','-c',CLIENT,phase,bypass,direct]).stdout)
         report['checks'].append({'phase':phase,'traffic':value});print('PASS '+phase+' '+json.dumps(value),flush=True)
     confirm()
     deadline=time.monotonic()+110
@@ -231,14 +231,14 @@ def main():
     report['checks'].append({'applied_transaction_rollback_restored_previous_classifier':True})
     # Stop the actual unprivileged DNS-front process; its still-live owner cannot
     # substitute a loader or detector error for this serving failure.
-    lab.guest("for p in /proc/[0-9]*/cmdline; do if tr '\\000' ' ' < \"$p\" | grep -q '^/usr/libexec/openrhp-helper dns-front'; then pid=${p#/proc/}; pid=${pid%/cmdline}; kill -STOP \"$pid\"; fi; done\n")
+    lab.guest("for p in /proc/[0-9]*/cmdline; do if tr '\\000' ' ' < \"$p\" | grep -q '^/usr/libexec/routeharbor-helper dns-front'; then pid=${p#/proc/}; pid=${pid%/cmdline}; kill -STOP \"$pid\"; fi; done\n")
     wait_emergency(lab);traffic('emergency','11.0.0.2')
     # Cached virtual destinations remain quarantined even after nft state loss.
     guard=lab.guest('ip -4 route get 198.18.0.2\n',check=False)
     assert guard.returncode!=0
-    lab.guest("for p in /proc/[0-9]*/cmdline; do if tr '\\000' ' ' < \"$p\" | grep -q '^/usr/libexec/openrhp-helper dns-front'; then pid=${p#/proc/}; pid=${pid%/cmdline}; kill -CONT \"$pid\"; fi; done\n")
+    lab.guest("for p in /proc/[0-9]*/cmdline; do if tr '\\000' ' ' < \"$p\" | grep -q '^/usr/libexec/routeharbor-helper dns-front'; then pid=${p#/proc/}; pid=${pid%/cmdline}; kill -CONT \"$pid\"; fi; done\n")
     confirm();traffic('selective','8.8.8.8')
-    state=json.loads(lab.guest('cat /etc/openrhp-helper/transaction.json\n').stdout)
+    state=json.loads(lab.guest('cat /etc/routeharbor-helper/transaction.json\n').stdout)
     port=state['committed']['selective']['path']['port']
     rows=lab.guest('netstat -lnpt\n').stdout.splitlines()
     matching=[r.split()[-1].split('/')[0] for r in rows if '127.0.0.1:'+str(port)+' ' in r and '/sing-box' in r]
@@ -253,14 +253,14 @@ def main():
     lab.guest('/etc/init.d/firewall reload\n');traffic('fw4-reload','11.0.0.2')
     # A full fw4 flush also removes its own WAN masquerade. The isolated WAN
     # routes the client subnet, so its original LAN address proves the direct
-    # path; OpenRHP must not recreate foreign firewall/NAT rules.
+    # path; RouteHarbor must not recreate foreign firewall/NAT rules.
     lab.guest('fw4 flush\n');traffic('fw4-flush','10.44.0.20','10.44.0.20')
     for family,address in [('4','198.18.0.2'),('6','fd66:6f70:656e::2')]:
         assert lab.guest('ip -'+family+' route get '+address+'\n',check=False).returncode!=0
     lab.guest('/etc/init.d/firewall restart\n');traffic('fw4-restored','11.0.0.2')
     report['checks'].append({'virtual_address_quarantine':True,'persistent_emergency_after_reboot':True})
-    lab.guest('/usr/libexec/openrhp-helper decommission --state-dir /etc/openrhp-helper --policy restore-direct\n')
-    state=json.loads(lab.guest('cat /etc/openrhp-helper/transaction.json\n').stdout)
+    lab.guest('/usr/libexec/routeharbor-helper decommission --state-dir /etc/routeharbor-helper --policy restore-direct\n')
+    state=json.loads(lab.guest('cat /etc/routeharbor-helper/transaction.json\n').stdout)
     assert not state.get('committed') and not state.get('transaction') and not state.get('guarded') and not state.get('maintenance_hold'), state
     lab.guest('nft list table inet fw4 >/dev/null\n')
     traffic('decommissioned','11.0.0.2')

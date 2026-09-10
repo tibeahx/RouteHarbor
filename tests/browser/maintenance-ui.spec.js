@@ -4,13 +4,13 @@
 const { test, expect } = require('@playwright/test');
 const fs = require('node:fs');
 const { randomUUID } = require('node:crypto');
-const token = fs.readFileSync(process.env.OPENRHP_TEST_TOKEN_FILE, 'utf8').trim();
+const token = fs.readFileSync(process.env.ROUTEHARBOR_TEST_TOKEN_FILE, 'utf8').trim();
 const headers = { Authorization: 'Bearer ' + token };
 const bundleID = 'a'.repeat(32);
 const operationID = 'b'.repeat(32);
 const installedDigest = 'c'.repeat(64);
 const packageFixture = {
-  name: 'openrhp-xray',
+  name: 'routeharbor-xray',
   version: '26.3.27-1',
   architecture: 'aarch64_generic',
   sha256: 'd'.repeat(64),
@@ -23,7 +23,7 @@ function job(state, action = 'install') {
     state,
     phase: state === 'completed' ? 'verified' : 'package_manager',
     action,
-    components: action === 'remove' ? ['openrhp'] : ['openrhp-xray'],
+    components: action === 'remove' ? ['routeharbor'] : ['routeharbor-xray'],
     guard_retained: true,
     retryable: false,
     ...(state === 'failed' ? { error_code: 'package_verification_failed' } : {}),
@@ -221,7 +221,7 @@ test('maintenance removal review requires explicit direct consent and stops on i
   await openMaintenance(page);
   await page.clock.install();
   await page.getByLabel('Software action', { exact: true }).selectOption('remove');
-  await page.getByLabel('OpenRHP controller', { exact: true }).check();
+  await page.getByLabel('RouteHarbor controller', { exact: true }).check();
   await expect(page.locator('#maintenance-removal-policy')).toHaveValue('preserve-closed');
   await expect(page.locator('#maintenance-self-removal')).toBeVisible();
   await page.getByRole('button', { name: 'Review software plan', exact: true }).click();

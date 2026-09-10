@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+START=18
+STOP=89
+USE_PROCD=1
+start_service() {
+ local node_uid
+ node_uid="$(id -u routeharbor-node)" || return 1
+ [ "$node_uid" -ne 0 ] || return 1
+ mkdir -p /etc/routeharbor-node-helper
+ chmod 0700 /etc/routeharbor-node-helper
+ chown root:root /etc/routeharbor-node-helper
+ procd_open_instance
+ procd_set_param command /usr/bin/routeharbor-node helper --state-dir /etc/routeharbor-node-helper --helper-socket /var/run/routeharbor-node-helper.sock --uid "$node_uid"
+ procd_set_param respawn 3600 5 5
+ procd_set_param stdout 1
+ procd_set_param stderr 1
+ procd_set_param limits core="0 0" nofile="128 128"
+ procd_close_instance
+}

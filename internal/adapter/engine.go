@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 const (

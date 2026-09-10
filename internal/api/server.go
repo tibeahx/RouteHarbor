@@ -19,14 +19,14 @@ import (
 	"sync"
 	"time"
 
-	contract "github.com/tibeahx/OpenRHP/api"
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/auth"
-	"github.com/tibeahx/OpenRHP/internal/config"
-	"github.com/tibeahx/OpenRHP/internal/control"
-	"github.com/tibeahx/OpenRHP/internal/maintenance"
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	contract "github.com/tibeahx/RouteHarbor/api"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/auth"
+	"github.com/tibeahx/RouteHarbor/internal/config"
+	"github.com/tibeahx/RouteHarbor/internal/control"
+	"github.com/tibeahx/RouteHarbor/internal/maintenance"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type NetworkService interface {
@@ -356,7 +356,7 @@ func (s *Server) read(w http.ResponseWriter, r *http.Request) {
 			w,
 			200,
 			map[string]any{
-				"project":         "OpenRHP",
+				"project":         "RouteHarbor",
 				"version":         "0.1.0-dev",
 				"schema_version":  c.SchemaVersion,
 				"revision":        c.Revision,
@@ -423,7 +423,7 @@ func (s *Server) inspect(w http.ResponseWriter, r *http.Request) {
 			)
 			return
 		}
-		w.Header().Set("Content-Disposition", "attachment; filename=openrhp-config.json")
+		w.Header().Set("Content-Disposition", "attachment; filename=routeharbor-config.json")
 		write(w, 200, s.Runtime.Store.Get())
 		return
 	}

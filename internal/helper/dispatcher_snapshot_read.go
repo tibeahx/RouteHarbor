@@ -6,7 +6,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/tibeahx/OpenRHP/internal/routing"
+	"github.com/tibeahx/RouteHarbor/internal/routing"
 )
 
 // Recovery reads immutable, content-addressed snapshots through fixed bounded

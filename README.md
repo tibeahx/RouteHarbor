@@ -1,10 +1,15 @@
-# OpenRHP
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/routeharbor-logo-dark.svg">
+    <img src="docs/assets/routeharbor-logo-light.svg" alt="RouteHarbor" width="800">
+  </picture>
+</p>
 
-**OpenReverseHomeProxy** brings your home network's access methods into one place.
+**Adaptive routing for your home network.**
 
 When an access method slows down or stops reaching the sites you need, switching
 VPNs, adjusting DPI tools and configuring every device becomes a recurring job.
-OpenRHP is an OpenWrt service that checks each configured path independently,
+RouteHarbor is an OpenWrt service that checks each configured path independently,
 selects a usable path for the LAN, and helps extend coverage with another router.
 A paid VPN is optional. Your configurations and credentials stay on your devices;
 there is no required cloud account or hardware vendor lock-in.
@@ -54,9 +59,9 @@ user and do not modify the host network:
 ```sh
 mkdir -p .local
 chmod 700 .local
-go build -trimpath -o .local/openrhp ./cmd/openrhp
-.local/openrhp bootstrap --state .local/state --token-file .local/admin.token
-.local/openrhp serve --state .local/state --runtime .local/runtime --listen 127.0.0.1:8787
+go build -trimpath -o .local/routeharbor ./cmd/routeharbor
+.local/routeharbor bootstrap --state .local/state --token-file .local/admin.token
+.local/routeharbor serve --state .local/state --runtime .local/runtime --listen 127.0.0.1:8787
 ```
 
 Open `http://127.0.0.1:8787` and enter the key from the private file. Retrieve it
@@ -85,6 +90,7 @@ explain their missing capabilities when running on a development computer.
 | Removal and recovery | [Uninstall](docs/uninstall.md) |
 | Common failures | [Troubleshooting](docs/troubleshooting.md) |
 | Development and independent review | [Contributing](CONTRIBUTING.md), [security review](docs/security-review.md) |
+| Project identity, logo and installation transition | [Branding](docs/branding.md) |
 
 ## Develop and verify
 
@@ -103,7 +109,7 @@ pinned development dependencies under `tests/browser`; Node.js is not needed on
 routers. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full verification commands.
 
 Licensed under [Apache-2.0](LICENSE). See [third-party notices](THIRD_PARTY.md)
-for separately installed engines. OpenRHP does not automatically update OpenWrt,
+for separately installed engines. RouteHarbor does not automatically update OpenWrt,
 flash devices or promise to bypass every present or future restriction.
 
 Selective routing, managed FakeIP DNS, registry provenance, detector limits and

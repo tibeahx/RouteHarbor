@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/model"
 )
 
 func continuityFixture(t *testing.T) ContinuityWorkerRequest {
@@ -261,7 +261,7 @@ func TestContinuityStartingSelectReturnsErrorWithoutPanic(t *testing.T) {
 	if runtime.GOOS != "linux" {
 		t.Skip("Linux helper Unix RPC fixture runs in the isolated lab")
 	}
-	dir, err := os.MkdirTemp("/tmp", "rhp-c-")
+	dir, err := os.MkdirTemp("/tmp", "rh-c-")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 func TestStationMetricsPreserveUnknownAndRejectAmbiguousPeers(t *testing.T) {
@@ -31,13 +31,13 @@ func TestStationMetricsPreserveUnknownAndRejectAmbiguousPeers(t *testing.T) {
 func TestWirelessInterfaceResolutionUsesOnlyOwnedActiveSection(t *testing.T) {
 	name, err := ResolveWirelessInterface(
 		[]byte(
-			`{"radio0":{"interfaces":[{"section":"private_ap","ifname":"phy0-ap0","config":{"key":"PRIVATE-KEY"}},{"section":"openrhp_backhaul","ifname":"phy0-sta0"}]}}`,
+			`{"radio0":{"interfaces":[{"section":"private_ap","ifname":"phy0-ap0","config":{"key":"PRIVATE-KEY"}},{"section":"routeharbor_backhaul","ifname":"phy0-sta0"}]}}`,
 		),
 	)
 	if err != nil || name != "phy0-sta0" {
 		t.Fatalf("wrong backhaul identity: %q %v", name, err)
 	}
-	for _, input := range []string{`{}`, `{"radio0":{"interfaces":[{"section":"openrhp_backhaul"}]}}`, `{"radio0":{"interfaces":[{"section":"openrhp_backhaul","ifname":"../secret"}]}}`, `{"radio0":{"interfaces":[{"section":"openrhp_backhaul","ifname":"wlan0"},{"section":"openrhp_backhaul","ifname":"wlan1"}]}}`, "null", strings.Repeat("x", (1<<20)+1)} {
+	for _, input := range []string{`{}`, `{"radio0":{"interfaces":[{"section":"routeharbor_backhaul"}]}}`, `{"radio0":{"interfaces":[{"section":"routeharbor_backhaul","ifname":"../secret"}]}}`, `{"radio0":{"interfaces":[{"section":"routeharbor_backhaul","ifname":"wlan0"},{"section":"routeharbor_backhaul","ifname":"wlan1"}]}}`, "null", strings.Repeat("x", (1<<20)+1)} {
 		if _, err := ResolveWirelessInterface([]byte(input)); err == nil {
 			t.Fatal("invalid or ambiguous interface was accepted")
 		}
@@ -111,7 +111,7 @@ func TestWirelessLinkCommandsAreReadOnlyAndDoNotExposePeerIdentity(t *testing.T)
 				switch path + " " + strings.Join(args, " ") {
 				case platform.UBusBinary() + " call network.wireless status":
 					return []byte(
-						`{"radio0":{"interfaces":[{"section":"openrhp_backhaul","ifname":"phy0-sta0"}]}}`,
+						`{"radio0":{"interfaces":[{"section":"routeharbor_backhaul","ifname":"phy0-sta0"}]}}`,
 					), nil
 				case "/usr/sbin/iw dev phy0-sta0 station dump":
 					return []byte(

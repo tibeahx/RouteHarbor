@@ -21,12 +21,12 @@ import time
 import zlib
 
 STATE = pathlib.Path('/state')
-SOCKETS = pathlib.Path('/run/openrhp-vm')
+SOCKETS = pathlib.Path('/run/routeharbor-vm')
 IMAGE = pathlib.Path('/inputs/openwrt.img.gz')
 SHA256 = '3caea69f186b2bce80938d265e5e2a3dfd0f8713aed101df35d60b88d7270d1f'
 GUEST = '10.44.0.1'
 QEMU_CPU = 'qemu64'
-CONTAINER = 'openrhp-openwrt-boot-lab'
+CONTAINER = 'routeharbor-openwrt-boot-lab'
 WAN_PREFIX = '198.18.0'
 
 
@@ -80,12 +80,12 @@ def network():
     ip('-6', 'address', 'replace', 'fd44:1::2/64', 'dev', 'vm-lan')
     present = run(['ip', 'netns', 'list']).stdout.decode()
     for name, bridge, address, address6, gateway, gateway6 in (
-        ('openrhp-client', 'vm-lan', '10.44.0.20/24', 'fd44:1::20/64', GUEST, 'fd44:1::1'),
-        ('openrhp-wan', 'vm-wan', f'{WAN_PREFIX}.1/24', 'fd44:2::1/64', '', ''),
+        ('routeharbor-client', 'vm-lan', '10.44.0.20/24', 'fd44:1::20/64', GUEST, 'fd44:1::1'),
+        ('routeharbor-wan', 'vm-wan', f'{WAN_PREFIX}.1/24', 'fd44:2::1/64', '', ''),
     ):
         if name not in present:
             ip('netns', 'add', name)
-            outside = 'vm-c' if name == 'openrhp-client' else 'vm-w'
+            outside = 'vm-c' if name == 'routeharbor-client' else 'vm-w'
             ip('link', 'add', outside, 'type', 'veth', 'peer', 'name', 'peer0')
             ip('link', 'set', 'peer0', 'netns', name)
             ip('link', 'set', outside, 'master', bridge)
@@ -97,17 +97,17 @@ def network():
         if gateway:
             ip('-n', name, 'route', 'replace', 'default', 'via', gateway)
             ip('-n', name, '-6', 'route', 'replace', 'default', 'via', gateway6)
-    ip('-n', 'openrhp-wan', 'address', 'replace', '8.8.8.8/32', 'dev', 'lo')
-    ip('-n', 'openrhp-wan', '-6', 'address', 'replace', '2001:4860:4860::8888/128', 'dev', 'lo')
-    ip('-n', 'openrhp-wan', 'route', 'replace', '10.44.0.0/24', 'via', f'{WAN_PREFIX}.2')
-    ip('-n', 'openrhp-wan', '-6', 'route', 'replace', 'fd44:1::/64', 'via', 'fd44:2::2')
+    ip('-n', 'routeharbor-wan', 'address', 'replace', '8.8.8.8/32', 'dev', 'lo')
+    ip('-n', 'routeharbor-wan', '-6', 'address', 'replace', '2001:4860:4860::8888/128', 'dev', 'lo')
+    ip('-n', 'routeharbor-wan', 'route', 'replace', '10.44.0.0/24', 'via', f'{WAN_PREFIX}.2')
+    ip('-n', 'routeharbor-wan', '-6', 'route', 'replace', 'fd44:1::/64', 'via', 'fd44:2::2')
 
 
 def prepare_disk():
     if hashlib.sha256(IMAGE.read_bytes()).hexdigest() != SHA256:
         raise RuntimeError('Official image checksum mismatch')
     owner = STATE / 'owner.json'
-    identity = {'project': 'OpenRHP isolated full-boot lab', 'image_sha256': SHA256}
+    identity = {'project': 'RouteHarbor isolated full-boot lab', 'image_sha256': SHA256}
     if owner.exists():
         if json.loads(owner.read_text()) != identity:
             raise RuntimeError('Foreign VM state directory')
@@ -152,8 +152,8 @@ def start():
     args = ['qemu-system-x86_64', '-machine', 'pc', '-accel', 'tcg,thread=single', '-cpu', QEMU_CPU,
             '-m', '512', '-smp', '1', '-display', 'none', '-no-reboot', '-daemonize', '-pidfile', '/state/qemu.pid',
             '-drive', 'file=/state/router.qcow2,format=qcow2,if=virtio', '-boot', 'c',
-            '-chardev', 'socket,id=console,path=/run/openrhp-vm/serial.sock,server=on,wait=off,logfile=/state/serial.log,logappend=on',
-            '-serial', 'chardev:console', '-qmp', 'unix:/run/openrhp-vm/qmp.sock,server=on,wait=off']
+            '-chardev', 'socket,id=console,path=/run/routeharbor-vm/serial.sock,server=on,wait=off,logfile=/state/serial.log,logappend=on',
+            '-serial', 'chardev:console', '-qmp', 'unix:/run/routeharbor-vm/qmp.sock,server=on,wait=off']
     for index, suffix in enumerate(('lan', 'wan'), 1):
         args += ['-netdev', f'tap,id={suffix},ifname=tap-{suffix},script=no,downscript=no',
                  '-device', f'virtio-net-pci,netdev={suffix},mac=52:54:00:44:00:0{index}']
@@ -265,15 +265,15 @@ dropbearkey -y -f /etc/dropbear/dropbear_ed25519_host_key
 def info():
     return {'container': CONTAINER, 'guest': GUEST, 'guest_lan_ipv6': 'fd44:1::1',
             'guest_wan': f'{WAN_PREFIX}.2', 'guest_wan_ipv6': 'fd44:2::2',
-            'client_namespace': 'openrhp-client', 'client': '10.44.0.20', 'client_ipv6': 'fd44:1::20',
-            'wan_namespace': 'openrhp-wan', 'wan_target': '8.8.8.8', 'wan_target_ipv6': '2001:4860:4860::8888',
+            'client_namespace': 'routeharbor-client', 'client': '10.44.0.20', 'client_ipv6': 'fd44:1::20',
+            'wan_namespace': 'routeharbor-wan', 'wan_target': '8.8.8.8', 'wan_target_ipv6': '2001:4860:4860::8888',
             'qemu_pid': running_pid(), 'image_sha256': SHA256,
             'reboot_mode': 'guest graceful reboot followed by a fresh QEMU process',
             'kernel': 'Actual OpenWrt guest kernel; QEMU TCG, no hardware'}
 
 
 def require_owner():
-    expected = {'project': 'OpenRHP isolated full-boot lab', 'image_sha256': SHA256}
+    expected = {'project': 'RouteHarbor isolated full-boot lab', 'image_sha256': SHA256}
     if json.loads((STATE / 'owner.json').read_text()) != expected:
         raise RuntimeError('Foreign VM state directory')
 

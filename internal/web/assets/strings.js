@@ -1,6 +1,6 @@
 // Runtime messages are kept separate for additional locales. Static English copy
 // is in index.html; there is no remote translation/font dependency.
-window.OpenRHPStrings = Object.freeze({
+window.RouteHarborStrings = Object.freeze({
   requestFailed: 'The request could not be completed.',
   disconnected: 'Connection lost. Your settings remain on the gateway.',
   saved: 'Settings saved.',
@@ -26,7 +26,8 @@ window.OpenRHPStrings = Object.freeze({
     'http-connect': 'Connect through an HTTP CONNECT proxy you already control.',
     'sing-box': 'Paste one supported outbound object, not a full engine configuration.',
     xray: 'Paste a supported VLESS connection link or a safe Xray outbound object.',
-    interface: 'Use a tunnel already managed by OpenWrt. OpenRHP does not take over its lifecycle.',
+    interface:
+      'Use a tunnel already managed by OpenWrt. RouteHarbor does not take over its lifecycle.',
     'packet-engine':
       'Requires a verified nfqws installation and isolated queue support. Availability is checked on the router.',
   },

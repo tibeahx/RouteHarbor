@@ -43,7 +43,7 @@ def main():
     OUTPUT.mkdir(parents=True, exist_ok=True)
     OUTPUT.chmod(0o755)
     (OUTPUT / 'source-environment.txt').write_bytes(version + run(['git', 'rev-parse', 'HEAD']) + run(['git', 'status', '--short']))
-    (OUTPUT / 'host-tools.txt').write_bytes(run(['docker', 'image', 'inspect', 'openrhp-malta-lab:24.10.7', '--format', '{{.Id}} {{.Architecture}}']) + run(['docker', 'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL', 'openrhp-malta-lab:24.10.7', 'sh', '-c', 'uname -sm; dpkg-query -W qemu-system-mips']))
+    (OUTPUT / 'host-tools.txt').write_bytes(run(['docker', 'image', 'inspect', 'routeharbor-malta-lab:24.10.7', '--format', '{{.Id}} {{.Architecture}}']) + run(['docker', 'run', '--rm', '--network', 'none', '--read-only', '--cap-drop', 'ALL', 'routeharbor-malta-lab:24.10.7', 'sh', '-c', 'uname -sm; dpkg-query -W qemu-system-mips']))
     failures = []
     for profile in profiles:
         out = OUTPUT / profile
@@ -51,7 +51,7 @@ def main():
         out.chmod(0o755)
         signature = run(['docker', 'run', '--rm', '--platform', 'linux/amd64', '--network', 'none', '--read-only', '--cap-drop', 'ALL',
                         '--mount', 'type=bind,source=' + str(inputs) + ',target=/inputs,readonly',
-                        '--entrypoint', '/usr/bin/usign', 'openrhp-openwrt-deps:24.10.7', '-V', '-P', '/etc/opkg/keys',
+                        '--entrypoint', '/usr/bin/usign', 'routeharbor-openwrt-deps:24.10.7', '-V', '-P', '/etc/opkg/keys',
                         '-m', '/inputs/' + profile + '/sha256sums', '-x', '/inputs/' + profile + '/sha256sums.sig'], include_stderr=True)
         (out / 'signature-verification.log').write_bytes(signature)
         kernel = inputs / profile / ('openwrt-24.10.7-malta-' + profile + '-vmlinux-initramfs.elf')
@@ -61,21 +61,21 @@ def main():
             raise RuntimeError('Kernel does not match the authenticated checksum manifest')
         os.environ.update(CGO_ENABLED='0', GOOS='linux', GOARCH='mips64' if profile == 'be64' else 'mips64le', GOMIPS64='softfloat')
         for suite, package in [('stdlib', './scripts/testdata/abi-netpoll'), ('selection', './internal/selection'),
-                               ('config', './internal/config'), ('release', './cmd/openrhp-release')]:
+                               ('config', './internal/config'), ('release', './cmd/routeharbor-release')]:
             binary = out / (suite + '.test')
             build = [go, 'build'] if suite == 'stdlib' else [go, 'test', '-c']
             run([*build, '-o', str(binary), package])
             binary.chmod(0o755)
-        name = 'openrhp-malta-' + profile + '-lab'
+        name = 'routeharbor-malta-' + profile + '-lab'
         cidfile = state / ('.container-' + uuid.uuid4().hex)
-        args = ['docker', 'run', '--rm', '--cidfile', str(cidfile), '--name', name, '--label', 'org.openrhp.lab=malta-abi',
+        args = ['docker', 'run', '--rm', '--cidfile', str(cidfile), '--name', name, '--label', 'org.routeharbor.lab=malta-abi',
                 '--network', 'none', '--read-only', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges:true',
                 '--tmpfs', '/tmp:rw,nosuid,nodev,size=64m',
                 '--mount', 'type=bind,source=' + str(inputs) + ',target=/inputs,readonly',
                 '--mount', 'type=bind,source=' + str(state) + ',target=/state',
                 '--mount', 'type=bind,source=' + str(OUTPUT) + ',target=/tests,readonly',
                 '--mount', 'type=bind,source=' + str(ROOT / 'docker/lab-malta') + ',target=/lab,readonly',
-                'openrhp-malta-lab:24.10.7', 'python3', '/lab/run.py', profile]
+                'routeharbor-malta-lab:24.10.7', 'python3', '/lab/run.py', profile]
         try:
             result = subprocess.run(args, cwd=ROOT, timeout=900)
         except subprocess.TimeoutExpired:

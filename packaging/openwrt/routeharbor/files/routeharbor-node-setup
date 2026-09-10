@@ -1,0 +1,24 @@
+#!/bin/sh
+set -eu
+[ "$(id -u)" -eq 0 ] || { echo 'Use existing router administrator access.' >&2; exit 1; }
+[ -f /etc/openwrt_release ] || { echo 'OpenWrt is required.' >&2; exit 1; }
+[ "$#" -eq 1 ] || { echo 'Usage: routeharbor-node-setup /root/private-directory/enrollment.code' >&2; exit 1; }
+case "$1" in /*) ;; *) echo 'Enrollment output must be an absolute private path.' >&2; exit 1 ;; esac
+[ ! -L /etc/routeharbor-node ] || { echo 'Refusing a symbolic-link node state directory.' >&2; exit 1; }
+if [ -f /etc/routeharbor-node/identity.json ]; then
+ [ -f "$1" ] && [ ! -L "$1" ] || { echo 'Identity already exists. Generate a fresh enrollment code as the node service user through trusted administrator access.' >&2; exit 1; }
+ printf '%s\n' 'Existing node identity retained. Enrollment codes retain their original expiration.'
+else
+ mkdir -p /etc/routeharbor-node
+ chmod 0700 /etc/routeharbor-node
+ /usr/bin/routeharbor-node bootstrap --state-dir /etc/routeharbor-node --enrollment-file "$1"
+ chown -h routeharbor-node:routeharbor-node /etc/routeharbor-node/identity.lock /etc/routeharbor-node/identity.json /etc/routeharbor-node/enrollment.lock /etc/routeharbor-node/enrollment.json
+ chown -h routeharbor-node:routeharbor-node /etc/routeharbor-node
+fi
+uci set routeharbor-node.main.enabled='1'
+uci commit routeharbor-node
+/etc/init.d/routeharbor-node-helper enable
+/etc/init.d/routeharbor-node-helper start
+/etc/init.d/routeharbor-node enable
+/etc/init.d/routeharbor-node start
+printf '%s\n' 'Node initialized on loopback. Choose an explicit trusted LAN management address before pairing from the gateway; verify the displayed fingerprint through administrator access.'

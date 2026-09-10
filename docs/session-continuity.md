@@ -28,25 +28,25 @@ Old configuration files omit `continuity` and keep that behavior.
 
 ## Pair your own VPS
 
-Build `cmd/openrhp-relay` for the VPS architecture and install it as
-`/usr/local/bin/openrhp-relay`. Create an unprivileged `openrhp-relay` account with no
-interactive shell. Give it a 0700 state directory `/var/lib/openrhp-relay`. Run
-`openrhp-relay identity --state /var/lib/openrhp-relay` as that account. This creates
+Build `cmd/routeharbor-relay` for the VPS architecture and install it as
+`/usr/local/bin/routeharbor-relay`. Create an unprivileged `routeharbor-relay` account with no
+interactive shell. Give it a 0700 state directory `/var/lib/routeharbor-relay`. Run
+`routeharbor-relay identity --state /var/lib/routeharbor-relay` as that account. This creates
 or reuses a private identity and prints only its public SHA256 fingerprint. Keep
 private identity files on their own machine and back them up through trusted local
 administration. Never paste private keys into the web interface or command arguments.
 
-Install the optional `openrhp-continuity` IPK on the gateway using a verified local
+Install the optional `routeharbor-continuity` IPK on the gateway using a verified local
 package or authenticated maintenance bundle. The package installs a helper-supervised
 worker; installing it does not enable interception or start an independent service.
-Create `/etc/openrhp/continuity` owned by the unprivileged `openrhp` account with
-mode 0700. Run `/usr/libexec/openrhp-continuity identity --state /etc/openrhp/continuity`
+Create `/etc/routeharbor/continuity` owned by the unprivileged `routeharbor` account with
+mode 0700. Run `/usr/libexec/routeharbor-continuity identity --state /etc/routeharbor/continuity`
 as that account through trusted gateway administration. Root-owned private identity
 files cannot be read by the control service. Exchange the two public certificate fingerprints
 through your existing trusted access to the gateway and VPS. The UI also shows the
 worker's public pairing fingerprint when available.
 
-Create `/etc/openrhp-relay/config.json`, owned by the relay account and mode 0600:
+Create `/etc/routeharbor-relay/config.json`, owned by the relay account and mode 0600:
 
 ```json
 {
@@ -57,7 +57,7 @@ Create `/etc/openrhp-relay/config.json`, owned by the relay account and mode 060
 
 Replace both placeholders. `listen` binds the explicitly chosen numeric address;
 use an unprivileged port such as 8443 with the provided
-[systemd unit](../packaging/systemd/openrhp-relay.service). Permit the relay listener
+[systemd unit](../packaging/systemd/routeharbor-relay.service). Permit the relay listener
 through your VPS firewall as appropriate for your own paths. The service runs as the
 relay account with a private state directory and no elevated network capabilities.
 The listener refuses wildcard or hostname addresses. The private config may also

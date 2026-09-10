@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type selectionRecordingRunner struct{ mutations []string }
@@ -80,7 +80,7 @@ func TestLinuxAtomicSelectionRetainsFailedTunnel(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(record.mutations) != 1 ||
-		!strings.HasPrefix(record.mutations[0], "flush chain inet openrhp select_flow\n") ||
+		!strings.HasPrefix(record.mutations[0], "flush chain inet routeharbor select_flow\n") ||
 		strings.Contains(record.mutations[0], "guard") {
 		t.Fatal("not a single atomic classifier mutation", record.mutations)
 	}
@@ -98,7 +98,7 @@ func TestLinuxDNSAffinityAcrossMixedSelections(t *testing.T) {
 	prepareLab(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	const namespace = "openrhp-dns-affinity"
+	const namespace = "routeharbor-dns-affinity"
 	_ = exec.Command("/sbin/ip", "netns", "del", namespace).Run()
 	defer func() { _ = exec.Command("/sbin/ip", "netns", "del", namespace).Run() }()
 	labCommand(t, "/sbin/ip", "link", "del", "home0")

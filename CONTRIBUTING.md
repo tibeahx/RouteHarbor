@@ -36,7 +36,7 @@ the current stable release selected on 2026-09-08, with the standard linters plu
 `bodyclose` and `nolintlint`. The installer verifies the pinned official SHA-256
 before extraction or execution. Both host and Linux build-tagged source and tests
 are analyzed. The verified release archive is cached under `.local/tools`; set
-`OPENRHP_TOOLS_DIR` to choose another local cache. Set `GO=/path/to/go` for the
+`ROUTEHARBOR_TOOLS_DIR` to choose another local cache. Set `GO=/path/to/go` for the
 pinned toolchain. Fix findings rather than adding broad exclusions; any necessary
 local suppression must name its linter and explain the reason.
 Run `sh scripts/lint.sh --fix` to apply the linters' supported automatic fixes,
@@ -55,7 +55,7 @@ in README, then:
 ```sh
 npm ci --prefix tests/browser --ignore-scripts
 npx --prefix tests/browser playwright install chromium
-OPENRHP_TEST_TOKEN_FILE="$PWD/.local/admin.token" \
+ROUTEHARBOR_TEST_TOKEN_FILE="$PWD/.local/admin.token" \
   npm --prefix tests/browser test
 ```
 

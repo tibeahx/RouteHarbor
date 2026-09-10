@@ -1,4 +1,4 @@
-title = "OpenRHP secret scanning"
+title = "RouteHarbor secret scanning"
 
 [extend]
 useDefault = true

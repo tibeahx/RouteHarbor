@@ -39,12 +39,12 @@ type packageMetadata struct {
 // A correctly signed unrelated system package is still not an API install target.
 func allowedPackage(name string) bool {
 	switch name {
-	case "openrhp",
-		"openrhp-guard",
-		"openrhp-node",
-		"openrhp-sing-box",
-		"openrhp-xray",
-		"openrhp-conntrack", "openrhp-continuity",
+	case "routeharbor",
+		"routeharbor-guard",
+		"routeharbor-node",
+		"routeharbor-sing-box",
+		"routeharbor-xray",
+		"routeharbor-conntrack", "routeharbor-continuity",
 		"sing-box",
 		"xray-core",
 		"conntrack",
@@ -183,8 +183,8 @@ func inspectControl(r io.Reader) (packageMetadata, error) {
 	}
 	result.Name, result.Version, result.Architecture = fields["Package"], fields["Version"], fields["Architecture"]
 	result.Depends = fields["Depends"]
-	if result.Name != "openrhp-guard" &&
-		(strings.Contains(fields["Replaces"], "openrhp-guard") || strings.Contains(fields["Conflicts"], "openrhp-guard")) {
+	if result.Name != "routeharbor-guard" &&
+		(strings.Contains(fields["Replaces"], "routeharbor-guard") || strings.Contains(fields["Conflicts"], "routeharbor-guard")) {
 		return result, errors.New("maintenance_guard_relationship_rejected")
 	}
 	for line := range strings.SplitSeq(string(conffiles), "\n") {
@@ -382,7 +382,7 @@ func finishArchive(reader *io.LimitedReader) error {
 // Control-package identity alone does not prevent a misbuilt signed package
 // from trying to overwrite retained guard state or its boot entry points.
 func protectGuardPayload(metadata packageMetadata) error {
-	if metadata.Name == "openrhp-guard" {
+	if metadata.Name == "routeharbor-guard" {
 		return nil
 	}
 	for _, file := range metadata.Files {
@@ -409,11 +409,11 @@ func protectGuardPayload(metadata packageMetadata) error {
 
 func reservedGuardPath(name string, includeAncestors bool) bool {
 	roots := []string{
-		"usr/libexec/openrhp-helper",
-		"etc/init.d/openrhp-guard",
-		"etc/openrhp-helper",
-		"etc/openrhp-maintenance",
-		"usr/share/nftables.d/ruleset-pre/90-openrhp-guard.nft",
+		"usr/libexec/routeharbor-helper",
+		"etc/init.d/routeharbor-guard",
+		"etc/routeharbor-helper",
+		"etc/routeharbor-maintenance",
+		"usr/share/nftables.d/ruleset-pre/90-routeharbor-guard.nft",
 	}
 	for _, root := range roots {
 		if name == root || strings.HasPrefix(name, root+"/") ||
@@ -422,5 +422,5 @@ func reservedGuardPath(name string, includeAncestors bool) bool {
 		}
 	}
 	return (includeAncestors && name == "etc/rc.d") ||
-		(strings.HasPrefix(name, "etc/rc.d/") && strings.HasSuffix(name, "openrhp-guard"))
+		(strings.HasPrefix(name, "etc/rc.d/") && strings.HasSuffix(name, "routeharbor-guard"))
 }

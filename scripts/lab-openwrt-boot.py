@@ -38,7 +38,7 @@ class Lab:
     def put_host_file(self, source, destination):
         # Read the actual caller-selected file, never an older read-only mount
         # with the same filename. Verify the bytes after transport into the guest.
-        staged = "/tmp/openrhp-boot-input-" + uuid.uuid4().hex
+        staged = "/tmp/routeharbor-boot-input-" + uuid.uuid4().hex
         digest = hashlib.sha256(source.read_bytes()).hexdigest()
         subprocess.run(["docker", "cp", str(source), self.container + ":" + staged], check=True, capture_output=True)
         try:
@@ -49,11 +49,11 @@ class Lab:
             self.container_command(["rm", "-f", staged], check=False)
 
     def signal(self, pid, value, check=True):
-        code = "import os,pathlib,sys; p=int(sys.argv[1]); command=pathlib.Path('/proc/'+str(p)+'/cmdline').read_bytes(); assert b'openrhp-boot-' in command, 'Foreign process'; os.kill(p,int(sys.argv[2]))"
+        code = "import os,pathlib,sys; p=int(sys.argv[1]); command=pathlib.Path('/proc/'+str(p)+'/cmdline').read_bytes(); assert b'routeharbor-boot-' in command, 'Foreign process'; os.kill(p,int(sys.argv[2]))"
         return self.container_command(['python3', '-c', code, str(pid), str(value)], check=check, timeout=5)
 
     def api(self, path, method="GET", data=None, revision=None):
-        argv = ["/usr/bin/openrhp", "api", "--token-file", "/root/openrhp-lab/admin.token",
+        argv = ["/usr/bin/routeharbor", "api", "--token-file", "/root/routeharbor-lab/admin.token",
                 "--path", path, "--method", method]
         if data is not None:
             argv += ["--data", "-", "--idempotency-key", uuid.uuid4().hex]
@@ -61,7 +61,7 @@ class Lab:
             argv += ["--revision", str(revision)]
         command = shlex.join(argv)
         if data is not None:
-            marker = "OPENRHP_INPUT_" + uuid.uuid4().hex
+            marker = "ROUTEHARBOR_INPUT_" + uuid.uuid4().hex
             command += " <<'" + marker + "'\n" + json.dumps(data) + "\n" + marker
         return json.loads(self.guest(command + "\n").stdout)
 
@@ -92,7 +92,7 @@ for version, address in [(4, '8.8.8.8'), (6, '2001:4860:4860::8888')]:
     for kind, port in [('tcp', 18080), ('udp', 18081), ('dns-udp', 53), ('dns-tcp', 53)]:
         family = socket.AF_INET if version == 4 else socket.AF_INET6
         transport = socket.SOCK_STREAM if kind in ['tcp', 'dns-tcp'] else socket.SOCK_DGRAM
-        payload = ('OpenRHP-boot-' + phase).encode()
+        payload = ('RouteHarbor-boot-' + phase).encode()
         with socket.socket(family, transport) as connection:
             connection.settimeout(1.5)
             try:
@@ -163,8 +163,8 @@ while True:
 
 FLOOD = r'''
 import json, pathlib, socket, time
-stop = pathlib.Path('/tmp/openrhp-boot-traffic.stop')
-status = pathlib.Path('/tmp/openrhp-boot-traffic.json')
+stop = pathlib.Path('/tmp/routeharbor-boot-traffic.stop')
+status = pathlib.Path('/tmp/routeharbor-boot-traffic.json')
 udp = []
 tcp = []
 connections = []
@@ -185,12 +185,12 @@ reported = 0
 while time.monotonic() < deadline and not stop.exists():
     for connection, address in udp:
         try:
-            connection.sendto(b'OpenRHP-boot-persistent', address)
+            connection.sendto(b'RouteHarbor-boot-persistent', address)
         except OSError:
             pass
     for connection in tcp:
         try:
-            connection.send(b'OpenRHP-boot-established')
+            connection.send(b'RouteHarbor-boot-established')
             connection.recv(65536)
         except OSError:
             pass
@@ -211,7 +211,7 @@ while time.monotonic() < deadline and not stop.exists():
 
 def traffic(lab, phase, expected):
     report = lab.container_command(
-        ["ip", "netns", "exec", "openrhp-client", "python3", "-c", CLIENT, phase], timeout=30)
+        ["ip", "netns", "exec", "routeharbor-client", "python3", "-c", CLIENT, phase], timeout=30)
     values = json.loads(report.stdout)
     assert values.pop('management'), (phase, 'LAN management unavailable')
     wan = {name: value for name, value in values.items() if '-router-dns-' not in name}
@@ -228,15 +228,15 @@ def traffic(lab, phase, expected):
 
 
 def start_background(lab, name, namespace, source):
-    target = '/tmp/openrhp-boot-' + name + '.py'
+    target = '/tmp/routeharbor-boot-' + name + '.py'
     lab.container_command(['python3', '-c', 'import pathlib,sys; pathlib.Path(sys.argv[1]).write_text(sys.stdin.read())', target], source)
     command = shlex.join(['ip', 'netns', 'exec', namespace, 'python3', target])
-    return int(lab.container_command(['sh', '-c', command + ' >/tmp/openrhp-boot-' + name + '.log 2>&1 </dev/null & echo $!']).stdout)
+    return int(lab.container_command(['sh', '-c', command + ' >/tmp/routeharbor-boot-' + name + '.log 2>&1 </dev/null & echo $!']).stdout)
 
 
 def check_flood(lab, pid, previous=0):
     lab.signal(pid, 0)
-    report = json.loads(lab.container_command(['cat', '/tmp/openrhp-boot-traffic.json']).stdout)
+    report = json.loads(lab.container_command(['cat', '/tmp/routeharbor-boot-traffic.json']).stdout)
     assert time.time() - report['updated'] < 3, 'Traffic generator stopped making progress'
     assert report['iterations'] > previous, 'No fresh traffic was generated'
     return report['iterations']
@@ -250,7 +250,7 @@ def check_capture(lab, pid):
     assert state not in ['Z', 'X'], 'WAN capture stopped before the test ended'
 
 
-def start_capture(lab, path, *, namespace='openrhp-wan', interface='any', expression=None):
+def start_capture(lab, path, *, namespace='routeharbor-wan', interface='any', expression=None):
     if expression is None:
         expression = CAPTURE_FILTER
     command = shlex.join(['ip', 'netns', 'exec', namespace, 'tcpdump', '--immediate-mode', '-n', '-U', '-i', interface, '-w', path, expression])
@@ -291,7 +291,7 @@ def select_dependencies(manifest):
 def validate_captures(metadata_path):
     """Same final assertion for a live run and its immutable retained evidence."""
     module_path = pathlib.Path(__file__).resolve().parent.parent / 'docker/lab-openwrt-vm/capture.py'
-    specification = importlib.util.spec_from_file_location('openrhp_capture', module_path)
+    specification = importlib.util.spec_from_file_location('routeharbor_capture', module_path)
     checks = importlib.util.module_from_spec(specification)
     specification.loader.exec_module(checks)
     result = checks.verify_files(metadata_path.parent, json.loads(metadata_path.read_text()))
@@ -323,7 +323,7 @@ def retain_and_validate_captures(lab, run_id, confirmed_at, connections, diagnos
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--container", default="openrhp-openwrt-boot-lab")
+    parser.add_argument("--container", default="routeharbor-openwrt-boot-lab")
     parser.add_argument("--dependencies", type=pathlib.Path)
     parser.add_argument("--packages", type=pathlib.Path)
     parser.add_argument('--verify-captures', type=pathlib.Path,
@@ -343,13 +343,13 @@ def main():
     sdk = args.packages.resolve(strict=True)
     release = lab.guest("cat /etc/openwrt_release; uname -r; cat /proc/1/comm\n").stdout
     assert "24.10.7" in release and "6.6.141" in release and "procd" in release, release
-    lab.guest("if opkg list-installed | grep -q '^openrhp'; then echo 'Restore the pristine lab checkpoint before this installation test' >&2; exit 1; fi\n")
+    lab.guest("if opkg list-installed | grep -q '^routeharbor'; then echo 'Restore the pristine lab checkpoint before this installation test' >&2; exit 1; fi\n")
     print("PASS actual OpenWrt 24.10.7 kernel and PID1 procd", flush=True)
-    server_pid = start_background(lab, 'server', 'openrhp-wan', SERVER)
+    server_pid = start_background(lab, 'server', 'routeharbor-wan', SERVER)
     atexit.register(lab.signal, server_pid, signal.SIGTERM, check=False)
     time.sleep(0.2)
     lab.signal(server_pid, 0)
-    calibration = '/tmp/openrhp-boot-baseline.pcap'
+    calibration = '/tmp/routeharbor-boot-baseline.pcap'
     calibration_pid = start_capture(lab, calibration)
     traffic(lab, 'uninstalled-baseline', True)
     observed = stop_capture(lab, calibration_pid, calibration)
@@ -357,24 +357,24 @@ def main():
         for port, tcp in [(18080, True), (18081, False), (53, True), (53, False)]:
             assert any(f'> {address}.{port}:' in line and ('Flags [' in line) == tcp for line in observed.splitlines()), ('Capture did not observe known permitted traffic', address, port, tcp)
     print('PASS positive LAN-to-WAN IPv4/IPv6 TCP/UDP/DNS baseline and LAN management', flush=True)
-    lab.guest("mkdir -p /tmp/openrhp-deps /tmp/openrhp-ipks /root/openrhp-lab; chmod 0700 /root/openrhp-lab\n")
+    lab.guest("mkdir -p /tmp/routeharbor-deps /tmp/routeharbor-ipks /root/routeharbor-lab; chmod 0700 /root/routeharbor-lab\n")
     selected = select_dependencies(json.loads((deps / "manifest.json").read_text()))
     for item in selected:
         path = deps / item["file"]
         assert hashlib.sha256(path.read_bytes()).hexdigest() == item["sha256"], path.name
-        lab.put_host_file(path, "/tmp/openrhp-deps/" + path.name)
-    lab.guest("opkg install /tmp/openrhp-deps/*.ipk\n")
-    for name in ["openrhp", "openrhp-guard", "openrhp-node", "openrhp-conntrack"]:
+        lab.put_host_file(path, "/tmp/routeharbor-deps/" + path.name)
+    lab.guest("opkg install /tmp/routeharbor-deps/*.ipk\n")
+    for name in ["routeharbor", "routeharbor-guard", "routeharbor-node", "routeharbor-conntrack"]:
         candidates = list(sdk.glob(name + "_*.ipk"))
         assert len(candidates) == 1, name
         path = candidates[0]
-        lab.put_host_file(path, "/tmp/openrhp-ipks/" + path.name)
-    lab.guest("sha256sum /etc/config/network /etc/config/firewall /etc/config/dhcp > /root/openrhp-lab/network-before.sha\n"
-              "opkg install /tmp/openrhp-ipks/*.ipk\n"
-              "test \"$(uci -q get openrhp.main.enabled)\" = 0\n"
-              "test \"$(uci -q get openrhp-node.main.enabled)\" = 0\n"
-              "sha256sum -c /root/openrhp-lab/network-before.sha\n"
-              "/usr/libexec/openrhp-setup /root/openrhp-lab/admin.token\n")
+        lab.put_host_file(path, "/tmp/routeharbor-ipks/" + path.name)
+    lab.guest("sha256sum /etc/config/network /etc/config/firewall /etc/config/dhcp > /root/routeharbor-lab/network-before.sha\n"
+              "opkg install /tmp/routeharbor-ipks/*.ipk\n"
+              "test \"$(uci -q get routeharbor.main.enabled)\" = 0\n"
+              "test \"$(uci -q get routeharbor-node.main.enabled)\" = 0\n"
+              "sha256sum -c /root/routeharbor-lab/network-before.sha\n"
+              "/usr/libexec/routeharbor-setup /root/routeharbor-lab/admin.token\n")
     lab.wait_api()
     assert lab.api("/api/v1/capabilities")["platform"]["supported"]
     print("PASS ordinary package installation, disabled defaults and root/service setup", flush=True)
@@ -382,7 +382,7 @@ def main():
     if args.install_only:
         assert not config['network']['enabled'] and config['policy']['mode'] == 'off'
         assert config['sources'] == [] and config['targets'] == []
-        lab.guest('sha256sum -c /root/openrhp-lab/network-before.sha\n')
+        lab.guest('sha256sum -c /root/routeharbor-lab/network-before.sha\n')
         print('PASS clean manual-setup baseline: routing remains off, no sources or resources', flush=True)
         return
     config["sources"] = [{"id": "direct", "name": "Isolated WAN", "type": "direct", "enabled": True, "auto": True, "settings": {}}]
@@ -399,18 +399,18 @@ def main():
     run_id = str(time.time_ns())
     diagnostic_filter = '(host 8.8.8.8 or host 2001:4860:4860::8888) and (port 18080 or port 18081 or port 53)'
     diagnostics = []
-    for label, namespace in [('wan', 'openrhp-wan'), ('lan', 'openrhp-client')]:
-        destination = '/tmp/openrhp-boot-' + label + '-duplex-' + run_id + '.pcap'
+    for label, namespace in [('wan', 'routeharbor-wan'), ('lan', 'routeharbor-client')]:
+        destination = '/tmp/routeharbor-boot-' + label + '-duplex-' + run_id + '.pcap'
         diagnostics.append((start_capture(lab, destination, namespace=namespace,
                                           interface='peer0', expression=diagnostic_filter), destination))
         print('DIAGNOSTIC_CAPTURE ' + destination, flush=True)
-    print('CLIENT_ADDRESSES ' + lab.container_command(['ip', '-n', 'openrhp-client', '-j', 'address', 'show', 'dev', 'peer0']).stdout.strip(), flush=True)
-    lab.container_command(['rm', '-f', '/tmp/openrhp-boot-traffic.stop', '/tmp/openrhp-boot-traffic.json'])
-    flood_pid = start_background(lab, 'traffic', 'openrhp-client', FLOOD)
+    print('CLIENT_ADDRESSES ' + lab.container_command(['ip', '-n', 'routeharbor-client', '-j', 'address', 'show', 'dev', 'peer0']).stdout.strip(), flush=True)
+    lab.container_command(['rm', '-f', '/tmp/routeharbor-boot-traffic.stop', '/tmp/routeharbor-boot-traffic.json'])
+    flood_pid = start_background(lab, 'traffic', 'routeharbor-client', FLOOD)
     atexit.register(lab.signal, flood_pid, signal.SIGTERM, check=False)
     time.sleep(0.3)
     iterations = check_flood(lab, flood_pid)
-    socket_inventory = json.loads(lab.container_command(['cat', '/tmp/openrhp-boot-traffic.json']).stdout)
+    socket_inventory = json.loads(lab.container_command(['cat', '/tmp/routeharbor-boot-traffic.json']).stdout)
     print('PERSISTENT_CLIENT_SOCKETS ' + json.dumps(socket_inventory), flush=True)
     def phase(name, state):
         print(state + ' ' + name + ' ' + datetime.datetime.now(datetime.timezone.utc).isoformat(), flush=True)
@@ -422,7 +422,7 @@ def main():
     confirmed_at = time.time()
     phase('prepare-apply-confirm', 'READY')
     time.sleep(1)
-    capture = '/tmp/openrhp-boot-guard-' + run_id + '.pcap'
+    capture = '/tmp/routeharbor-boot-guard-' + run_id + '.pcap'
     print('PROTECTED_CAPTURE ' + capture, flush=True)
     capture_pid = start_capture(lab, capture)
     traffic(lab, "confirmed", False)
@@ -459,8 +459,8 @@ def main():
     traffic(lab, "powercut", False)
     print('PASS closed policy and helper recovery after abrupt power cut', flush=True)
     check_flood(lab, flood_pid, iterations)
-    lab.guest("sha256sum -c /root/openrhp-lab/network-before.sha\n")
-    lab.container_command(['touch', '/tmp/openrhp-boot-traffic.stop'])
+    lab.guest("sha256sum -c /root/routeharbor-lab/network-before.sha\n")
+    lab.container_command(['touch', '/tmp/routeharbor-boot-traffic.stop'])
     stop_capture(lab, capture_pid, capture)
     for pid, destination in diagnostics:
         stop_capture(lab, pid, destination)

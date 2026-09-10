@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"github.com/tibeahx/OpenRHP/internal/model"
-	"github.com/tibeahx/OpenRHP/internal/probe"
+	"github.com/tibeahx/RouteHarbor/internal/model"
+	"github.com/tibeahx/RouteHarbor/internal/probe"
 )
 
 // ContinuityDefaults does not add a continuity object to existing configuration.

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 // This test changes only the explicitly isolated Docker namespace guarded by
@@ -151,7 +151,7 @@ func TestLinuxSelectiveEmergencyAndNativeGuards(t *testing.T) {
 }
 
 func TestLinuxSelectiveWatchdogChild(t *testing.T) {
-	if os.Getenv("OPENRHP_SELECTIVE_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_SELECTIVE_CHILD") != "1" {
 		t.Skip("isolated child only")
 	}
 	requireNetLab(t)
@@ -191,11 +191,11 @@ func TestLinuxSelectiveWatchdogChild(t *testing.T) {
 			_, _ = udp.WriteTo(response, peer)
 		}
 	}()
-	dir := os.Getenv("OPENRHP_SELECTIVE_STATE")
+	dir := os.Getenv("ROUTEHARBOR_SELECTIVE_STATE")
 	m, err := NewManager(
 		dir,
 		labBackend(),
-		ProcessWatchdog{Binary: "/usr/libexec/openrhp-helper", StateDir: dir},
+		ProcessWatchdog{Binary: "/usr/libexec/routeharbor-helper", StateDir: dir},
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -210,7 +210,7 @@ func TestLinuxSelectiveWatchdogChild(t *testing.T) {
 	if _, err = m.Confirm(tx.ID); err != nil {
 		t.Fatal(err)
 	}
-	if mode := os.Getenv("OPENRHP_SELECTIVE_WATCH_MODE"); mode != "confirmed" {
+	if mode := os.Getenv("ROUTEHARBOR_SELECTIVE_WATCH_MODE"); mode != "confirmed" {
 		next, e := m.Prepare(context.Background(), d)
 		if e != nil {
 			t.Fatal(e)
@@ -222,7 +222,7 @@ func TestLinuxSelectiveWatchdogChild(t *testing.T) {
 		}
 	}
 	if err = os.WriteFile(
-		os.Getenv("OPENRHP_SELECTIVE_READY"),
+		os.Getenv("ROUTEHARBOR_SELECTIVE_READY"),
 		[]byte("ready"),
 		0o600,
 	); err != nil {
@@ -244,10 +244,10 @@ func selectiveDetachedWatchdog(t *testing.T, mode string) {
 	child := exec.Command(os.Args[0], "-test.run=^TestLinuxSelectiveWatchdogChild$", "-test.v")
 	child.Env = append(
 		os.Environ(),
-		"OPENRHP_SELECTIVE_CHILD=1",
-		"OPENRHP_SELECTIVE_STATE="+dir,
-		"OPENRHP_SELECTIVE_READY="+ready,
-		"OPENRHP_SELECTIVE_WATCH_MODE="+mode,
+		"ROUTEHARBOR_SELECTIVE_CHILD=1",
+		"ROUTEHARBOR_SELECTIVE_STATE="+dir,
+		"ROUTEHARBOR_SELECTIVE_READY="+ready,
+		"ROUTEHARBOR_SELECTIVE_WATCH_MODE="+mode,
 	)
 	child.Stdout = os.Stdout
 	child.Stderr = os.Stderr

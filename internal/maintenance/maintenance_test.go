@@ -18,7 +18,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/release"
+	"github.com/tibeahx/RouteHarbor/internal/release"
 )
 
 type member struct {
@@ -69,7 +69,7 @@ func archive(t testing.TB, members []member) []byte {
 func packageBytes(t testing.TB, name, version string, files []member) []byte {
 	t.Helper()
 	control := []byte(
-		"Package: " + name + "\nVersion: " + version + "\nArchitecture: x86_64\nDepends: openrhp-guard\nDescription: offline test\n",
+		"Package: " + name + "\nVersion: " + version + "\nArchitecture: x86_64\nDepends: routeharbor-guard\nDescription: offline test\n",
 	)
 	return archive(
 		t,
@@ -111,11 +111,11 @@ func (f fixture) stage(t *testing.T, version string, payload []byte) (BundleSumm
 func (f fixture) source(t *testing.T, version string, payload []byte) string {
 	t.Helper()
 	source := t.TempDir()
-	name := "openrhp_" + version + "_x86_64.ipk"
+	name := "routeharbor_" + version + "_x86_64.ipk"
 	hash := sha256.Sum256(payload)
 	manifest := release.Manifest{
 		SchemaVersion: 1,
-		Project:       "OpenRHP",
+		Project:       "RouteHarbor",
 		Version:       version,
 		Commit:        strings.Repeat("a", 40),
 		Artifacts: []release.Artifact{
@@ -143,15 +143,15 @@ func TestStageAuthenticatesPackageIdentityAndPayload(t *testing.T) {
 	f := newFixture(t)
 	payload := packageBytes(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.0-r1",
-		[]member{{"usr/bin/openrhp", []byte("binary v1"), 0, ""}},
+		[]member{{"usr/bin/routeharbor", []byte("binary v1"), 0, ""}},
 	)
 	summary, err := f.stage(t, "0.1.0", payload)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(summary.Packages) != 1 || summary.Packages[0].Name != "openrhp" {
+	if len(summary.Packages) != 1 || summary.Packages[0].Name != "routeharbor" {
 		t.Fatal(summary)
 	}
 	stored, err := os.ReadFile(
@@ -170,8 +170,8 @@ func TestAuthenticatedHostilePackagesRejected(t *testing.T) {
 	for _, kind := range []string{"foreign-package", "traversal", "absolute-link", "device", "corrupt-gzip"} {
 		t.Run(kind, func(t *testing.T) {
 			f := newFixture(t)
-			name := "openrhp"
-			files := []member{{"usr/bin/openrhp", []byte("canary executable"), 0, ""}}
+			name := "routeharbor"
+			files := []member{{"usr/bin/routeharbor", []byte("canary executable"), 0, ""}}
 			switch kind {
 			case "foreign-package":
 				name = "dropbear"
@@ -179,10 +179,10 @@ func TestAuthenticatedHostilePackagesRejected(t *testing.T) {
 				files[0].name = "../../outside"
 			case "absolute-link":
 				files = []member{
-					{name: "usr/bin/openrhp", kind: tar.TypeSymlink, target: "/etc/passwd"},
+					{name: "usr/bin/routeharbor", kind: tar.TypeSymlink, target: "/etc/passwd"},
 				}
 			case "device":
-				files = []member{{name: "usr/bin/openrhp", kind: tar.TypeChar}}
+				files = []member{{name: "usr/bin/routeharbor", kind: tar.TypeChar}}
 			}
 			payload := packageBytes(t, name, "0.1.0-r1", files)
 			if kind == "corrupt-gzip" {
@@ -291,7 +291,12 @@ func managerFixture(t *testing.T) (*Manager, *fakeBackend, *fakeWorker, Request)
 	old, err := f.stage(
 		t,
 		"0.1.0",
-		packageBytes(t, "openrhp", "0.1.0-r1", []member{{"usr/bin/openrhp", []byte("old"), 0, ""}}),
+		packageBytes(
+			t,
+			"routeharbor",
+			"0.1.0-r1",
+			[]member{{"usr/bin/routeharbor", []byte("old"), 0, ""}},
+		),
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -300,13 +305,18 @@ func managerFixture(t *testing.T) (*Manager, *fakeBackend, *fakeWorker, Request)
 	current, err := f.stage(
 		t,
 		"0.1.1",
-		packageBytes(t, "openrhp", "0.1.1-r1", []member{{"usr/bin/openrhp", []byte("new"), 0, ""}}),
+		packageBytes(
+			t,
+			"routeharbor",
+			"0.1.1-r1",
+			[]member{{"usr/bin/routeharbor", []byte("new"), 0, ""}},
+		),
 	)
 	if err != nil {
 		t.Fatal(err)
 	}
 	backend := &fakeBackend{
-		packages: map[string]string{"openrhp-guard": "0.1.0-r1", "openrhp": "0.1.0-r1"},
+		packages: map[string]string{"routeharbor-guard": "0.1.0-r1", "routeharbor": "0.1.0-r1"},
 	}
 	worker := &fakeWorker{}
 	manager, err := NewManager(f.state, backend, worker)
@@ -322,7 +332,7 @@ func managerFixture(t *testing.T) (*Manager, *fakeBackend, *fakeWorker, Request)
 	return manager, backend, worker, Request{
 		Action:                  "upgrade",
 		BundleID:                current.ID,
-		Components:              []string{"openrhp"},
+		Components:              []string{"routeharbor"},
 		ExpectedInstalledDigest: digest,
 	}
 }
@@ -362,7 +372,7 @@ func TestCrashDuringPackageManagerNeverCompletesFromVersionAlone(t *testing.T) {
 	if err := manager.update(id, "running", "package_manager", ""); err != nil {
 		t.Fatal(err)
 	}
-	backend.packages["openrhp"] = "0.1.1-r1"
+	backend.packages["routeharbor"] = "0.1.1-r1"
 	if err := manager.Run(context.Background(), id); err != nil {
 		t.Fatal(err)
 	}
@@ -417,7 +427,7 @@ func TestPayloadVerificationChecksBytesModeAndCriticalConffile(t *testing.T) {
 	}
 	data := []byte("known signed executable")
 	hash := sha256.Sum256(data)
-	name := filepath.Join(dir, "usr/bin/openrhp")
+	name := filepath.Join(dir, "usr/bin/routeharbor")
 	if err := os.WriteFile(name, data, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -430,14 +440,14 @@ func TestPayloadVerificationChecksBytesModeAndCriticalConffile(t *testing.T) {
 		{
 			Files: []PayloadFile{
 				{
-					Path:   "usr/bin/openrhp",
+					Path:   "usr/bin/routeharbor",
 					Type:   "file",
 					Mode:   0o755,
 					Bytes:  int64(len(data)),
 					SHA256: hex.EncodeToString(hash[:]),
 				},
 			},
-			Conffiles: []string{"usr/bin/openrhp"},
+			Conffiles: []string{"usr/bin/routeharbor"},
 		},
 	}
 	if err = verifyPayload(root, payload, false); err != nil {
@@ -463,11 +473,11 @@ func TestPayloadVerificationChecksBytesModeAndCriticalConffile(t *testing.T) {
 func TestGuardReplacementAndUnstagedPreviousVersionRejected(t *testing.T) {
 	manager, backend, _, request := managerFixture(t)
 	guard := request
-	guard.Components = []string{"openrhp-guard"}
+	guard.Components = []string{"routeharbor-guard"}
 	if _, err := manager.Plan(context.Background(), guard); err == nil {
 		t.Fatal("guard replacement accepted")
 	}
-	backend.packages["openrhp"] = "0.0.9-r1"
+	backend.packages["routeharbor"] = "0.0.9-r1"
 	inventory, _ := backend.Inventory(context.Background())
 	request.ExpectedInstalledDigest, _ = inventoryDigest(inventory)
 	if _, err := manager.Plan(context.Background(), request); err == nil {
@@ -520,9 +530,9 @@ func TestStageRepairsInterruptedArtifactCopy(t *testing.T) {
 	f := newFixture(t)
 	payload := packageBytes(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.0-r1",
-		[]member{{"usr/bin/openrhp", []byte("binary v1"), 0, ""}},
+		[]member{{"usr/bin/routeharbor", []byte("binary v1"), 0, ""}},
 	)
 	hash := sha256.Sum256(payload)
 	// This is the exact final pathname/mode left by SIGKILL during copyArtifact.
@@ -573,9 +583,9 @@ func TestRestageRepairsCompletedBundleAndRejectsTampering(t *testing.T) {
 	f := newFixture(t)
 	payload := packageBytes(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.0-r1",
-		[]member{{"usr/bin/openrhp", []byte("binary"), 0, ""}},
+		[]member{{"usr/bin/routeharbor", []byte("binary"), 0, ""}},
 	)
 	summary, err := f.stage(t, "0.1.0", payload)
 	if err != nil {
@@ -643,7 +653,7 @@ func TestExplicitRecoveryAndRollbackStayDurable(t *testing.T) {
 			if mode == "rollback" {
 				state, version = "failed", "0.1.0-r1"
 			}
-			if status.State != state || backend.packages["openrhp"] != version ||
+			if status.State != state || backend.packages["routeharbor"] != version ||
 				backend.releases != 1 {
 				t.Fatal(status, backend)
 			}
@@ -659,9 +669,9 @@ func TestRestageRejectsTamperedIncomingBytesEvenWithValidCache(t *testing.T) {
 	f := newFixture(t)
 	payload := packageBytes(
 		t,
-		"openrhp",
+		"routeharbor",
 		"0.1.0-r1",
-		[]member{{"usr/bin/openrhp", []byte("binary"), 0, ""}},
+		[]member{{"usr/bin/routeharbor", []byte("binary"), 0, ""}},
 	)
 	summary, err := f.stage(t, "0.1.0", payload)
 	if err != nil {
@@ -670,7 +680,7 @@ func TestRestageRejectsTamperedIncomingBytesEvenWithValidCache(t *testing.T) {
 	source := f.source(t, "0.1.0", payload)
 	payload[0] ^= 1
 	if err = os.WriteFile(
-		filepath.Join(source, "openrhp_0.1.0_x86_64.ipk"),
+		filepath.Join(source, "routeharbor_0.1.0_x86_64.ipk"),
 		payload,
 		0o600,
 	); err != nil {
@@ -693,9 +703,9 @@ func FuzzInspectIPK(f *testing.F) {
 	f.Add(
 		packageBytes(
 			f,
-			"openrhp",
+			"routeharbor",
 			"0.1.0-r1",
-			[]member{{"usr/bin/openrhp", []byte("fixture"), 0, ""}},
+			[]member{{"usr/bin/routeharbor", []byte("fixture"), 0, ""}},
 		),
 	)
 	f.Add([]byte("not a package"))
@@ -732,12 +742,12 @@ func TestConcurrentStartsAcceptOnlyOneJob(t *testing.T) {
 }
 
 func TestSignedNonGuardPackagesCannotClaimGuardPayloads(t *testing.T) {
-	for _, filename := range []string{"usr/libexec/openrhp-helper", "etc/init.d/openrhp-guard", "etc/openrhp-helper/transaction.json", "etc/openrhp-maintenance/trust.pub", "usr/share/nftables.d/ruleset-pre/90-openrhp-guard.nft", "etc/rc.d/S03openrhp-guard"} {
+	for _, filename := range []string{"usr/libexec/routeharbor-helper", "etc/init.d/routeharbor-guard", "etc/routeharbor-helper/transaction.json", "etc/routeharbor-maintenance/trust.pub", "usr/share/nftables.d/ruleset-pre/90-routeharbor-guard.nft", "etc/rc.d/S03routeharbor-guard"} {
 		t.Run(filename, func(t *testing.T) {
 			f := newFixture(t)
 			payload := packageBytes(
 				t,
-				"openrhp",
+				"routeharbor",
 				"0.1.0-r1",
 				[]member{{filename, []byte("wrongly packaged signed content"), 0, ""}},
 			)
@@ -748,11 +758,11 @@ func TestSignedNonGuardPackagesCannotClaimGuardPayloads(t *testing.T) {
 	}
 	for _, file := range []member{
 		{name: "usr/libexec", kind: tar.TypeSymlink, target: "bin"},
-		{name: "usr/bin/alias", kind: tar.TypeSymlink, target: "../libexec/openrhp-helper"},
-		{name: "usr/bin/alias", kind: tar.TypeLink, target: "usr/libexec/openrhp-helper"},
+		{name: "usr/bin/alias", kind: tar.TypeSymlink, target: "../libexec/routeharbor-helper"},
+		{name: "usr/bin/alias", kind: tar.TypeLink, target: "usr/libexec/routeharbor-helper"},
 	} {
 		if _, err := InspectIPK(
-			bytes.NewReader(packageBytes(t, "openrhp", "0.1.0-r1", []member{file})),
+			bytes.NewReader(packageBytes(t, "routeharbor", "0.1.0-r1", []member{file})),
 		); err == nil {
 			t.Fatal("guard alias or ancestor replacement accepted", file.name)
 		}
@@ -761,9 +771,9 @@ func TestSignedNonGuardPackagesCannotClaimGuardPayloads(t *testing.T) {
 	// through the public maintenance request contract.
 	guard := packageBytes(
 		t,
-		"openrhp-guard",
+		"routeharbor-guard",
 		"0.1.0-r1",
-		[]member{{"usr/libexec/openrhp-helper", []byte("guard fixture"), 0, ""}},
+		[]member{{"usr/libexec/routeharbor-helper", []byte("guard fixture"), 0, ""}},
 	)
 	if _, err := InspectIPK(bytes.NewReader(guard)); err != nil {
 		t.Fatal("guard staging rejected", err)
@@ -771,7 +781,7 @@ func TestSignedNonGuardPackagesCannotClaimGuardPayloads(t *testing.T) {
 	if err := ValidateRequest(
 		Request{
 			Action:     "upgrade",
-			Components: []string{"openrhp-guard"},
+			Components: []string{"routeharbor-guard"},
 			BundleID:   strings.Repeat("a", 32),
 		},
 		false,
@@ -784,7 +794,7 @@ func TestSignedPackageCannotReplaceOrConflictWithGuard(t *testing.T) {
 	for _, field := range []string{"Replaces", "Conflicts"} {
 		t.Run(field, func(t *testing.T) {
 			control := []byte(
-				"Package: openrhp\nVersion: 0.1.0-r1\nArchitecture: x86_64\n" + field + ": openrhp-guard (>= 0.1.0)\n",
+				"Package: routeharbor\nVersion: 0.1.0-r1\nArchitecture: x86_64\n" + field + ": routeharbor-guard (>= 0.1.0)\n",
 			)
 			payload := archive(
 				t,
@@ -793,7 +803,7 @@ func TestSignedPackageCannotReplaceOrConflictWithGuard(t *testing.T) {
 					{"control.tar.gz", archive(t, []member{{"control", control, 0, ""}}), 0, ""},
 					{
 						"data.tar.gz",
-						archive(t, []member{{"usr/bin/openrhp", []byte("fixture"), 0, ""}}),
+						archive(t, []member{{"usr/bin/routeharbor", []byte("fixture"), 0, ""}}),
 						0,
 						"",
 					},

@@ -1,5 +1,5 @@
 {
-  "name": "openrhp-browser-tests",
+  "name": "routeharbor-browser-tests",
   "private": true,
   "scripts": {
     "test": "playwright test"

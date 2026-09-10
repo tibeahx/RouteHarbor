@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/dispatch"
+	"github.com/tibeahx/RouteHarbor/internal/dispatch"
 )
 
 func TestContinuityBridgeTypedValidation(t *testing.T) {

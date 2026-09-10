@@ -19,8 +19,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 // An unprivileged worker receives a bounded local datagram channel, never the

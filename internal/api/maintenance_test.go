@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/maintenance"
+	"github.com/tibeahx/RouteHarbor/internal/maintenance"
 )
 
 type maintenanceFixture struct {
@@ -67,7 +67,7 @@ func TestMaintenanceAPIRetryRearmsOnlyTheSamePreparedJob(t *testing.T) {
 	f := &maintenanceFixture{jobs: map[string]maintenance.Operation{}, deferWorker: true}
 	s.Maintenance = f
 	handler := s.Handler()
-	body := `{"action":"remove","components":["openrhp-conntrack"],"removal_policy":"preserve-closed","expected_installed_digest":"` + strings.Repeat(
+	body := `{"action":"remove","components":["routeharbor-conntrack"],"removal_policy":"preserve-closed","expected_installed_digest":"` + strings.Repeat(
 		"1",
 		64,
 	) + `"}`
@@ -192,7 +192,7 @@ func TestMaintenanceAPIReconcilesLostAcknowledgementAndRestartWithoutReplay(t *t
 	f := &maintenanceFixture{jobs: map[string]maintenance.Operation{}, loseReply: true}
 	s.Maintenance = f
 	handler := s.Handler()
-	body := `{"action":"install","bundle_id":"0123456789abcdef0123456789abcdef","components":["openrhp-sing-box"],"expected_installed_digest":"` + strings.Repeat(
+	body := `{"action":"install","bundle_id":"0123456789abcdef0123456789abcdef","components":["routeharbor-sing-box"],"expected_installed_digest":"` + strings.Repeat(
 		"1",
 		64,
 	) + `"}`
@@ -298,7 +298,7 @@ func TestMaintenanceAPIRejectsAuthorityRevisionAndArbitraryExecutionFields(t *te
 		readonly,
 		"",
 		"",
-		`{"action":"install","components":["openrhp-sing-box"]}`,
+		`{"action":"install","components":["routeharbor-sing-box"]}`,
 	)
 	if response.Code != 200 || f.starts != 0 {
 		t.Fatal("read-only plan performed a mutation", response.Code)

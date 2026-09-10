@@ -37,7 +37,7 @@ returned **1**; none of the failed rows is waived or hidden.
 ## Results
 
 Each row runs all tests in `internal/selection`, `internal/config` and
-`cmd/openrhp-release` in separate cross-compiled test executables.
+`cmd/routeharbor-release` in separate cross-compiled test executables.
 
 | Target | CPU | Selection | Configuration | Offline release CLI |
 | --- | --- | --- | --- | --- |
@@ -74,7 +74,7 @@ The standalone `scripts/testdata/abi-netpoll/main.go` uses only standard-library
 pipes, timers and goroutines. It reproduces the MIPS64 failure on both `5Kc` and
 `MIPS64R2-generic`. It also reproduces the i386 `SIGSEGV` in `runtime.runqput` during
 runtime initialization on both `qemu32` and `max`; that failure's cause remains
-unresolved. Neither control imports OpenRHP packages. They rule out a requirement
+unresolved. Neither control imports RouteHarbor packages. They rule out a requirement
 for project code in reproducing the crash, but do not distinguish every possible
 emulator/runtime interaction.
 

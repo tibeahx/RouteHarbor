@@ -6,8 +6,8 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type wirelessSnapshot struct {
@@ -18,7 +18,7 @@ type wirelessSnapshot struct {
 }
 
 var meshFields = []string{
-	"openrhp_owner",
+	"routeharbor_owner",
 	"device",
 	"mode",
 	"network",
@@ -41,12 +41,12 @@ func (b *UCIBackend) Snapshot(ctx context.Context, p Plan) (Snapshot, error) {
 	if value, ok := w["wireless."+p.APSection+".wds"]; ok {
 		s.WDS = &value
 	}
-	if value, ok := w["wireless."+p.APSection+".openrhp_wds_owner"]; ok {
+	if value, ok := w["wireless."+p.APSection+".routeharbor_wds_owner"]; ok {
 		s.WDSOwner = &value
 	}
 	if w["wireless."+meshSection] != "" {
 		if w["wireless."+meshSection] != "wifi-iface" ||
-			w["wireless."+meshSection+".openrhp_owner"] != "1" {
+			w["wireless."+meshSection+".routeharbor_owner"] != "1" {
 			return nil, errors.New("gateway_wireless_ownership_conflict")
 		}
 		s.Mesh = map[string]string{}
@@ -100,14 +100,14 @@ func (b *UCIBackend) Restore(ctx context.Context, snapshot Snapshot) error {
 	if w["wireless."+s.APSection] != "wifi-iface" {
 		return errors.New("gateway_adopted_ap_missing")
 	}
-	if w["wireless."+meshSection] != "" && w["wireless."+meshSection+".openrhp_owner"] != "1" {
+	if w["wireless."+meshSection] != "" && w["wireless."+meshSection+".routeharbor_owner"] != "1" {
 		return errors.New("gateway_wireless_ownership_conflict")
 	}
 	var lines strings.Builder
 	for _, field := range []struct {
 		name  string
 		value *string
-	}{{"wds", s.WDS}, {"openrhp_wds_owner", s.WDSOwner}} {
+	}{{"wds", s.WDS}, {"routeharbor_wds_owner", s.WDSOwner}} {
 		key := "wireless." + s.APSection + "." + field.name
 		if field.value != nil {
 			lines.WriteString("set " + key + "=" + quoteUCI(*field.value) + "\n")
@@ -151,7 +151,7 @@ func validateSnapshot(s wirelessSnapshot) error {
 	if s.Mesh == nil {
 		return nil
 	}
-	if len(s.Mesh) != len(meshFields) || s.Mesh["openrhp_owner"] != "1" ||
+	if len(s.Mesh) != len(meshFields) || s.Mesh["routeharbor_owner"] != "1" ||
 		!platform.ValidInterfaceName(s.Mesh["device"]) ||
 		!platform.ValidInterfaceName(s.Mesh["network"]) ||
 		s.Mesh["mode"] != "mesh" ||

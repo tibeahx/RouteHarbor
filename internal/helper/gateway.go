@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/tibeahx/OpenRHP/internal/coverage"
+	"github.com/tibeahx/RouteHarbor/internal/coverage"
 )
 
 // GatewayWatchdog uses the same trusted detached process boundary with a separate

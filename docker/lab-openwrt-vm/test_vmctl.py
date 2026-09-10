@@ -19,7 +19,7 @@ class CheckpointTests(unittest.TestCase):
         self.scope.start()
         self.addCleanup(self.scope.stop)
         (self.state / 'owner.json').write_text(json.dumps({
-            'project': 'OpenRHP isolated full-boot lab', 'image_sha256': vmctl.SHA256,
+            'project': 'RouteHarbor isolated full-boot lab', 'image_sha256': vmctl.SHA256,
         }))
         for name, value in [('known_hosts', b'pinned-host'), ('identity.pub', b'lab-client'),
                             ('router.qcow2', b'current-disk'), ('pristine.qcow2', b'clean-disk')]:

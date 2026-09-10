@@ -1,13 +1,13 @@
 # Security policy
 
-OpenRHP controls potentially sensitive home traffic. Its development preview is not
+RouteHarbor controls potentially sensitive home traffic. Its development preview is not
 a security-certified product; no physical router is presently approved for a stable
 release. See [threat model](docs/threat-model.md), [independent review](docs/security-review.md)
 and [verification status](docs/verification.md).
 
 ## Report privately
 
-Use [GitHub private vulnerability reporting](https://github.com/tibeahx/OpenRHP/security/advisories/new).
+Use [GitHub private vulnerability reporting](https://github.com/tibeahx/RouteHarbor/security/advisories/new).
 Include affected commit/version, prerequisites, a minimal reproduction and the
 security impact. Use synthetic credentials and redacted diagnostics. Do not post VPN,
 Wi-Fi, API or PPPoE secrets, packet payloads or private endpoint addresses publicly.

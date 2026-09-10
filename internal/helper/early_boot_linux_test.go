@@ -10,12 +10,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 func TestLinuxEarlyBootGuardBeforeNetworkDevices(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_EARLY_GUARD_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_EARLY_GUARD_CHILD") != "1" {
 		binary, err := os.Executable()
 		if err != nil {
 			t.Fatal(err)
@@ -27,7 +27,7 @@ func TestLinuxEarlyBootGuardBeforeNetworkDevices(t *testing.T) {
 			"-test.run=^TestLinuxEarlyBootGuardBeforeNetworkDevices$",
 			"-test.v",
 		)
-		cmd.Env = append(os.Environ(), "OPENRHP_EARLY_GUARD_CHILD=1")
+		cmd.Env = append(os.Environ(), "ROUTEHARBOR_EARLY_GUARD_CHILD=1")
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			t.Fatalf("early network namespace: %v\n%s", err, out)

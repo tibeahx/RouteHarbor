@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/platform"
+	"github.com/tibeahx/RouteHarbor/internal/platform"
 )
 
 type (
@@ -85,7 +85,7 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) error {
 	for _, port := range existingPorts {
 		ports[strings.Trim(port, "'")] = true
 	}
-	if reserved := n["network."+p.BridgeSection+".openrhp_disabled_uplink"]; reserved != "" {
+	if reserved := n["network."+p.BridgeSection+".routeharbor_disabled_uplink"]; reserved != "" {
 		ports[reserved] = true
 	}
 	for _, port := range p.LANPorts {
@@ -129,8 +129,8 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) error {
 		return errors.New("wireless_discovery_failed")
 	}
 	w := parseUCI(wireless)
-	for _, name := range []string{"wireless.openrhp_ap", "wireless.openrhp_backhaul"} {
-		if w[name] != "" && w[name+".openrhp_owner"] != "1" {
+	for _, name := range []string{"wireless.routeharbor_ap", "wireless.routeharbor_backhaul"} {
+		if w[name] != "" && w[name+".routeharbor_owner"] != "1" {
 			return errors.New("wireless_ownership_conflict")
 		}
 	}
@@ -140,8 +140,8 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) error {
 		}
 		for key, value := range w {
 			if value == "wifi-iface" && w[key+".device"] == p.Radio &&
-				key != "wireless.openrhp_ap" &&
-				key != "wireless.openrhp_backhaul" &&
+				key != "wireless.routeharbor_ap" &&
+				key != "wireless.routeharbor_backhaul" &&
 				w[key+".disabled"] != "1" {
 				return errors.New(
 					"wireless_ownership_conflict: explicit adoption of existing radio settings is required",
@@ -157,7 +157,7 @@ func (b *UCIBackend) Check(ctx context.Context, p Plan) error {
 				)
 			}
 		}
-		if p.Radio != "" || w["wireless.openrhp_backhaul"] != "" {
+		if p.Radio != "" || w["wireless.routeharbor_backhaul"] != "" {
 			if checker.Available("/sbin/wifi") != nil {
 				return errors.New(
 					"node_wifi_tool_missing: radio changes require the existing OpenWrt wifi tool",
@@ -201,7 +201,7 @@ func (b *UCIBackend) Apply(ctx context.Context, p Plan) error {
 	set := func(key, value string) error {
 		args := []string{"set", key + "=" + value}
 		var input []byte
-		if key == "wireless.openrhp_ap.key" || key == "wireless.openrhp_backhaul.key" {
+		if key == "wireless.routeharbor_ap.key" || key == "wireless.routeharbor_backhaul.key" {
 			args = []string{"-q", "batch"}
 			input = []byte("set " + key + "=" + uciQuote(value) + "\n")
 		}
@@ -245,19 +245,19 @@ func (b *UCIBackend) Apply(ctx context.Context, p Plan) error {
 	}
 	values = append(
 		values,
-		[2]string{"network." + p.BridgeSection + ".openrhp_disabled_uplink", reserved},
+		[2]string{"network." + p.BridgeSection + ".routeharbor_disabled_uplink", reserved},
 	)
 	if p.Mode == "ethernet" {
 		wireless, e := b.Runner.Run(ctx, "/sbin/uci", []string{"-X", "-q", "show", "wireless"}, nil)
 		if e != nil {
 			return errors.New("wireless_discovery_failed")
 		}
-		if parseUCI(wireless)["wireless.openrhp_backhaul"] != "" {
+		if parseUCI(wireless)["wireless.routeharbor_backhaul"] != "" {
 			wirelessChanged = true
 			if _, e = b.Runner.Run(
 				ctx,
 				"/sbin/uci",
-				[]string{"delete", "wireless.openrhp_backhaul"},
+				[]string{"delete", "wireless.routeharbor_backhaul"},
 				nil,
 			); e != nil {
 				return errors.New("node_backhaul_disable_failed")
@@ -284,15 +284,15 @@ func (b *UCIBackend) Apply(ctx context.Context, p Plan) error {
 		values = append(
 			values,
 			[2]string{"wireless." + p.Radio + ".channel", fmt.Sprint(p.Channel)},
-			[2]string{"wireless.openrhp_ap", "wifi-iface"},
-			[2]string{"wireless.openrhp_ap.openrhp_owner", "1"},
-			[2]string{"wireless.openrhp_ap.device", p.Radio},
-			[2]string{"wireless.openrhp_ap.mode", "ap"},
-			[2]string{"wireless.openrhp_ap.network", p.ManagementInterface},
-			[2]string{"wireless.openrhp_ap.ssid", p.SSID},
-			[2]string{"wireless.openrhp_ap.encryption", "psk2+ccmp"},
-			[2]string{"wireless.openrhp_ap.key", p.Passphrase},
-			[2]string{"wireless.openrhp_ap.disabled", "0"},
+			[2]string{"wireless.routeharbor_ap", "wifi-iface"},
+			[2]string{"wireless.routeharbor_ap.routeharbor_owner", "1"},
+			[2]string{"wireless.routeharbor_ap.device", p.Radio},
+			[2]string{"wireless.routeharbor_ap.mode", "ap"},
+			[2]string{"wireless.routeharbor_ap.network", p.ManagementInterface},
+			[2]string{"wireless.routeharbor_ap.ssid", p.SSID},
+			[2]string{"wireless.routeharbor_ap.encryption", "psk2+ccmp"},
+			[2]string{"wireless.routeharbor_ap.key", p.Passphrase},
+			[2]string{"wireless.routeharbor_ap.disabled", "0"},
 		)
 		if p.Mode == "wds" || p.Mode == "mesh" {
 			mode, encryption := "sta", "psk2+ccmp"
@@ -302,23 +302,23 @@ func (b *UCIBackend) Apply(ctx context.Context, p Plan) error {
 			}
 			values = append(
 				values,
-				[2]string{"wireless.openrhp_backhaul", "wifi-iface"},
-				[2]string{"wireless.openrhp_backhaul.openrhp_owner", "1"},
-				[2]string{"wireless.openrhp_backhaul.device", p.Radio},
-				[2]string{"wireless.openrhp_backhaul.mode", mode},
-				[2]string{"wireless.openrhp_backhaul.network", p.ManagementInterface},
-				[2]string{"wireless.openrhp_backhaul.encryption", encryption},
-				[2]string{"wireless.openrhp_backhaul.key", p.Passphrase},
-				[2]string{"wireless.openrhp_backhaul.disabled", "0"},
+				[2]string{"wireless.routeharbor_backhaul", "wifi-iface"},
+				[2]string{"wireless.routeharbor_backhaul.routeharbor_owner", "1"},
+				[2]string{"wireless.routeharbor_backhaul.device", p.Radio},
+				[2]string{"wireless.routeharbor_backhaul.mode", mode},
+				[2]string{"wireless.routeharbor_backhaul.network", p.ManagementInterface},
+				[2]string{"wireless.routeharbor_backhaul.encryption", encryption},
+				[2]string{"wireless.routeharbor_backhaul.key", p.Passphrase},
+				[2]string{"wireless.routeharbor_backhaul.disabled", "0"},
 			)
 			if p.Mode == "wds" {
 				values = append(
 					values,
-					[2]string{"wireless.openrhp_backhaul.wds", "1"},
-					[2]string{"wireless.openrhp_backhaul.ssid", p.SSID},
+					[2]string{"wireless.routeharbor_backhaul.wds", "1"},
+					[2]string{"wireless.routeharbor_backhaul.ssid", p.SSID},
 				)
 			} else {
-				values = append(values, [2]string{"wireless.openrhp_backhaul.mesh_id", p.SSID})
+				values = append(values, [2]string{"wireless.routeharbor_backhaul.mesh_id", p.SSID})
 			}
 		}
 	}
@@ -358,7 +358,7 @@ func (b *UCIBackend) Restore(ctx context.Context, s Snapshot, p Plan) error {
 		fields := strings.Fields(line)
 		if len(fields) >= 3 && fields[0] == "config" &&
 			strings.Trim(fields[1], "'\"") == "wifi-iface" &&
-			strings.Trim(fields[2], "'\"") == "openrhp_backhaul" {
+			strings.Trim(fields[2], "'\"") == "routeharbor_backhaul" {
 			wireless = true
 		}
 	}

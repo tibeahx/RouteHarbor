@@ -1,6 +1,6 @@
 # Current SDK package matrix
 
-On 2026-09-09 the official OpenWrt 24.10.7 SDK built all six OpenRHP packages
+On 2026-09-09 the official OpenWrt 24.10.7 SDK built all six RouteHarbor packages
 for each of three targets. These are development artifacts from frozen sources,
 not a signed release or physical-device compatibility claim.
 

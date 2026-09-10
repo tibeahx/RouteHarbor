@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/continuity"
-	"github.com/tibeahx/OpenRHP/internal/dataplane"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/continuity"
+	"github.com/tibeahx/RouteHarbor/internal/dataplane"
 )
 
 type continuityE2EMessage struct {
@@ -61,7 +61,7 @@ func continuityE2EChild(
 		executable = "/sbin/ip"
 	}
 	cmd := exec.CommandContext(ctx, executable, args...)
-	cmd.Env = append(os.Environ(), "OPENRHP_CONTINUITY_E2E_ROLE="+role)
+	cmd.Env = append(os.Environ(), "ROUTEHARBOR_CONTINUITY_E2E_ROLE="+role)
 	if unprivileged {
 		cmd.SysProcAttr = &syscall.SysProcAttr{
 			Credential: &syscall.Credential{Uid: 65534, Gid: 65534, Groups: []uint32{}},
@@ -117,7 +117,7 @@ func (p *continuityE2EProcess) exchange(
 // continuity evidence, not WAN independence or physical latency qualification.
 func TestLinuxContinuityTransparentE2E(t *testing.T) {
 	requireNetLab(t)
-	if os.Getenv("OPENRHP_CONTINUITY_E2E_NAMESPACE") != "1" {
+	if os.Getenv("ROUTEHARBOR_CONTINUITY_E2E_NAMESPACE") != "1" {
 		executable, err := os.Executable()
 		if err != nil {
 			t.Fatal(err)
@@ -129,7 +129,7 @@ func TestLinuxContinuityTransparentE2E(t *testing.T) {
 			"-test.v",
 			"-test.run=^TestLinuxContinuityTransparentE2E$",
 		)
-		cmd.Env = append(os.Environ(), "OPENRHP_CONTINUITY_E2E_NAMESPACE=1")
+		cmd.Env = append(os.Environ(), "ROUTEHARBOR_CONTINUITY_E2E_NAMESPACE=1")
 		output, err := cmd.CombinedOutput()
 		t.Log(string(output))
 		if err != nil {
@@ -140,9 +140,9 @@ func TestLinuxContinuityTransparentE2E(t *testing.T) {
 	prepareLab(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	const origin = "rhp-cont-origin"
-	const client = "rhp-cont-client"
-	const target = "rhp-cont-target"
+	const origin = "rh-cont-origin"
+	const client = "rh-cont-client"
+	const target = "rh-cont-target"
 	for _, namespace := range []string{origin, client, target} {
 		_ = exec.Command("/sbin/ip", "netns", "del", namespace).Run()
 		labCommand(t, "/sbin/ip", "netns", "add", namespace)
@@ -219,7 +219,7 @@ func TestLinuxContinuityTransparentE2E(t *testing.T) {
 	echo.exchange(t, continuityE2EMessage{})
 	relay := continuityE2EChild(t, ctx, origin, "relay", false)
 	relay.exchange(t, continuityE2EMessage{Worker: r})
-	dir, err := os.MkdirTemp("/tmp", "rhp-e2e-")
+	dir, err := os.MkdirTemp("/tmp", "rh-e2e-")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -306,7 +306,7 @@ func TestLinuxContinuityTransparentE2E(t *testing.T) {
 var continuityE2EOutput *json.Encoder
 
 func TestLinuxContinuityTransparentE2EChild(t *testing.T) {
-	role := os.Getenv("OPENRHP_CONTINUITY_E2E_ROLE")
+	role := os.Getenv("ROUTEHARBOR_CONTINUITY_E2E_ROLE")
 	if role == "" {
 		t.Skip("private integration subprocess")
 	}

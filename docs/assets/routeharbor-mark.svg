@@ -1,0 +1,28 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="128"
+  height="128"
+  viewBox="0 0 128 128"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">RouteHarbor mark</title>
+  <desc id="desc">A route entering an open harbor.</desc>
+  <g transform="translate(0 9)">
+    <path
+      d="M22 20V74C22 91 34 102 51 102H77C94 102 106 91 106 74V20"
+      fill="none"
+      stroke="#153E4A"
+      stroke-width="12"
+      stroke-linecap="round"
+    />
+    <path
+      d="M64 2V40C64 53 82 53 82 66C82 76 74 82 64 82"
+      fill="none"
+      stroke="#007F7B"
+      stroke-width="10"
+      stroke-linecap="round"
+    />
+    <circle cx="64" cy="82" r="8" fill="#007F7B" />
+  </g>
+</svg>

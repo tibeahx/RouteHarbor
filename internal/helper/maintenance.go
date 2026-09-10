@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/tibeahx/OpenRHP/internal/maintenance"
+	"github.com/tibeahx/RouteHarbor/internal/maintenance"
 )
 
 // MaintenanceClient forwards only typed, local, administrator-approved operations.

@@ -6,7 +6,7 @@ const fs = require('node:fs');
 test('managed Wi-Fi uses detected main AP without browser secrets and preserves pending confirmation', async ({
   page,
 }) => {
-  const token = fs.readFileSync(process.env.OPENRHP_TEST_TOKEN_FILE, 'utf8').trim();
+  const token = fs.readFileSync(process.env.ROUTEHARBOR_TEST_TOKEN_FILE, 'utf8').trim();
   const gatewayFingerprint = 'a'.repeat(64);
   const nodeFingerprint = 'b'.repeat(64);
   const capabilities = {

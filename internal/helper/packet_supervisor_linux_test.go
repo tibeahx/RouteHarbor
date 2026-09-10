@@ -13,7 +13,7 @@ import (
 )
 
 func TestLinuxPacketManagerCrashChild(t *testing.T) {
-	if os.Getenv("OPENRHP_PACKET_CRASH_CHILD") != "1" {
+	if os.Getenv("ROUTEHARBOR_PACKET_CRASH_CHILD") != "1" {
 		t.Skip("subprocess only")
 	}
 	requireNetLab(t)
@@ -24,7 +24,7 @@ func TestLinuxPacketManagerCrashChild(t *testing.T) {
 	defer func() { _ = life.Close() }()
 	defer func() { _ = cmd.Wait() }()
 	if err = os.WriteFile(
-		os.Getenv("OPENRHP_PACKET_WORKER_PID"),
+		os.Getenv("ROUTEHARBOR_PACKET_WORKER_PID"),
 		[]byte(strconv.Itoa(cmd.Process.Pid)),
 		0o600,
 	); err != nil {
@@ -41,8 +41,8 @@ func TestLinuxPacketSupervisorAfterManagerSIGKILL(t *testing.T) {
 	parent := exec.Command(os.Args[0], "-test.run=^TestLinuxPacketManagerCrashChild$", "-test.v")
 	parent.Env = append(
 		os.Environ(),
-		"OPENRHP_PACKET_CRASH_CHILD=1",
-		"OPENRHP_PACKET_WORKER_PID="+pidFile,
+		"ROUTEHARBOR_PACKET_CRASH_CHILD=1",
+		"ROUTEHARBOR_PACKET_WORKER_PID="+pidFile,
 	)
 	parent.Stdout = os.Stderr
 	parent.Stderr = os.Stderr

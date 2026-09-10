@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/tibeahx/OpenRHP/internal/adapter"
-	"github.com/tibeahx/OpenRHP/internal/release"
+	"github.com/tibeahx/RouteHarbor/internal/adapter"
+	"github.com/tibeahx/RouteHarbor/internal/release"
 )
 
 type jobRecord struct {
@@ -60,10 +60,10 @@ func (m *Manager) Capabilities(ctx context.Context) (map[string]any, error) {
 		"active":              activeID != "",
 		"active_operation_id": activeID,
 		"components": []string{
-			"openrhp",
-			"openrhp-sing-box",
-			"openrhp-xray",
-			"openrhp-conntrack", "openrhp-continuity",
+			"routeharbor",
+			"routeharbor-sing-box",
+			"routeharbor-xray",
+			"routeharbor-conntrack", "routeharbor-continuity",
 		},
 		"actions": []string{"install", "upgrade", "remove"},
 	}
@@ -78,7 +78,7 @@ func (m *Manager) Capabilities(ctx context.Context) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
-	result["available"] = inventory.Packages["openrhp-guard"] != "" && m.worker != nil
+	result["available"] = inventory.Packages["routeharbor-guard"] != "" && m.worker != nil
 	result["architecture"], result["installed_digest"] = inventory.Architecture, digest
 	return result, nil
 }

@@ -26,13 +26,13 @@ def run(args, data=None, good=True):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--packages", type=pathlib.Path, required=True)
-    parser.add_argument("--image", default=os.environ.get("OPENRHP_OPENWRT_LAB_IMAGE", "openrhp-openwrt-deps:24.10.7"))
+    parser.add_argument("--image", default=os.environ.get("ROUTEHARBOR_OPENWRT_LAB_IMAGE", "routeharbor-openwrt-deps:24.10.7"))
     args = parser.parse_args()
     packages = args.packages.resolve(strict=True)
-    for pattern in ("openrhp_*.ipk", "openrhp-guard_*.ipk", "openrhp-node_*.ipk"):
+    for pattern in ("routeharbor_*.ipk", "routeharbor-guard_*.ipk", "routeharbor-node_*.ipk"):
         if len(list(packages.glob(pattern))) != 1:
             raise ValueError(f"Expected exactly one current SDK package matching {pattern}")
-    container_name = "openrhp-package-lab-" + uuid.uuid4().hex[:12]
+    container_name = "routeharbor-package-lab-" + uuid.uuid4().hex[:12]
     run(["docker", "run", "--detach", "--rm", "--name", container_name, "--platform", "linux/amd64", "--network", "none",
          "--cap-add", "NET_ADMIN", "--cap-add", "NET_RAW", "--mount", f"type=bind,source={packages},target=/packages,readonly",
          "--entrypoint", "/bin/sh", args.image, "-c", "mkdir -p /var/run/ubus /var/lock /var/log; /sbin/ubusd & /sbin/procd -S & wait"])
@@ -43,8 +43,8 @@ def main():
     def shell(script, good=True):
         return command("/bin/sh", "-eu", data=script, good=good)
 
-    def api(path, method="GET", data=None, revision=None, token="/root/openrhp-private/admin.token"):
-        argv = ["/usr/bin/openrhp", "api", "--token-file", token, "--path", path, "--method", method]
+    def api(path, method="GET", data=None, revision=None, token="/root/routeharbor-private/admin.token"):
+        argv = ["/usr/bin/routeharbor", "api", "--token-file", token, "--path", path, "--method", method]
         if data is not None:
             argv += ["--data", "-", "--idempotency-key", uuid.uuid4().hex]
         if revision is not None:
@@ -112,24 +112,24 @@ config interface 'fiber'
 CONFIG
 /etc/init.d/network start
 sha256sum /etc/config/network /etc/config/dhcp /etc/config/firewall > /tmp/network-before.sha
-opkg install /packages/openrhp-guard_*.ipk /packages/openrhp_*.ipk /packages/openrhp-node_*.ipk
-[ "$(uci -q get openrhp.main.enabled)" = 0 ]
-[ "$(uci -q get openrhp-node.main.enabled)" = 0 ]
-mkdir -p /root/openrhp-private
-chmod 0700 /root/openrhp-private
-/usr/libexec/openrhp-setup /root/openrhp-private/admin.token
-/usr/libexec/openrhp-node-setup /root/openrhp-private/node.code
-sha256sum /root/openrhp-private/admin.token /root/openrhp-private/node.code /etc/openrhp-node/identity.json > /tmp/identity-before.sha
-/usr/libexec/openrhp-setup /root/openrhp-private/admin.token
-/usr/libexec/openrhp-node-setup /root/openrhp-private/node.code
+opkg install /packages/routeharbor-guard_*.ipk /packages/routeharbor_*.ipk /packages/routeharbor-node_*.ipk
+[ "$(uci -q get routeharbor.main.enabled)" = 0 ]
+[ "$(uci -q get routeharbor-node.main.enabled)" = 0 ]
+mkdir -p /root/routeharbor-private
+chmod 0700 /root/routeharbor-private
+/usr/libexec/routeharbor-setup /root/routeharbor-private/admin.token
+/usr/libexec/routeharbor-node-setup /root/routeharbor-private/node.code
+sha256sum /root/routeharbor-private/admin.token /root/routeharbor-private/node.code /etc/routeharbor-node/identity.json > /tmp/identity-before.sha
+/usr/libexec/routeharbor-setup /root/routeharbor-private/admin.token
+/usr/libexec/routeharbor-node-setup /root/routeharbor-private/node.code
 sha256sum -c /tmp/network-before.sha
 sha256sum -c /tmp/identity-before.sha
 ''')
         assert not wait_api()["network_applied"]
-        api_uid = int(command("id", "-u", "openrhp").stdout)
-        node_uid = int(command("id", "-u", "openrhp-node").stdout)
+        api_uid = int(command("id", "-u", "routeharbor").stdout)
+        node_uid = int(command("id", "-u", "routeharbor-node").stdout)
         assert api_uid and node_uid and api_uid != node_uid
-        for name, uid in (("openrhp", api_uid), ("openrhp-guard", 0), ("openrhp-node", node_uid), ("openrhp-node-helper", 0)):
+        for name, uid in (("routeharbor", api_uid), ("routeharbor-guard", 0), ("routeharbor-node", node_uid), ("routeharbor-node-helper", 0)):
             service(name, uid)
         report = api("/api/v1/capabilities")["platform"]
         assert report["supported"], report
@@ -137,26 +137,26 @@ sha256sum -c /tmp/identity-before.sha
         assert report["capabilities"]["lifecycle_guard"]["available"]
         assert not report["capabilities"]["break_existing"]["available"], "Optional conntrack support was advertised without its package"
         print("PASS SDK opkg install, fresh disabled defaults, repeat setup, service credentials, helper platform report", flush=True)
-        command("/usr/bin/openrhp", "as-service", "token", "--state", "/etc/openrhp", "--role", "read", "--out", "/etc/openrhp/admin/lab-read.token")
-        api("/api/v1/status", token="/etc/openrhp/admin/lab-read.token")
-        command("/etc/init.d/openrhp", "restart")
-        command("/etc/init.d/openrhp-node", "restart")
+        command("/usr/bin/routeharbor", "as-service", "token", "--state", "/etc/routeharbor", "--role", "read", "--out", "/etc/routeharbor/admin/lab-read.token")
+        api("/api/v1/status", token="/etc/routeharbor/admin/lab-read.token")
+        command("/etc/init.d/routeharbor", "restart")
+        command("/etc/init.d/routeharbor-node", "restart")
         wait_api()
         shell("sha256sum -c /tmp/network-before.sha\nsha256sum -c /tmp/identity-before.sha\n")
         print("PASS credential administration and procd restart preserve identity and network", flush=True)
 
         # Read only the public certificate; keep the enrollment secret in memory
         # and send it on stdin, never through process arguments or test output.
-        certificate = command("jsonfilter", "-i", "/etc/openrhp-node/identity.json", "-e", "@.certificate").stdout
+        certificate = command("jsonfilter", "-i", "/etc/routeharbor-node/identity.json", "-e", "@.certificate").stdout
         fingerprint = hashlib.sha256(ssl.PEM_cert_to_DER_cert(certificate)).hexdigest()
-        enrollment = command("cat", "/root/openrhp-private/node.code").stdout.strip()
+        enrollment = command("cat", "/root/routeharbor-private/node.code").stdout.strip()
         paired = api("/api/v1/nodes/pair", "POST", {"address": "https://127.0.0.1:9844", "fingerprint": fingerprint, "code": enrollment, "name": "Packaged node"})
         node = paired["result"]["node"]
         assert node["capabilities"]["openwrt"] and node["capabilities"]["ethernet"], node["capabilities"]
         api(f"/api/v1/nodes/{node['id']}/status")
-        denied = command("/usr/libexec/openrhp-helper", "verify-wireless", "--radio", "radio0", "--interface", "wlan0", "--mode", "wds", "--peer-fingerprint", fingerprint, "--peer-mac", "02:00:00:00:00:42", "--checked-encryption", "--checked-client-addresses", "--checked-single-dhcp", "--checked-management-recovery", "--checked-concurrent-ap", good=False)
+        denied = command("/usr/libexec/routeharbor-helper", "verify-wireless", "--radio", "radio0", "--interface", "wlan0", "--mode", "wds", "--peer-fingerprint", fingerprint, "--peer-mac", "02:00:00:00:00:42", "--checked-encryption", "--checked-client-addresses", "--checked-single-dhcp", "--checked-management-recovery", "--checked-concurrent-ap", good=False)
         assert denied.returncode, "Radio-free container incorrectly authorized a wireless receipt"
-        assert command("test", "-e", "/etc/openrhp-helper/wireless-verification.json", good=False).returncode
+        assert command("test", "-e", "/etc/routeharbor-helper/wireless-verification.json", good=False).returncode
         api(f"/api/v1/nodes/{node['id']}", "DELETE", {})
         print("PASS packaged node pairing/capabilities/status/revocation and wireless receipt refusal without live hardware", flush=True)
 
@@ -173,7 +173,7 @@ sha256sum -c /tmp/identity-before.sha
             pass
         else:
             raise AssertionError("Missing optional conntrack support passed privileged preflight")
-        assert command("test", "-e", "/etc/openrhp-helper/transaction.json", good=False).returncode
+        assert command("test", "-e", "/etc/routeharbor-helper/transaction.json", good=False).returncode
         config["revision"] = revision
         config["policy"]["break_existing"] = False
         api("/api/v1/config", "PUT", config, revision)
@@ -184,24 +184,24 @@ sha256sum -c /tmp/identity-before.sha
         for action in ("apply", "confirm"):
             outcome = api(f"/api/v1/transactions/{transaction}/{action}", "POST", {})
             assert outcome["state"] == "succeeded", outcome
-        command("/etc/init.d/openrhp", "stop")
+        command("/etc/init.d/routeharbor", "stop")
         blocked()
         command("fw4", "flush")
         blocked()
         command("/etc/init.d/firewall", "start")
-        assert "OpenRHP" in command("nft", "list", "table", "inet", "openrhp_guard").stdout
+        assert "RouteHarbor" in command("nft", "list", "table", "inet", "routeharbor_guard").stdout
         command("/etc/init.d/firewall", "reload")
         blocked()
         print("PASS real API apply/confirm, procd stop, fw4 flush/start/reload and LAN management preservation", flush=True)
-        command("opkg", "remove", "openrhp")
-        assert command("/usr/libexec/openrhp-helper", "can-remove", "--state-dir", "/etc/openrhp-helper", good=False).returncode
-        result = command("opkg", "remove", "openrhp-guard", good=False)
-        assert result.returncode and "openrhp-guard" in command("opkg", "list-installed").stdout
+        command("opkg", "remove", "routeharbor")
+        assert command("/usr/libexec/routeharbor-helper", "can-remove", "--state-dir", "/etc/routeharbor-helper", good=False).returncode
+        result = command("opkg", "remove", "routeharbor-guard", good=False)
+        assert result.returncode and "routeharbor-guard" in command("opkg", "list-installed").stdout
         blocked()
-        command("/usr/libexec/openrhp-helper", "decommission", "--state-dir", "/etc/openrhp-helper", "--policy", "restore-direct")
-        command("/usr/libexec/openrhp-helper", "can-remove", "--state-dir", "/etc/openrhp-helper")
-        command("opkg", "remove", "openrhp-guard", "openrhp-node")
-        assert "openrhp" not in command("opkg", "list-installed").stdout
+        command("/usr/libexec/routeharbor-helper", "decommission", "--state-dir", "/etc/routeharbor-helper", "--policy", "restore-direct")
+        command("/usr/libexec/routeharbor-helper", "can-remove", "--state-dir", "/etc/routeharbor-helper")
+        command("opkg", "remove", "routeharbor-guard", "routeharbor-node")
+        assert "routeharbor" not in command("opkg", "list-installed").stdout
         shell("sha256sum -c /tmp/network-before.sha\nsha256sum -c /tmp/identity-before.sha\n")
         print("PASS protected guard removal refused; explicit decommission and ordinary uninstall preserve user state", flush=True)
         print("PASS OpenWrt 24.10.7 x86_64 userland/procd package lifecycle (Docker Linux kernel; no physical or radio claim)", flush=True)

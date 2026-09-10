@@ -21,10 +21,10 @@ type recoveryBackend interface {
 
 func recoverablePackage(name string) bool {
 	switch name {
-	case "openrhp",
-		"openrhp-sing-box",
-		"openrhp-xray",
-		"openrhp-conntrack", "openrhp-continuity",
+	case "routeharbor",
+		"routeharbor-sing-box",
+		"routeharbor-xray",
+		"routeharbor-conntrack", "routeharbor-continuity",
 		"sing-box",
 		"xray-core",
 		"conntrack":

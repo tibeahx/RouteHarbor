@@ -23,7 +23,7 @@ rejected by the new section-bounds check. Those old packages need regeneration;
 their successful compilation is not evidence that their inspection metadata was
 valid.
 
-The [recipe](../../packaging/openwrt/openrhp/Makefile) now sets package-local
+The [recipe](../../packaging/openwrt/routeharbor/Makefile) now sets package-local
 `RSTRIP:=:` after including the SDK package definitions. It bundles only the
 three Go executables and scripts; the Go linker already removes symbols and
 DWARF with `-s -w`. Runtime dependencies and SDK package generation are unchanged.
@@ -56,7 +56,7 @@ must agree with those identities.
 To inspect an existing set before signing or binary vulnerability analysis:
 
 ```sh
-GO=/absolute/go1.27.1/bin/go python3 packaging/tests/check_ipk_elf.py /absolute/sdk-packages/openrhp*.ipk
+GO=/absolute/go1.27.1/bin/go python3 packaging/tests/check_ipk_elf.py /absolute/sdk-packages/routeharbor*.ipk
 ```
 
 The check deliberately rejects malformed or unreadable build metadata. It does

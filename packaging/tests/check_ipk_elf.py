@@ -17,13 +17,13 @@ import tarfile
 import tempfile
 
 EXPECTED = {
-    'openrhp': ('usr/bin/openrhp', 'github.com/tibeahx/OpenRHP/cmd/openrhp'),
-    'openrhp-guard': ('usr/libexec/openrhp-helper', 'github.com/tibeahx/OpenRHP/cmd/openrhp-helper'),
-    'openrhp-node': ('usr/bin/openrhp-node', 'github.com/tibeahx/OpenRHP/cmd/openrhp-node'),
-    'openrhp-sing-box': None,
-    'openrhp-xray': None,
-    'openrhp-conntrack': None,
-    'openrhp-continuity': ('usr/libexec/openrhp-continuity', 'github.com/tibeahx/OpenRHP/cmd/openrhp-continuity'),
+    'routeharbor': ('usr/bin/routeharbor', 'github.com/tibeahx/RouteHarbor/cmd/routeharbor'),
+    'routeharbor-guard': ('usr/libexec/routeharbor-helper', 'github.com/tibeahx/RouteHarbor/cmd/routeharbor-helper'),
+    'routeharbor-node': ('usr/bin/routeharbor-node', 'github.com/tibeahx/RouteHarbor/cmd/routeharbor-node'),
+    'routeharbor-sing-box': None,
+    'routeharbor-xray': None,
+    'routeharbor-conntrack': None,
+    'routeharbor-continuity': ('usr/libexec/routeharbor-continuity', 'github.com/tibeahx/RouteHarbor/cmd/routeharbor-continuity'),
 }
 MAX_BYTES = 128 << 20
 
@@ -155,7 +155,7 @@ def check_package(path, go):
         info = elf_info(data)
         if info['goarch'] != package_goarch(architecture):
             raise ValueError('ELF machine disagrees with package architecture')
-        with tempfile.TemporaryDirectory(prefix='openrhp-package-elf-') as directory:
+        with tempfile.TemporaryDirectory(prefix='routeharbor-package-elf-') as directory:
             binary = pathlib.Path(directory) / 'binary'
             binary.write_bytes(data)
             binary.chmod(0o600)
@@ -164,7 +164,7 @@ def check_package(path, go):
             if result.returncode or not lines or lines[0] != str(binary) + ': go1.27.1':
                 raise ValueError('Go cannot read the pinned build metadata from the packaged ELF')
             metadata = [line.strip().split('\t') for line in lines[1:]]
-            if ['path', expected[1]] not in metadata or not any(row[:2] == ['mod', 'github.com/tibeahx/OpenRHP'] for row in metadata) or ['build', 'GOOS=linux'] not in metadata or ['build', 'CGO_ENABLED=0'] not in metadata or ['build', 'GOARCH=' + info['goarch']] not in metadata:
+            if ['path', expected[1]] not in metadata or not any(row[:2] == ['mod', 'github.com/tibeahx/RouteHarbor'] for row in metadata) or ['build', 'GOOS=linux'] not in metadata or ['build', 'CGO_ENABLED=0'] not in metadata or ['build', 'GOARCH=' + info['goarch']] not in metadata:
                 raise ValueError('Go build metadata disagrees with the package contract')
             for setting in ['GOMIPS=softfloat'] if info['goarch'] in ('mips', 'mipsle') else ['GOMIPS64=softfloat'] if info['goarch'] in ('mips64', 'mips64le') else []:
                 if ['build', setting] not in metadata:

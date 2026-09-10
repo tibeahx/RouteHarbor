@@ -63,7 +63,7 @@ teardown reproduced it without reboot. Both before/after traces were retained.
   owner/foreign-owner checks, conntrack, crash rollback and detached watchdogs.
 - Local ignored artifacts under `test-results/openwrt-boot-network/`: before/after
   boot and controlled-teardown logs, calibrated DNS log and synthetic pcaps.
-- Host-side working logs remain under `/private/tmp/openrhp-vm/`.
+- Host-side working logs remain under `/private/tmp/routeharbor-vm/`.
 
 After this checkpoint, `/etc/config/network`, `/etc/config/firewall` and
 `/etc/config/dhcp` matched their pre-install hashes. The temporary serial monitor
